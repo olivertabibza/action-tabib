@@ -36,7 +36,7 @@ const fanBullets = [
 const features: { icon: LucideIcon; title: string; blurb: string }[] = [
   {
     icon: IdCard,
-    title: "Creator Profiles",
+    title: "Industry Professional Profiles",
     blurb: "A polished home for your reel, résumé, and credits.",
   },
   {
@@ -85,7 +85,7 @@ export default function Home() {
               size="lg"
               className="h-12 w-full px-8 text-base sm:w-auto"
             >
-              <Link href="/signup?type=creator">Join as a Creator</Link>
+              <Link href="/signup?type=creator">Join as an Industry Professional</Link>
             </Button>
             <Button
               asChild
@@ -93,7 +93,7 @@ export default function Home() {
               variant="outline"
               className="h-12 w-full px-8 text-base sm:w-auto"
             >
-              <Link href="/signup?type=fan">Join as a Fan</Link>
+              <Link href="/signup?type=fan">Join as a Consumer</Link>
             </Button>
           </div>
         </div>
@@ -104,7 +104,7 @@ export default function Home() {
         <div className="grid gap-6 md:grid-cols-2">
           <Card className="p-2">
             <CardHeader>
-              <CardTitle className="text-xl">For Creatives</CardTitle>
+              <CardTitle className="text-xl">For Industry Professionals</CardTitle>
               <CardAction>
                 <Tag>Application Required</Tag>
               </CardAction>
@@ -116,7 +116,7 @@ export default function Home() {
 
           <Card className="p-2">
             <CardHeader>
-              <CardTitle className="text-xl">For Fans</CardTitle>
+              <CardTitle className="text-xl">For Consumers</CardTitle>
               <CardAction>
                 <Tag>Open Access</Tag>
               </CardAction>
