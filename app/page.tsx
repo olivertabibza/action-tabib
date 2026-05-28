@@ -1,65 +1,194 @@
-import Image from "next/image";
+import Link from "next/link";
+import {
+  IdCard,
+  Briefcase,
+  GraduationCap,
+  MessageSquare,
+  CalendarDays,
+  Newspaper,
+  Check,
+  type LucideIcon,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+
+const creativeBullets = [
+  "Find auditions",
+  "Build a professional profile",
+  "Post and apply to projects",
+  "Take acting classes",
+  "Attend mixers and events",
+];
+
+const fanBullets = [
+  "Indie film news and interviews",
+  "Follow rising filmmakers",
+  "Attend screenings and panels",
+  "Discover new talent",
+];
+
+const features: { icon: LucideIcon; title: string; blurb: string }[] = [
+  {
+    icon: IdCard,
+    title: "Creator Profiles",
+    blurb: "A polished home for your reel, résumé, and credits.",
+  },
+  {
+    icon: Briefcase,
+    title: "Project Marketplace",
+    blurb: "Post roles and gigs, or apply to the ones that fit you.",
+  },
+  {
+    icon: GraduationCap,
+    title: "Acting Classes",
+    blurb: "Sharpen your craft with courses from working pros.",
+  },
+  {
+    icon: MessageSquare,
+    title: "Social Feed",
+    blurb: "Share updates and stay connected with your community.",
+  },
+  {
+    icon: CalendarDays,
+    title: "Events & Mixers",
+    blurb: "Meet collaborators at screenings, panels, and mixers.",
+  },
+  {
+    icon: Newspaper,
+    title: "Entertainment News",
+    blurb: "Indie film coverage and interviews with rising voices.",
+  },
+];
 
 export default function Home() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
+    <main className="flex-1">
+      {/* Hero */}
+      <section className="mx-auto w-full max-w-6xl px-4 py-20 sm:px-6 sm:py-28 lg:py-32">
+        <div className="mx-auto max-w-3xl text-center">
+          <h1 className="text-4xl font-bold tracking-tight text-balance sm:text-5xl lg:text-6xl">
+            Where the next generation of film gets made
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+          <p className="mt-6 text-lg text-muted-foreground text-balance sm:text-xl">
+            A private network for pre-union actors, writers, and filmmakers —
+            and the fans who follow them.
           </p>
+          <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
+            <Button
+              asChild
+              size="lg"
+              className="h-12 w-full px-8 text-base sm:w-auto"
+            >
+              <Link href="/signup?type=creator">Join as a Creator</Link>
+            </Button>
+            <Button
+              asChild
+              size="lg"
+              variant="outline"
+              className="h-12 w-full px-8 text-base sm:w-auto"
+            >
+              <Link href="/signup?type=fan">Join as a Fan</Link>
+            </Button>
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
+      </section>
+
+      {/* Two audiences */}
+      <section className="mx-auto w-full max-w-6xl px-4 pb-20 sm:px-6 sm:pb-28">
+        <div className="grid gap-6 md:grid-cols-2">
+          <Card className="p-2">
+            <CardHeader>
+              <CardTitle className="text-xl">For Creatives</CardTitle>
+              <CardAction>
+                <Tag>Application Required</Tag>
+              </CardAction>
+            </CardHeader>
+            <CardContent>
+              <BulletList items={creativeBullets} />
+            </CardContent>
+          </Card>
+
+          <Card className="p-2">
+            <CardHeader>
+              <CardTitle className="text-xl">For Fans</CardTitle>
+              <CardAction>
+                <Tag>Open Access</Tag>
+              </CardAction>
+            </CardHeader>
+            <CardContent>
+              <BulletList items={fanBullets} />
+            </CardContent>
+          </Card>
+        </div>
+      </section>
+
+      {/* What's inside */}
+      <section className="border-t border-border bg-muted/30">
+        <div className="mx-auto w-full max-w-6xl px-4 py-20 sm:px-6 sm:py-28">
+          <h2 className="text-center text-3xl font-bold tracking-tight sm:text-4xl">
+            Everything in one place
+          </h2>
+          <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {features.map(({ icon: Icon, title, blurb }) => (
+              <div
+                key={title}
+                className="rounded-xl border border-border bg-card p-6"
+              >
+                <Icon className="size-8 text-brand" strokeWidth={1.75} />
+                <h3 className="mt-4 text-base font-semibold">{title}</h3>
+                <p className="mt-1.5 text-sm text-muted-foreground">{blurb}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="border-t border-border">
+        <div className="mx-auto flex w-full max-w-6xl flex-col items-center justify-between gap-4 px-4 py-8 text-sm text-muted-foreground sm:flex-row sm:px-6">
+          <div className="flex flex-col items-center gap-2 sm:flex-row sm:gap-3">
+            <span>© 2026 Action</span>
+            <span className="rounded-full border border-border px-2.5 py-0.5 text-xs">
+              Working title — coming soon
+            </span>
+          </div>
           <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
+            href="https://action-web-kappa.vercel.app"
+            className="font-medium text-foreground transition-colors hover:text-brand"
             target="_blank"
             rel="noopener noreferrer"
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
+            View business plan →
           </a>
         </div>
-      </main>
-    </div>
+      </footer>
+    </main>
+  );
+}
+
+function Tag({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="rounded-full bg-brand/10 px-2.5 py-1 text-xs font-medium text-brand">
+      {children}
+    </span>
+  );
+}
+
+function BulletList({ items }: { items: string[] }) {
+  return (
+    <ul className="flex flex-col gap-3">
+      {items.map((item) => (
+        <li key={item} className="flex items-start gap-3 text-base">
+          <Check className="mt-0.5 size-5 shrink-0 text-brand" />
+          <span>{item}</span>
+        </li>
+      ))}
+    </ul>
   );
 }
