@@ -2,24 +2,50 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Menu, X } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { LogOut, Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
-const navLinks = [
+const loggedOutLinks = [
   { href: "/for-creators", label: "For Industry Professionals" },
   { href: "/for-fans", label: "For Consumers" },
   { href: "/login", label: "Log in" },
 ];
 
-export function Nav() {
+const loggedInLinks = [
+  { href: "/home", label: "Home" },
+  { href: "/profile", label: "Profile" },
+];
+
+export function Nav({
+  authed,
+  displayName,
+}: {
+  authed: boolean;
+  displayName: string | null;
+}) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  async function handleLogout() {
+    setLoggingOut(true);
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    setOpen(false);
+    // Back to the marketing landing page, then refresh so the nav + any
+    // server components re-render in their logged-out state.
+    router.push("/");
+    router.refresh();
+  }
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <nav className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-4 sm:px-6">
         <Link
-          href="/"
+          href={authed ? "/home" : "/"}
           className="text-2xl font-bold tracking-tight text-brand"
           onClick={() => setOpen(false)}
         >
@@ -28,18 +54,48 @@ export function Nav() {
 
         {/* Desktop links */}
         <div className="hidden items-center gap-6 md:flex">
-          {navLinks.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className="text-sm font-medium text-foreground/80 transition-colors hover:text-foreground"
-            >
-              {link.label}
-            </Link>
-          ))}
-          <Button asChild size="lg" className="px-5">
-            <Link href="/signup">Sign up</Link>
-          </Button>
+          {authed ? (
+            <>
+              {loggedInLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className="text-sm font-medium text-foreground/80 transition-colors hover:text-foreground"
+                >
+                  {link.label}
+                </Link>
+              ))}
+              {displayName && (
+                <span className="max-w-[12rem] truncate text-sm text-muted-foreground">
+                  {displayName}
+                </span>
+              )}
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={handleLogout}
+                disabled={loggingOut}
+              >
+                <LogOut className="size-4" />
+                {loggingOut ? "Logging out…" : "Log out"}
+              </Button>
+            </>
+          ) : (
+            <>
+              {loggedOutLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className="text-sm font-medium text-foreground/80 transition-colors hover:text-foreground"
+                >
+                  {link.label}
+                </Link>
+              ))}
+              <Button asChild size="lg" className="px-5">
+                <Link href="/signup">Sign up</Link>
+              </Button>
+            </>
+          )}
         </div>
 
         {/* Mobile toggle */}
@@ -62,7 +118,7 @@ export function Nav() {
         )}
       >
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-1 px-4 py-4 sm:px-6">
-          {navLinks.map((link) => (
+          {(authed ? loggedInLinks : loggedOutLinks).map((link) => (
             <Link
               key={link.href}
               href={link.href}
@@ -72,11 +128,24 @@ export function Nav() {
               {link.label}
             </Link>
           ))}
-          <Button asChild size="lg" className="mt-2 w-full">
-            <Link href="/signup" onClick={() => setOpen(false)}>
-              Sign up
-            </Link>
-          </Button>
+          {authed ? (
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={handleLogout}
+              disabled={loggingOut}
+              className="mt-2 w-full"
+            >
+              <LogOut className="size-4" />
+              {loggingOut ? "Logging out…" : "Log out"}
+            </Button>
+          ) : (
+            <Button asChild size="lg" className="mt-2 w-full">
+              <Link href="/signup" onClick={() => setOpen(false)}>
+                Sign up
+              </Link>
+            </Button>
+          )}
         </div>
       </div>
     </header>

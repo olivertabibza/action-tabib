@@ -242,7 +242,7 @@ function ProfessionalStep({
 
       if (insertError) throw insertError;
 
-      router.push("/apply/pending");
+      router.push("/home");
     } catch (err) {
       console.error(
         "[onboarding] Professional application failed:",
@@ -405,7 +405,7 @@ function ConsumerStep({
 
       if (insertError) throw insertError;
 
-      router.push("/welcome");
+      router.push("/home");
     } catch (err) {
       console.error(
         "[onboarding] Consumer signup failed:",
