@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowRight, Clock, UserRound } from "lucide-react";
+import { ArrowRight, Clapperboard, Clock, UserRound } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -32,6 +32,8 @@ export default async function HomePage() {
   const isProfessional = profile?.account_type === "professional";
   const isPending =
     isProfessional && profile?.application_status === "pending";
+  const isApproved =
+    isProfessional && profile?.application_status === "approved";
 
   return (
     <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-12 sm:px-6 sm:py-16">
@@ -74,6 +76,26 @@ export default async function HomePage() {
           </Card>
         </Link>
 
+        {isApproved && (
+          <Link href="/projects" className="group">
+            <Card className="h-full p-2 transition-colors group-hover:border-brand">
+              <CardHeader>
+                <span className="flex size-11 items-center justify-center rounded-lg bg-brand/10 text-brand">
+                  <Clapperboard className="size-5" strokeWidth={1.75} />
+                </span>
+                <CardTitle className="mt-4 flex items-center justify-between text-lg">
+                  Projects
+                  <ArrowRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+                </CardTitle>
+                <CardDescription>
+                  Browse and post roles, auditions, and collaborations — and
+                  track what you&rsquo;ve applied to.
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          </Link>
+        )}
+
         <Card className="h-full p-2 opacity-70">
           <CardHeader>
             <span className="flex size-11 items-center justify-center rounded-lg bg-muted text-muted-foreground">
@@ -81,7 +103,7 @@ export default async function HomePage() {
             </span>
             <CardTitle className="mt-4 text-lg">More coming soon</CardTitle>
             <CardDescription>
-              Projects, classes, events, and the social feed are on the way.
+              Classes, events, and the social feed are on the way.
             </CardDescription>
           </CardHeader>
           <CardContent />

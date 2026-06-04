@@ -11,6 +11,9 @@ export const profileSchema = z.object({
     .trim()
     .min(1, "Please enter a display name.")
     .max(80, "Keep your display name under 80 characters."),
+  // One of the marketplace disciplines (stored lowercase), or "" if not set.
+  // Kept as a loose string so any legacy onboarding role still validates.
+  role: z.string().trim().max(60),
   headline: z
     .string()
     .trim()

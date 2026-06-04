@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { NativeSelect } from "@/components/ui/native-select";
+import { DISCIPLINES, titleCase } from "@/lib/marketplace";
 import { profileSchema, type ProfileFormValues } from "./schema";
 import { updateProfile } from "./actions";
 
@@ -62,11 +64,20 @@ export function ProfileForm({ initial }: { initial: ProfileFormValues }) {
     });
   }
 
+  // Standard discipline options, plus any legacy onboarding role the user
+  // already has so editing other fields never silently wipes it.
+  const roleOptions = [...DISCIPLINES] as string[];
+  const currentRole = current.role.trim();
+  if (currentRole && !roleOptions.includes(currentRole.toLowerCase())) {
+    roleOptions.unshift(currentRole);
+  }
+
   if (!editing) {
     return (
       <div className="flex flex-col gap-6">
         <ReadField label="Display name" value={current.display_name} />
-        <ReadField label="Role / headline" value={current.headline} />
+        <ReadField label="Role" value={titleCase(current.role)} />
+        <ReadField label="Headline" value={current.headline} />
         <ReadField label="Bio" value={current.bio} multiline />
         <div>
           <Button type="button" variant="outline" onClick={startEditing}>
@@ -96,7 +107,26 @@ export function ProfileForm({ initial }: { initial: ProfileFormValues }) {
       </div>
 
       <div className="flex flex-col gap-2">
-        <Label htmlFor="headline">Role / headline</Label>
+        <Label htmlFor="role">Role</Label>
+        <NativeSelect
+          id="role"
+          aria-invalid={!!errors.role}
+          {...register("role")}
+        >
+          <option value="">Select your role</option>
+          {roleOptions.map((r) => (
+            <option key={r} value={r}>
+              {titleCase(r)}
+            </option>
+          ))}
+        </NativeSelect>
+        {errors.role && (
+          <p className="text-sm text-destructive">{errors.role.message}</p>
+        )}
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="headline">Headline</Label>
         <Input
           id="headline"
           placeholder="e.g. Director / Screenwriter"

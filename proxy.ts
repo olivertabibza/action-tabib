@@ -42,7 +42,9 @@ export async function proxy(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
   const isProtected =
-    pathname.startsWith("/home") || pathname.startsWith("/profile");
+    pathname.startsWith("/home") ||
+    pathname.startsWith("/profile") ||
+    pathname.startsWith("/projects");
   const isAuthPage = pathname === "/login" || pathname === "/signup";
 
   // Logged-out users can't reach the app — send them to log in.

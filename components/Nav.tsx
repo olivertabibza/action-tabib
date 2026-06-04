@@ -16,6 +16,7 @@ const loggedOutLinks = [
 
 const loggedInLinks = [
   { href: "/home", label: "Home" },
+  { href: "/projects", label: "Projects" },
   { href: "/profile", label: "Profile" },
 ];
 

@@ -29,6 +29,7 @@ export async function updateProfile(values: ProfileFormValues) {
     .from("profiles")
     .update({
       display_name: parsed.data.display_name,
+      role: parsed.data.role,
       headline: parsed.data.headline,
       bio: parsed.data.bio,
     })

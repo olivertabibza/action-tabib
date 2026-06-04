@@ -56,6 +56,7 @@ export default async function ProfilePage() {
 
   const initial = {
     display_name: profile?.display_name ?? "",
+    role: profile?.role ?? "",
     headline: profile?.headline ?? "",
     bio: profile?.bio ?? "",
   };
@@ -93,14 +94,6 @@ export default async function ProfilePage() {
               <p className="text-sm font-medium text-muted-foreground">Email</p>
               <p className="mt-1">{user.email}</p>
             </div>
-            {profile?.role && (
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">
-                  Primary role
-                </p>
-                <p className="mt-1">{profile.role}</p>
-              </div>
-            )}
           </CardContent>
         </Card>
 
