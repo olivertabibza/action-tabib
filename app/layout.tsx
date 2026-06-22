@@ -33,13 +33,15 @@ export default async function RootLayout({
   } = await supabase.auth.getUser();
 
   let displayName: string | null = null;
+  let isAdmin = false;
   if (user) {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("display_name")
+      .select("display_name, is_admin")
       .eq("id", user.id)
       .maybeSingle();
     displayName = profile?.display_name || user.email || null;
+    isAdmin = !!profile?.is_admin;
   }
 
   return (
@@ -48,7 +50,7 @@ export default async function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <Nav authed={!!user} displayName={displayName} />
+        <Nav authed={!!user} displayName={displayName} isAdmin={isAdmin} />
         {children}
       </body>
     </html>

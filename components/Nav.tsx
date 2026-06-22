@@ -23,13 +23,20 @@ const loggedInLinks = [
 export function Nav({
   authed,
   displayName,
+  isAdmin,
 }: {
   authed: boolean;
   displayName: string | null;
+  isAdmin: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+
+  // The Admin link only appears for admins.
+  const links = isAdmin
+    ? [...loggedInLinks, { href: "/admin", label: "Admin" }]
+    : loggedInLinks;
 
   async function handleLogout() {
     setLoggingOut(true);
@@ -57,7 +64,7 @@ export function Nav({
         <div className="hidden items-center gap-6 md:flex">
           {authed ? (
             <>
-              {loggedInLinks.map((link) => (
+              {links.map((link) => (
                 <Link
                   key={link.href}
                   href={link.href}
@@ -119,7 +126,7 @@ export function Nav({
         )}
       >
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-1 px-4 py-4 sm:px-6">
-          {(authed ? loggedInLinks : loggedOutLinks).map((link) => (
+          {(authed ? links : loggedOutLinks).map((link) => (
             <Link
               key={link.href}
               href={link.href}
