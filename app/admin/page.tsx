@@ -3,6 +3,7 @@ import { ExternalLink, FileText, Inbox } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
 import { titleCase } from "@/lib/marketplace";
+import { signedPortfolioUrls, type PortfolioFile } from "@/lib/portfolio";
 import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { AdminNav } from "./admin-nav";
@@ -25,31 +26,15 @@ export default async function AdminApplicationsPage({
 
   const { data: applicants, error } = await supabase
     .from("profiles")
-    .select("id, display_name, role, headline, bio, portfolio_files")
+    .select("id, display_name, role, headline, bio, email, portfolio_files")
     .eq("account_type", "professional")
     .eq("application_status", status)
     .order("display_name");
 
-  // The "portfolios" bucket is PRIVATE, so plain URLs won't load. Mint a
-  // short-lived signed URL for each uploaded file — same approach as /profile.
-  const filesByProfile = new Map<string, { name: string; url: string }[]>();
+  // Portfolio files live in a PRIVATE bucket; mint short-lived signed URLs.
+  const filesByProfile = new Map<string, PortfolioFile[]>();
   for (const a of applicants ?? []) {
-    const paths: string[] = Array.isArray(a.portfolio_files)
-      ? a.portfolio_files
-      : [];
-    const files: { name: string; url: string }[] = [];
-    for (const path of paths) {
-      const { data: signed } = await supabase.storage
-        .from("portfolios")
-        .createSignedUrl(path, 60 * 60); // valid for 1 hour
-      if (signed?.signedUrl) {
-        files.push({
-          name: path.split("/").pop() ?? path,
-          url: signed.signedUrl,
-        });
-      }
-    }
-    filesByProfile.set(a.id, files);
+    filesByProfile.set(a.id, await signedPortfolioUrls(supabase, a.portfolio_files));
   }
 
   return (
@@ -104,6 +89,10 @@ export default async function AdminApplicationsPage({
                       </span>
                     )}
                   </div>
+
+                  {a.email && (
+                    <p className="text-sm text-muted-foreground">{a.email}</p>
+                  )}
 
                   {a.headline && (
                     <p className="text-foreground/90">{a.headline}</p>

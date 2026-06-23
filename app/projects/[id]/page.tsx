@@ -4,6 +4,8 @@ import {
   ArrowLeft,
   Clapperboard,
   CheckCircle2,
+  ExternalLink,
+  FileText,
   Lock,
   MapPin,
   UserRound,
@@ -11,6 +13,7 @@ import {
 } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
+import { signedPortfolioUrls, type PortfolioFile } from "@/lib/portfolio";
 import {
   Card,
   CardContent,
@@ -23,6 +26,10 @@ import { ApplyForm } from "./apply-form";
 import { OwnerControls } from "./owner-controls";
 
 type Person = { display_name: string | null; role: string | null };
+type Applicant = Person & {
+  email: string | null;
+  portfolio_files: string[] | null;
+};
 
 export default async function ProjectDetailPage({
   params,
@@ -137,10 +144,21 @@ async function ApplicantsList({ projectId }: { projectId: string }) {
   const { data: applications } = await supabase
     .from("applications")
     .select(
-      "id, note, status, created_at, applicant:profiles!applications_applicant_id_fkey(display_name, role)"
+      "id, note, status, created_at, applicant:profiles!applications_applicant_id_fkey(display_name, role, email, portfolio_files)"
     )
     .eq("project_id", projectId)
     .order("created_at", { ascending: true });
+
+  // Owner-only view: the "portfolios" bucket is PRIVATE, so mint short-lived
+  // signed URLs for each applicant's files. Email + portfolios stay in here.
+  const filesByApp = new Map<string, PortfolioFile[]>();
+  for (const app of applications ?? []) {
+    const applicant = app.applicant as unknown as Applicant | null;
+    filesByApp.set(
+      app.id,
+      await signedPortfolioUrls(supabase, applicant?.portfolio_files)
+    );
+  }
 
   const count = applications?.length ?? 0;
 
@@ -160,7 +178,8 @@ async function ApplicantsList({ projectId }: { projectId: string }) {
         ) : (
           <ul className="flex flex-col gap-4">
             {applications!.map((app) => {
-              const applicant = app.applicant as unknown as Person | null;
+              const applicant = app.applicant as unknown as Applicant | null;
+              const files = filesByApp.get(app.id) ?? [];
               return (
                 <li
                   key={app.id}
@@ -177,11 +196,46 @@ async function ApplicantsList({ projectId }: { projectId: string }) {
                       </span>
                     )}
                   </div>
+                  {applicant?.email && (
+                    <a
+                      href={`mailto:${applicant.email}`}
+                      className="mt-1 inline-block text-sm text-brand hover:underline"
+                    >
+                      {applicant.email}
+                    </a>
+                  )}
                   {app.note && (
                     <p className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground">
                       {app.note}
                     </p>
                   )}
+                  <div className="mt-3">
+                    <p className="mb-2 text-sm font-medium text-muted-foreground">
+                      Portfolio
+                    </p>
+                    {files.length > 0 ? (
+                      <ul className="flex flex-col gap-2">
+                        {files.map((file) => (
+                          <li key={file.url}>
+                            <a
+                              href={file.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-3 rounded-lg border border-border px-3 py-2.5 text-sm transition-colors hover:border-brand hover:bg-muted/50"
+                            >
+                              <FileText className="size-4 shrink-0 text-brand" />
+                              <span className="truncate">{file.name}</span>
+                              <ExternalLink className="ml-auto size-4 shrink-0 text-muted-foreground" />
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        No portfolio files
+                      </p>
+                    )}
+                  </div>
                 </li>
               );
             })}
