@@ -27,6 +27,7 @@ import { OwnerControls } from "./owner-controls";
 
 type Person = { display_name: string | null; role: string | null };
 type Applicant = Person & {
+  id: string;
   email: string | null;
   portfolio_files: string[] | null;
 };
@@ -144,7 +145,7 @@ async function ApplicantsList({ projectId }: { projectId: string }) {
   const { data: applications } = await supabase
     .from("applications")
     .select(
-      "id, note, status, created_at, applicant:profiles!applications_applicant_id_fkey(display_name, role, email, portfolio_files)"
+      "id, note, status, created_at, applicant:profiles!applications_applicant_id_fkey(id, display_name, role, email, portfolio_files)"
     )
     .eq("project_id", projectId)
     .order("created_at", { ascending: true });
@@ -187,9 +188,18 @@ async function ApplicantsList({ projectId }: { projectId: string }) {
                 >
                   <div className="flex items-center gap-2">
                     <UserRound className="size-4 text-brand" />
-                    <span className="font-medium">
-                      {applicant?.display_name || "A member"}
-                    </span>
+                    {applicant?.id ? (
+                      <Link
+                        href={`/profile/${applicant.id}`}
+                        className="font-medium hover:underline"
+                      >
+                        {applicant.display_name || "A member"}
+                      </Link>
+                    ) : (
+                      <span className="font-medium">
+                        {applicant?.display_name || "A member"}
+                      </span>
+                    )}
                     {applicant?.role && (
                       <span className="text-sm text-muted-foreground">
                         · {titleCase(applicant.role)}

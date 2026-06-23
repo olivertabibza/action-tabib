@@ -81,7 +81,12 @@ export default async function AdminApplicationsPage({
                 <CardContent className="flex flex-col gap-4 pt-6">
                   <div className="flex flex-wrap items-center gap-3">
                     <h2 className="text-xl font-semibold">
-                      {a.display_name || "Unnamed applicant"}
+                      <Link
+                        href={`/profile/${a.id}`}
+                        className="hover:underline"
+                      >
+                        {a.display_name || "Unnamed applicant"}
+                      </Link>
                     </h2>
                     {a.role && (
                       <span className="rounded-full bg-brand/10 px-2.5 py-1 text-xs font-medium text-brand">
@@ -91,7 +96,12 @@ export default async function AdminApplicationsPage({
                   </div>
 
                   {a.email && (
-                    <p className="text-sm text-muted-foreground">{a.email}</p>
+                    <a
+                      href={`mailto:${a.email}`}
+                      className="text-sm text-brand hover:underline"
+                    >
+                      {a.email}
+                    </a>
                   )}
 
                   {a.headline && (

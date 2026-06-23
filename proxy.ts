@@ -41,9 +41,11 @@ export async function proxy(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
+  // /profile (own editable profile) is protected, but /profile/<id> is a
+  // public read-only view of an approved professional — leave it open.
   const isProtected =
     pathname.startsWith("/home") ||
-    pathname.startsWith("/profile") ||
+    pathname === "/profile" ||
     pathname.startsWith("/projects") ||
     pathname.startsWith("/admin");
   const isAuthPage = pathname === "/login" || pathname === "/signup";
