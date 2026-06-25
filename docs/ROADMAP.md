@@ -27,6 +27,8 @@ The minimum needed to onboard creators and run a working marketplace.
 
 Turn the marketplace into a network people return to.
 
+- Account-type-aware routing (separate Pro and Fan app shells)
+- Fan home/app — follow-only feed, Discover, Events, Read
 - Messaging
 - Social feed
 - Reviews

@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { LogOut, Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
@@ -14,31 +14,62 @@ const loggedOutLinks = [
   { href: "/login", label: "Log in" },
 ];
 
-const loggedInLinks = [
-  { href: "/home", label: "Home" },
-  { href: "/projects", label: "Projects" },
-  { href: "/profile", label: "Profile" },
-];
-
 export function Nav({
   authed,
   displayName,
   isAdmin,
   isApprovedPro,
+  isConsumer,
 }: {
   authed: boolean;
   displayName: string | null;
   isAdmin: boolean;
   isApprovedPro: boolean;
+  isConsumer: boolean;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
 
+  // The root layout computes `isConsumer` once and — because Next caches
+  // layouts and does NOT re-render them on client-side navigation — that value
+  // goes stale right after a fan signs in (the layout rendered while logged out
+  // is reused, so Projects wrongly stays). This nav is a Client Component, which
+  // DOES re-render on navigation: seed from the server prop (correct on a fresh
+  // load, no flash), then re-read the account type when auth state changes.
+  const [consumer, setConsumer] = useState(isConsumer);
+
+  useEffect(() => {
+    const supabase = createClient();
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      // INITIAL_SESSION / TOKEN_REFRESHED don't change the account type, and the
+      // SSR seed already covers a fresh load — only react to real auth changes.
+      if (event === "SIGNED_OUT") {
+        setConsumer(false);
+        return;
+      }
+      if (event !== "SIGNED_IN" && event !== "USER_UPDATED") return;
+      if (!session?.user) return;
+      supabase
+        .from("profiles")
+        .select("account_type")
+        .eq("id", session.user.id)
+        .maybeSingle()
+        .then(({ data }) => setConsumer(data?.account_type === "consumer"));
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // Projects (the marketplace) is Pro-only — never shown to consumers (fans).
   // Dashboard + Network are only for approved professionals; Admin only for
-  // admins. Both are appended to the base logged-in links.
+  // admins. All are appended to the base Home/Profile links.
   const links = [
-    ...loggedInLinks,
+    { href: "/home", label: "Home" },
+    ...(!consumer ? [{ href: "/projects", label: "Projects" }] : []),
+    { href: "/profile", label: "Profile" },
     ...(isApprovedPro
       ? [
           { href: "/dashboard", label: "Dashboard" },
@@ -57,6 +88,12 @@ export function Nav({
     // server components re-render in their logged-out state.
     router.push("/");
     router.refresh();
+  }
+
+  // The Fan (consumer) app has its own bottom tab bar and no top nav — the
+  // mockups show no global header on /fan/*. Pros keep the top nav everywhere.
+  if (pathname.startsWith("/fan")) {
+    return null;
   }
 
   return (

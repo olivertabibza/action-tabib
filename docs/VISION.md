@@ -1,21 +1,35 @@
 # Vision
 
-Action is a two-sided platform serving the film industry at its earliest, most underserved stage: pre-union creatives who have left film school or amateur work behind but have not yet broken into the guilds and professional networks. Around them sits a second audience of fans who want a window into emerging filmmaking.
+Action is a feed-first, two-sided platform serving the film industry at its earliest, most underserved stage: pre-union creatives who have left film school or amateur work behind but have not yet broken into the guilds and professional networks, and the fans who want a window into emerging filmmaking. Each side gets a tailored experience on one platform.
 
-## Two audiences
+## Two account types, two apps
 
-### Creators (application gate)
-Actors, writers, directors, producers, cinematographers, editors, and composers. Access is gated by an application so the talent pool stays credible and the marketplace stays signal-rich. Approved creators get full profiles, marketplace access, classes, the social feed, and events.
+Action is feed-first. Every account is one of two types, each with its own app and its own feed.
 
-### Fans (open access)
-Film enthusiasts who follow the industry. No application required — they sign up freely to read news, discover events, and follow emerging creators. Fans are a discovery and audience layer, not a marketplace participant.
+### Pro (application gate)
+Industry professionals — actors, writers, directors, producers, cinematographers, editors, and composers. Access is gated by an application so the talent pool stays credible and the marketplace stays signal-rich. Approved Pros get the full toolkit, organized around five surfaces:
+- **Feed** — network activity.
+- **Explore** — projects, classes, and people.
+- **Network** — build connections across the industry.
+- **Messages** — direct conversations with collaborators.
+- **Profile** — the canonical creative identity: reel, credits, skills, availability.
+
+### Fan (open access)
+Film enthusiasts who follow and support emerging filmmakers. No application required — they sign up freely. Fans are a first-class account type with their own app, not a passive audience layer — but they remain outside the marketplace: no projects, classes, casting, or applications. The Fan app is organized around five surfaces:
+- **Feed** — strictly follow-only: only the people they follow.
+- **Discover** — films and filmmakers to follow.
+- **Events** — screenings and Q&As.
+- **Read** — interviews and articles.
+- **Profile** — a lightweight identity, with no resume or credits.
+
+**Terminology:** Product and UI copy use **Pro** and **Fan**. These map to database `account_type` values, which don't change: **Pro** = "Creator" (older docs) = `'professional'`; **Fan** = `'consumer'`.
 
 ## Core feature areas
 
 1. **Creator Profiles** — Rich, role-aware profiles with reels, credits, skills, and availability. The canonical identity for a creator across the platform.
 2. **Project Marketplace** — Casting calls, crew listings, and collaboration posts. Creators discover and apply to projects; project owners post roles and review applicants.
 3. **Acting Classes** — A directory of classes, workshops, and coaches, with the path toward booking and (later) hosted video lessons.
-4. **Social Feed** — A following-based feed for updates, work-in-progress, and announcements that keeps creators and fans engaged between projects.
+4. **Social Feed** — A follow-based feed for updates, work-in-progress, and announcements. Both account types get one: the Pro feed surfaces network activity, while the Fan feed is strictly follow-only — only the people a Fan follows.
 5. **Events & Mixers** — Listings and RSVPs for industry events, screenings, and networking mixers — the in-person complement to the online network.
 6. **Entertainment News** — Curated and original articles covering the industry, with a spotlight on emerging filmmakers.
 

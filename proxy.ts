@@ -45,6 +45,7 @@ export async function proxy(request: NextRequest) {
   // public read-only view of an approved professional — leave it open.
   const isProtected =
     pathname.startsWith("/home") ||
+    pathname.startsWith("/fan") ||
     pathname === "/profile" ||
     pathname.startsWith("/projects") ||
     pathname.startsWith("/admin");

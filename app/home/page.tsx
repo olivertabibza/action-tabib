@@ -27,6 +27,11 @@ export default async function HomePage() {
     .eq("id", user.id)
     .maybeSingle();
 
+  // Account-type dispatch: Fans get their own home; Pros fall through below.
+  if (profile?.account_type === "consumer") {
+    redirect("/fan");
+  }
+
   const greetingName =
     profile?.display_name || user.email?.split("@")[0] || "there";
   const isProfessional = profile?.account_type === "professional";

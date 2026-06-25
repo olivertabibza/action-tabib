@@ -35,6 +35,7 @@ export default async function RootLayout({
   let displayName: string | null = null;
   let isAdmin = false;
   let isApprovedPro = false;
+  let isConsumer = false;
   if (user) {
     const { data: profile } = await supabase
       .from("profiles")
@@ -46,6 +47,7 @@ export default async function RootLayout({
     isApprovedPro =
       profile?.account_type === "professional" &&
       profile?.application_status === "approved";
+    isConsumer = profile?.account_type === "consumer";
   }
 
   return (
@@ -59,6 +61,7 @@ export default async function RootLayout({
           displayName={displayName}
           isAdmin={isAdmin}
           isApprovedPro={isApprovedPro}
+          isConsumer={isConsumer}
         />
         {children}
       </body>
