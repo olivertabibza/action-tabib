@@ -50,6 +50,10 @@ export default function SignupPage() {
       return;
     }
 
+    // Refresh so server components re-read the auth cookie. (With email
+    // confirmation on, signUp creates no session and this is a harmless no-op;
+    // with it off, it auto-signs-in and this avoids a stale logged-out render.)
+    router.refresh();
     router.push("/onboarding");
   }
 

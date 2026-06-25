@@ -41,6 +41,9 @@ export default function LoginPage() {
       return;
     }
 
+    // Refresh so server components re-read the new auth cookie (nav + protected
+    // pages render logged-in immediately, without a manual reload).
+    router.refresh();
     router.push("/home");
   }
 
