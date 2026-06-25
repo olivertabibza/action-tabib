@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { Clock, Lock } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
+import { ProShell } from "@/components/ProShell";
 
 /**
  * Access gate for the whole marketplace. The project pages below assume an
@@ -33,25 +34,29 @@ export default async function ProjectsLayout({
 
   if (profile?.account_type !== "professional") {
     return (
-      <Gate
-        icon={<Lock className="size-5 text-brand" />}
-        title="The project marketplace is for industry professionals"
-        body="Projects and auditions are posted by and for people working in film. Your account is set up as a member of the community, so this section isn't available to you."
-      />
+      <ProShell>
+        <Gate
+          icon={<Lock className="size-5 text-brand" />}
+          title="The project marketplace is for industry professionals"
+          body="Projects and auditions are posted by and for people working in film. Your account is set up as a member of the community, so this section isn't available to you."
+        />
+      </ProShell>
     );
   }
 
   if (profile?.application_status !== "approved") {
     return (
-      <Gate
-        icon={<Clock className="size-5 text-brand" />}
-        title="Your application is under review"
-        body="We review every industry professional personally. We'll email you when you're approved — then the project marketplace will open up here."
-      />
+      <ProShell>
+        <Gate
+          icon={<Clock className="size-5 text-brand" />}
+          title="Your application is under review"
+          body="We review every industry professional personally. We'll email you when you're approved — then the project marketplace will open up here."
+        />
+      </ProShell>
     );
   }
 
-  return <>{children}</>;
+  return <ProShell>{children}</ProShell>;
 }
 
 function Gate({

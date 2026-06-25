@@ -53,6 +53,9 @@ export function Nav({
       }
       if (event !== "SIGNED_IN" && event !== "USER_UPDATED") return;
       if (!session?.user) return;
+      // A fresh login clears any stale "Logging out…" label left over from a
+      // cached render.
+      if (event === "SIGNED_IN") setLoggingOut(false);
       supabase
         .from("profiles")
         .select("account_type")
@@ -90,9 +93,11 @@ export function Nav({
     router.refresh();
   }
 
-  // The Fan (consumer) app has its own bottom tab bar and no top nav — the
-  // mockups show no global header on /fan/*. Pros keep the top nav everywhere.
-  if (pathname.startsWith("/fan")) {
+  // The Fan and Pro apps each have their own shell (sidebar + bottom tab bar)
+  // and no global top nav. /profile is intentionally excluded — it's the shared
+  // profile page and isn't wrapped in the Pro shell yet, so it keeps the top nav.
+  const shellRoutes = ["/fan", "/dashboard", "/network", "/projects", "/messages"];
+  if (shellRoutes.some((prefix) => pathname.startsWith(prefix))) {
     return null;
   }
 

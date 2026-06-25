@@ -22,19 +22,8 @@ export default async function NetworkPage() {
     redirect("/login");
   }
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("account_type, application_status")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  if (
-    profile?.account_type !== "professional" ||
-    profile?.application_status !== "approved"
-  ) {
-    redirect("/home");
-  }
-
+  // The Pro gate (auth + approved professional) lives in app/network/layout.tsx;
+  // the page still reads `user` to scope the queries below.
   // Other approved professionals (RLS lets approved pros read all profiles).
   // Consumers and the current user are excluded.
   const { data: creators, error } = await supabase

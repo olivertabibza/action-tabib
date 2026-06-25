@@ -44,7 +44,21 @@ export default function LoginPage() {
     // Refresh so server components re-read the new auth cookie (nav + protected
     // pages render logged-in immediately, without a manual reload).
     router.refresh();
-    router.push("/home");
+
+    // Route by account type so there's no flash of /home before the proxy's
+    // own server-side redirect takes over. Consumers → Fan app; professionals
+    // (or a missing profile) → Pro app.
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    const { data: profile } = user
+      ? await supabase
+          .from("profiles")
+          .select("account_type")
+          .eq("id", user.id)
+          .maybeSingle()
+      : { data: null };
+    router.push(profile?.account_type === "consumer" ? "/fan" : "/dashboard");
   }
 
   return (

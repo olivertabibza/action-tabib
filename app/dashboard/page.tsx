@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { Rss } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
@@ -24,27 +23,8 @@ type FeedEvent = {
 
 export default async function DashboardPage() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
 
-  if (!user) {
-    redirect("/login");
-  }
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("account_type, application_status")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  if (
-    profile?.account_type !== "professional" ||
-    profile?.application_status !== "approved"
-  ) {
-    redirect("/home");
-  }
-
+  // The Pro gate (auth + approved professional) lives in app/dashboard/layout.tsx.
   // RLS already scopes this to the current user plus the people they follow.
   const { data, error } = await supabase
     .from("activity_events")

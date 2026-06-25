@@ -56,9 +56,21 @@ export async function proxy(request: NextRequest) {
     return redirectKeepingSession(request, response, "/login");
   }
 
-  // Logged-in users shouldn't see the login/signup pages — send them home.
+  // Logged-in users shouldn't see the login/signup pages — send them straight
+  // into their app by account type. Consumers get the Fan app (/fan); everyone
+  // else (professionals, or a missing profile) gets the Pro app (/dashboard),
+  // whose own layout gate handles unapproved pros. The profiles query is
+  // guarded to this branch so it only runs on the auth-page redirect, never on
+  // every request.
   if (user && isAuthPage) {
-    return redirectKeepingSession(request, response, "/home");
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("account_type")
+      .eq("id", user.id)
+      .maybeSingle();
+    const destination =
+      profile?.account_type === "consumer" ? "/fan" : "/dashboard";
+    return redirectKeepingSession(request, response, destination);
   }
 
   return response;
