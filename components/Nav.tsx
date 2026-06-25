@@ -24,19 +24,29 @@ export function Nav({
   authed,
   displayName,
   isAdmin,
+  isApprovedPro,
 }: {
   authed: boolean;
   displayName: string | null;
   isAdmin: boolean;
+  isApprovedPro: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
 
-  // The Admin link only appears for admins.
-  const links = isAdmin
-    ? [...loggedInLinks, { href: "/admin", label: "Admin" }]
-    : loggedInLinks;
+  // Dashboard + Network are only for approved professionals; Admin only for
+  // admins. Both are appended to the base logged-in links.
+  const links = [
+    ...loggedInLinks,
+    ...(isApprovedPro
+      ? [
+          { href: "/dashboard", label: "Dashboard" },
+          { href: "/network", label: "Network" },
+        ]
+      : []),
+    ...(isAdmin ? [{ href: "/admin", label: "Admin" }] : []),
+  ];
 
   async function handleLogout() {
     setLoggingOut(true);

@@ -34,14 +34,18 @@ export default async function RootLayout({
 
   let displayName: string | null = null;
   let isAdmin = false;
+  let isApprovedPro = false;
   if (user) {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("display_name, is_admin")
+      .select("display_name, is_admin, account_type, application_status")
       .eq("id", user.id)
       .maybeSingle();
     displayName = profile?.display_name || user.email || null;
     isAdmin = !!profile?.is_admin;
+    isApprovedPro =
+      profile?.account_type === "professional" &&
+      profile?.application_status === "approved";
   }
 
   return (
@@ -50,7 +54,12 @@ export default async function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <Nav authed={!!user} displayName={displayName} isAdmin={isAdmin} />
+        <Nav
+          authed={!!user}
+          displayName={displayName}
+          isAdmin={isAdmin}
+          isApprovedPro={isApprovedPro}
+        />
         {children}
       </body>
     </html>
