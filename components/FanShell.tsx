@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { AlignLeft, Calendar, Circle, FileText, Search } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { LogoutButton } from "@/components/LogoutButton";
 
 // Single source of truth for the Fan app's destinations — shared by the desktop
 // sidebar and the mobile bottom tab bar so the two can't drift apart.
@@ -64,6 +65,10 @@ export function FanShell({ children }: { children: React.ReactNode }) {
             );
           })}
         </nav>
+
+        {/* Pinned to the bottom of the sidebar — mobile logout lives on the
+            Profile page instead (the bottom bar is already full). */}
+        <LogoutButton className="mt-auto flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50" />
       </aside>
 
       {/* Content column — centered and width-capped; bottom padding clears the

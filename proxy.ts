@@ -44,7 +44,6 @@ export async function proxy(request: NextRequest) {
   // /profile (own editable profile) is protected, but /profile/<id> is a
   // public read-only view of an approved professional — leave it open.
   const isProtected =
-    pathname.startsWith("/home") ||
     pathname.startsWith("/fan") ||
     pathname === "/profile" ||
     pathname.startsWith("/projects") ||
