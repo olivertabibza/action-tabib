@@ -6,12 +6,13 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 
+import { Avatar } from "@/components/Avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { statusUpdateSchema, type StatusUpdateValues } from "./schema";
 import { postStatusUpdate } from "./actions";
 
-export function ComposeBox() {
+export function ComposeBox({ displayName }: { displayName?: string | null }) {
   const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -44,13 +45,17 @@ export function ComposeBox() {
       onSubmit={handleSubmit(onSubmit)}
       className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4"
     >
-      <Textarea
-        rows={3}
-        placeholder="Share an update…"
-        aria-invalid={!!errors.body}
-        aria-label="Status update"
-        {...register("body")}
-      />
+      <div className="flex gap-3">
+        <Avatar name={displayName} />
+        <Textarea
+          rows={3}
+          className="flex-1"
+          placeholder="Share an update…"
+          aria-invalid={!!errors.body}
+          aria-label="Status update"
+          {...register("body")}
+        />
+      </div>
       {errors.body && (
         <p className="text-sm text-destructive">{errors.body.message}</p>
       )}

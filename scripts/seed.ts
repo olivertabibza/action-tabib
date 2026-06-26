@@ -1,5 +1,6 @@
 /**
- * Database seed — demo Industry Professionals, projects, and applications.
+ * Database seed — demo Industry Professionals, projects, applications, events,
+ * and articles.
  *
  * SERVER-ONLY. Run with `npm run seed` (which loads .env.local via tsx's
  * --env-file). It uses the Supabase SECRET (service-role) key, which bypasses
@@ -8,8 +9,9 @@
  *
  * Safe to re-run: seed accounts are identified by the @actionseed.test email
  * pattern. Existing seed auth users are reused (password reset to the shared
- * one); seed-owned projects are deleted first (cascading their applications)
- * before everything is re-inserted. Real, non-seed data is never touched.
+ * one); seed-owned projects, events, and articles are deleted first (projects
+ * cascade their applications) before everything is re-inserted. Real, non-seed
+ * data is never touched.
  */
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
@@ -373,6 +375,100 @@ const APPLICATIONS: ApplicationSpec[] = [
   },
 ];
 
+type EventSpec = {
+  title: string;
+  ownerKey: string; // must be an approved pro
+  event_type: "screening" | "q_and_a" | "panel" | "festival" | "mixer";
+  venue: string;
+  description: string;
+  daysFromNow: number; // starts_at, relative to seed time
+};
+
+const EVENTS: EventSpec[] = [
+  {
+    title: "Indie Shorts Night + Q&A",
+    ownerKey: "producer-1",
+    event_type: "screening",
+    venue: "Echo Park Film Center, Los Angeles",
+    description:
+      "Six pre-union shorts back to back, with a director Q&A after the final reel.",
+    daysFromNow: 9,
+  },
+  {
+    title: "Making a Debut Feature on Weekends",
+    ownerKey: "director-1",
+    event_type: "panel",
+    venue: "Virtual",
+    description:
+      "A working director walks through scheduling, budgeting, and surviving a multi-month weekend shoot.",
+    daysFromNow: 16,
+  },
+  {
+    title: "Cinematographers' Mixer",
+    ownerKey: "cinematographer-1",
+    event_type: "mixer",
+    venue: "The Lot, Brooklyn, NY",
+    description:
+      "Drinks and reel-sharing for camera department folks looking for their next collaborators.",
+    daysFromNow: 23,
+  },
+  {
+    title: "Festival Strategy for First-Timers",
+    ownerKey: "producer-1",
+    event_type: "q_and_a",
+    venue: "Virtual",
+    description:
+      "Which festivals to target, how to budget submissions, and what a programmer actually looks for.",
+    daysFromNow: 30,
+  },
+];
+
+type ArticleSpec = {
+  title: string;
+  ownerKey: string; // must be an approved pro
+  category: "interview" | "craft" | "scene_report" | "news";
+  excerpt: string;
+  body: string;
+};
+
+const ARTICLES: ArticleSpec[] = [
+  {
+    title: "How a microbudget short found its festival run",
+    ownerKey: "director-1",
+    category: "interview",
+    excerpt:
+      "A first-time director on stretching $4k across three shooting days.",
+    body:
+      "We talked with a debut director about scope, favors, and the unglamorous logistics that got a $4,000 short into three regional festivals.",
+  },
+  {
+    title: "Five casting directors on what a self-tape needs",
+    ownerKey: "actor-1",
+    category: "craft",
+    excerpt:
+      "The small choices that get you to the next round — and the ones that don't.",
+    body:
+      "Framing, sound, and the first five seconds. A roundup of what working casting directors fast-forward past and what makes them lean in.",
+  },
+  {
+    title: "Inside an underground short-film circuit",
+    ownerKey: "writer-1",
+    category: "scene_report",
+    excerpt:
+      "Where rising filmmakers screen the work that won't play the multiplex.",
+    body:
+      "A night on the microcinema circuit: projector troubles, generous crowds, and the loose economy of favors that keeps it all running.",
+  },
+  {
+    title: "Editors are quietly rewriting your favorite shorts",
+    ownerKey: "editor-1",
+    category: "news",
+    excerpt: "How the cut, not the script, is shaping a wave of indie shorts.",
+    body:
+      "More filmmakers are finding the story in the edit. We look at how 'writing in post' is changing the way small films get made.",
+  },
+];
+
 // ── Helpers ───────────────────────────────────────────────────────────────--
 
 const emailFor = (key: string) => `seed-${key}@${SEED_DOMAIN}`;
@@ -452,6 +548,18 @@ async function main() {
     assertExpr(!seenPairs.has(pair), `Duplicate application: ${pair}`);
     seenPairs.add(pair);
   }
+  for (const ev of EVENTS) {
+    assertExpr(
+      approvedKeys.has(ev.ownerKey),
+      `Event "${ev.title}" owned by non-approved key "${ev.ownerKey}"`
+    );
+  }
+  for (const art of ARTICLES) {
+    assertExpr(
+      approvedKeys.has(art.ownerKey),
+      `Article "${art.title}" owned by non-approved key "${art.ownerKey}"`
+    );
+  }
 
   console.log("Seeding marketplace…\n");
 
@@ -529,6 +637,53 @@ async function main() {
     .select("id");
   if (appErr) throw appErr;
   console.log(`  applications: ${insertedApps?.length ?? 0} created`);
+
+  // 4. Events. Delete seed-owned events first, then re-insert (published, so
+  //    the Explore screens show real cards). Same delete-then-insert shape as
+  //    projects keeps re-runs duplicate-free.
+  const { error: delEvErr } = await admin
+    .from("events")
+    .delete()
+    .in("created_by", seedIds);
+  if (delEvErr) throw delEvErr;
+
+  const eventRows = EVENTS.map((e) => ({
+    created_by: idByKey.get(e.ownerKey)!,
+    title: e.title,
+    description: e.description,
+    venue: e.venue,
+    event_type: e.event_type,
+    starts_at: new Date(Date.now() + e.daysFromNow * 86_400_000).toISOString(),
+    status: "published",
+  }));
+  const { data: insertedEvents, error: evErr } = await admin
+    .from("events")
+    .insert(eventRows)
+    .select("id");
+  if (evErr) throw evErr;
+  console.log(`  events: ${insertedEvents?.length ?? 0} created`);
+
+  // 5. Articles. Same delete-then-insert, published.
+  const { error: delArtErr } = await admin
+    .from("articles")
+    .delete()
+    .in("created_by", seedIds);
+  if (delArtErr) throw delArtErr;
+
+  const articleRows = ARTICLES.map((a) => ({
+    created_by: idByKey.get(a.ownerKey)!,
+    title: a.title,
+    category: a.category,
+    excerpt: a.excerpt,
+    body: a.body,
+    status: "published",
+  }));
+  const { data: insertedArticles, error: artErr } = await admin
+    .from("articles")
+    .insert(articleRows)
+    .select("id");
+  if (artErr) throw artErr;
+  console.log(`  articles: ${insertedArticles?.length ?? 0} created`);
 
   console.log("\nDone. ✅");
   console.log(`\n  Login email pattern:  seed-<role>-<n>@${SEED_DOMAIN}`);

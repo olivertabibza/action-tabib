@@ -2,18 +2,27 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { AlignLeft, Circle, MessageSquare, Search, Users } from "lucide-react";
+import {
+  AlignLeft,
+  Briefcase,
+  Circle,
+  GraduationCap,
+  MessageSquare,
+  Search,
+} from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { LogoutButton } from "@/components/LogoutButton";
 
 // Single source of truth for the Pro app's destinations — shared by the desktop
-// sidebar and the mobile bottom tab bar so the two can't drift apart.
+// sidebar and the mobile bottom tab bar so the two can't drift apart. Messages
+// lives in a fixed top-right button instead (see ProShell), and Network now
+// lives on the Profile page.
 const navItems = [
   { href: "/dashboard", label: "Feed", icon: AlignLeft },
-  { href: "/projects", label: "Explore", icon: Search },
-  { href: "/network", label: "Network", icon: Users },
-  { href: "/messages", label: "Messages", icon: MessageSquare },
+  { href: "/projects", label: "Projects", icon: Briefcase },
+  { href: "/classes", label: "Classes", icon: GraduationCap },
+  { href: "/explore", label: "Explore", icon: Search },
   { href: "/profile", label: "Profile", icon: Circle },
 ] as const;
 
@@ -39,10 +48,25 @@ export function ProShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex w-full flex-1">
+      {/* Messages: fixed top-right on every Pro screen, both desktop and mobile.
+          Sits above content so it never overlaps the page body. */}
+      <Link
+        href="/messages"
+        aria-label="Messages"
+        className="fixed right-4 top-4 z-50 flex size-10 items-center justify-center rounded-full border border-border bg-background/95 text-muted-foreground shadow-sm backdrop-blur transition-colors hover:text-foreground supports-[backdrop-filter]:bg-background/80"
+      >
+        <MessageSquare className="size-5" strokeWidth={1.75} />
+      </Link>
+
       {/* Desktop: left sidebar (hidden below md) */}
       <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-border px-4 py-6 md:flex">
         <div className="px-2">
-          <Wordmark />
+          <Link
+            href="/dashboard"
+            className="inline-block transition-opacity hover:opacity-80"
+          >
+            <Wordmark />
+          </Link>
         </div>
         <nav className="mt-8 flex flex-col gap-1">
           {navItems.map(({ href, label, icon: Icon }) => {

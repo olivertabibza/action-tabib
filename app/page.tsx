@@ -153,7 +153,7 @@ export default async function Home() {
               size="lg"
               className="h-12 w-full px-8 text-base sm:w-auto"
             >
-              <Link href="/signup?type=creator">Join as an Industry Professional</Link>
+              <Link href="/signup?type=creator">Apply as an Industry Professional</Link>
             </Button>
             <Button
               asChild

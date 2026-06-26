@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { AlignLeft, Calendar, Circle, FileText, Search } from "lucide-react";
+import { AlignLeft, Calendar, Circle, Search } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { LogoutButton } from "@/components/LogoutButton";
@@ -11,9 +11,8 @@ import { LogoutButton } from "@/components/LogoutButton";
 // sidebar and the mobile bottom tab bar so the two can't drift apart.
 const navItems = [
   { href: "/fan", label: "Feed", icon: AlignLeft },
-  { href: "/fan/discover", label: "Discover", icon: Search },
+  { href: "/fan/explore", label: "Explore", icon: Search },
   { href: "/fan/events", label: "Events", icon: Calendar },
-  { href: "/fan/read", label: "Read", icon: FileText },
   { href: "/fan/profile", label: "Profile", icon: Circle },
 ] as const;
 
@@ -42,7 +41,12 @@ export function FanShell({ children }: { children: React.ReactNode }) {
       {/* Desktop: left sidebar (hidden below md) */}
       <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-border px-4 py-6 md:flex">
         <div className="px-2">
-          <Wordmark />
+          <Link
+            href="/fan"
+            className="inline-block transition-opacity hover:opacity-80"
+          >
+            <Wordmark />
+          </Link>
         </div>
         <nav className="mt-8 flex flex-col gap-1">
           {navItems.map(({ href, label, icon: Icon }) => {

@@ -1,7 +1,9 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ExternalLink, FileText } from "lucide-react";
+import { ExternalLink, FileText, Users } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -81,6 +83,24 @@ export default async function ProfilePage() {
           </CardHeader>
           <CardContent>
             <ProfileForm initial={initial} />
+          </CardContent>
+        </Card>
+
+        {/* Network — moved here from the bottom bar. */}
+        <Card className="p-2">
+          <CardHeader>
+            <CardTitle className="text-xl">Your network</CardTitle>
+            <CardDescription>
+              See who you follow and the people following you.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild variant="outline">
+              <Link href="/network">
+                <Users className="size-4" />
+                View your network
+              </Link>
+            </Button>
           </CardContent>
         </Card>
 
