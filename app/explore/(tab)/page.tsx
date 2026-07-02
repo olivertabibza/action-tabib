@@ -1,14 +1,14 @@
+import Link from "next/link";
 import { CalendarDays, Newspaper } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
 import { eventTypeLabel, articleCategoryLabel } from "@/lib/content";
 import { Avatar } from "@/components/Avatar";
 
-// Access (auth + approved pro) is gated in app/explore/layout.tsx, which also
-// renders the ProShell around this page.
-//
-// TODO: cards are display-only this round. Event detail / RSVP and article
-// detail pages come later.
+// Access (auth + approved pro) is gated in the (tab) route group's layout, which
+// also renders the ProShell around this page. The article/event DETAIL pages
+// live outside that group and are public — see app/explore/articles/[id] and
+// app/explore/events/[id].
 
 type EventRow = {
   id: string;
@@ -70,7 +70,9 @@ export default async function ExplorePage() {
         <ul className="mt-3 flex flex-col gap-3">
           {events.map((e) => (
             <li key={e.id}>
-              <EventCard event={e} />
+              <Link href={`/explore/events/${e.id}`} className="block">
+                <EventCard event={e} />
+              </Link>
             </li>
           ))}
         </ul>
@@ -90,7 +92,9 @@ export default async function ExplorePage() {
         <ul className="mt-3 flex flex-col gap-3">
           {articles.map((a) => (
             <li key={a.id}>
-              <ArticleCard article={a} />
+              <Link href={`/explore/articles/${a.id}`} className="block">
+                <ArticleCard article={a} />
+              </Link>
             </li>
           ))}
         </ul>
@@ -113,7 +117,7 @@ function EventCard({ event }: { event: EventRow }) {
   const day = d.toLocaleDateString(undefined, { day: "numeric" });
 
   return (
-    <article className="flex items-center gap-4 rounded-xl border border-border bg-card p-4">
+    <article className="flex items-center gap-4 rounded-xl border border-border bg-card p-4 transition-colors hover:border-brand">
       <span className="flex size-14 shrink-0 flex-col items-center justify-center rounded-lg bg-brand/10 text-brand">
         <span className="text-[0.65rem] font-semibold uppercase tracking-wide">
           {month}
@@ -134,7 +138,7 @@ function EventCard({ event }: { event: EventRow }) {
 function ArticleCard({ article }: { article: ArticleRow }) {
   const author = article.author?.display_name || "the Action desk";
   return (
-    <article className="rounded-xl border border-border bg-card p-4">
+    <article className="rounded-xl border border-border bg-card p-4 transition-colors hover:border-brand">
       <span className="text-xs font-medium text-brand">
         {articleCategoryLabel(article.category)}
       </span>

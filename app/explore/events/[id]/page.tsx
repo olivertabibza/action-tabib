@@ -1,0 +1,132 @@
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { ArrowLeft, CalendarDays, Clock, MapPin } from "lucide-react";
+
+import { createClient } from "@/lib/supabase/server";
+import { titleCase } from "@/lib/marketplace";
+import { eventTypeLabel } from "@/lib/content";
+import { Avatar } from "@/components/Avatar";
+import { Button } from "@/components/ui/button";
+
+// PUBLIC page — no shell, no auth redirect. Published events are open-access
+// (RLS exposes published rows to anon), so logged-out fans can view them. We
+// still fetch the viewer (if any) to allow the host/admin to preview a draft.
+
+type Person = { display_name: string | null; role: string | null };
+
+export default async function EventDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const { data: event } = await supabase
+    .from("events")
+    .select(
+      "id, title, description, venue, event_type, starts_at, status, created_by, host:profiles!events_created_by_fkey(display_name, role)"
+    )
+    .eq("id", id)
+    .maybeSingle();
+
+  if (!event) {
+    notFound();
+  }
+
+  // Published is public. A non-published event is visible only to its host or an
+  // admin (RLS already enforces this on read; this is the in-app echo).
+  const isHost = !!user && event.created_by === user.id;
+  let isAdmin = false;
+  if (user && !isHost && event.status !== "published") {
+    const { data: me } = await supabase
+      .from("profiles")
+      .select("is_admin")
+      .eq("id", user.id)
+      .maybeSingle();
+    isAdmin = !!me?.is_admin;
+  }
+  if (event.status !== "published" && !isHost && !isAdmin) {
+    notFound();
+  }
+
+  // Supabase types embedded relations as arrays; this FK is to-one at runtime.
+  const host = event.host as unknown as Person | null;
+  const hostName = host?.display_name || "the Action team";
+  const starts = new Date(event.starts_at);
+  const dateLine = starts.toLocaleDateString(undefined, {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+  const timeLine = starts.toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+
+  return (
+    <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-12 sm:px-6 sm:py-16">
+      <Link
+        href="/explore"
+        className="mb-6 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <ArrowLeft className="size-4" />
+        Back to Explore
+      </Link>
+
+      <p className="text-sm font-medium text-brand">
+        {eventTypeLabel(event.event_type)}
+      </p>
+      <h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">
+        {event.title}
+      </h1>
+
+      <div className="mt-6 flex flex-col gap-3 text-sm">
+        <span className="inline-flex items-center gap-2">
+          <CalendarDays className="size-4 text-brand" />
+          {dateLine}
+        </span>
+        <span className="inline-flex items-center gap-2">
+          <Clock className="size-4 text-brand" />
+          {timeLine}
+        </span>
+        <span className="inline-flex items-center gap-2">
+          <MapPin className="size-4 text-brand" />
+          {event.venue || "Virtual"}
+        </span>
+      </div>
+
+      <div className="mt-6 flex items-center gap-3">
+        <Avatar name={hostName} className="size-9" />
+        <p className="text-sm">
+          <span className="text-muted-foreground">Hosted by </span>
+          <span className="font-medium">{hostName}</span>
+          {host?.role ? (
+            <span className="text-muted-foreground">
+              {" "}
+              · {titleCase(host.role)}
+            </span>
+          ) : null}
+        </p>
+      </div>
+
+      {event.description && (
+        <p className="mt-8 whitespace-pre-wrap text-base leading-relaxed text-foreground/90">
+          {event.description}
+        </p>
+      )}
+
+      {/* TODO: RSVP lands in a later step — this is a styled placeholder, not a
+          working button (no RSVP table / server action yet). */}
+      <div className="mt-8">
+        <Button type="button" size="lg" disabled>
+          RSVP — coming soon
+        </Button>
+      </div>
+    </main>
+  );
+}

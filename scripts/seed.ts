@@ -439,7 +439,7 @@ const ARTICLES: ArticleSpec[] = [
     excerpt:
       "A first-time director on stretching $4k across three shooting days.",
     body:
-      "We talked with a debut director about scope, favors, and the unglamorous logistics that got a $4,000 short into three regional festivals.",
+      "When the budget topped out at four thousand dollars, every decision became a question of scope. There was no second unit, no rental truck, no catering — just a borrowed apartment, a crew of five, and a schedule built around when everyone could get a day off work.\n\n\"The constraint was the whole movie,\" the director told us. \"I wrote toward the locations I already had access to. The story is small because the production had to be small, and I stopped pretending that was a weakness.\"\n\nThree shooting days became three festival selections. The film never played a multiplex, but it traveled — a regional shorts block, a genre weekender, and a hometown premiere that sold out on word of mouth.\n\nThe takeaway for anyone starting out: finish the thing. A flawed short that exists will teach you more, and open more doors, than a perfect one that never leaves the page.",
   },
   {
     title: "Five casting directors on what a self-tape needs",
@@ -448,7 +448,7 @@ const ARTICLES: ArticleSpec[] = [
     excerpt:
       "The small choices that get you to the next round — and the ones that don't.",
     body:
-      "Framing, sound, and the first five seconds. A roundup of what working casting directors fast-forward past and what makes them lean in.",
+      "Casting directors watch hundreds of self-tapes a week, and the ones that work tend to get the same small things right. We asked five of them what makes a tape land.\n\nFirst: the first five seconds. Slate quickly and get into it. A long, apologetic preamble reads as nerves before the scene has even started.\n\nSecond: sound over picture. A clean, quiet audio track beats a beautifully lit frame with a humming refrigerator behind it. Phones are fine; echoey rooms are not.\n\nThird: eyeline and framing. Keep your reader just off-camera, hold a steady medium shot, and let the work happen in your face. Resist the urge to direct yourself with fancy moves.\n\nNone of this is about production value. It's about removing every reason for someone to stop watching before your choices have a chance to register.",
   },
   {
     title: "Inside an underground short-film circuit",
@@ -457,7 +457,7 @@ const ARTICLES: ArticleSpec[] = [
     excerpt:
       "Where rising filmmakers screen the work that won't play the multiplex.",
     body:
-      "A night on the microcinema circuit: projector troubles, generous crowds, and the loose economy of favors that keeps it all running.",
+      "The screening starts forty minutes late because the projector won't talk to the laptop. Nobody in the room of sixty seems to mind. This is the microcinema circuit, and patience is part of the deal.\n\nThese nights happen in back rooms, co-ops, and the occasional actual theater rented for a Tuesday. The programming is fearless precisely because there's no box office to answer to — experimental, unfinished, gloriously strange.\n\nWhat holds it together is an economy of favors. Someone's friend runs the door, a filmmaker from last month mans the projector, and everyone shows up for everyone else because next month it's their turn on the screen.\n\nIt isn't a launchpad in any official sense. But it's where a lot of first films find their first audience — and where a lot of collaborators find each other.",
   },
   {
     title: "Editors are quietly rewriting your favorite shorts",
@@ -465,7 +465,7 @@ const ARTICLES: ArticleSpec[] = [
     category: "news",
     excerpt: "How the cut, not the script, is shaping a wave of indie shorts.",
     body:
-      "More filmmakers are finding the story in the edit. We look at how 'writing in post' is changing the way small films get made.",
+      "There's a quiet shift happening in how small films get made: more and more of the story is being found in the edit rather than locked on the page.\n\nPart of it is practical. When you're shooting on weekends with whatever you can get, coverage is uneven and plans change. Editors have become the people who turn what was actually captured into what the film is about.\n\n\"I get footage and a vibe, not a locked script,\" one editor told us. \"My first cut is really the rewrite. We figure out the movie by watching it.\"\n\nPurists worry this loses something — the discipline of writing a tight script first. But for a generation of filmmakers working without a safety net, 'writing in post' isn't a shortcut. It's the craft.",
   },
 ];
 

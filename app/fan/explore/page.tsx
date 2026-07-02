@@ -2,6 +2,8 @@
 // SAME tables pros publish to (published rows are anon-readable, so a normal
 // server query works). The "films/filmmakers to follow" section is still a
 // PLACEHOLDER: following filmmakers as a fan is a separate future feature.
+import Link from "next/link";
+
 import { createClient } from "@/lib/supabase/server";
 import { eventTypeLabel, articleCategoryLabel } from "@/lib/content";
 import { Avatar } from "@/components/Avatar";
@@ -98,23 +100,27 @@ export default async function FanExplorePage() {
                 .toUpperCase();
               const day = d.toLocaleDateString(undefined, { day: "numeric" });
               return (
-                <li
-                  key={e.id}
-                  className="flex items-center gap-4 rounded-xl border border-border bg-card p-4"
-                >
-                  <span className="flex size-14 shrink-0 flex-col items-center justify-center rounded-lg bg-brand/10 text-brand">
-                    <span className="text-[0.65rem] font-semibold uppercase tracking-wide">
-                      {month}
+                <li key={e.id}>
+                  <Link
+                    href={`/explore/events/${e.id}`}
+                    className="flex items-center gap-4 rounded-xl border border-border bg-card p-4 transition-colors hover:border-brand"
+                  >
+                    <span className="flex size-14 shrink-0 flex-col items-center justify-center rounded-lg bg-brand/10 text-brand">
+                      <span className="text-[0.65rem] font-semibold uppercase tracking-wide">
+                        {month}
+                      </span>
+                      <span className="text-xl font-bold leading-none">
+                        {day}
+                      </span>
                     </span>
-                    <span className="text-xl font-bold leading-none">{day}</span>
-                  </span>
-                  <div className="min-w-0">
-                    <p className="font-semibold leading-snug">{e.title}</p>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {eventTypeLabel(e.event_type)}
-                      {e.venue ? ` · ${e.venue}` : ""}
-                    </p>
-                  </div>
+                    <div className="min-w-0">
+                      <p className="font-semibold leading-snug">{e.title}</p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {eventTypeLabel(e.event_type)}
+                        {e.venue ? ` · ${e.venue}` : ""}
+                      </p>
+                    </div>
+                  </Link>
                 </li>
               );
             })}
@@ -131,25 +137,27 @@ export default async function FanExplorePage() {
           {articles.map((a) => {
             const author = a.author?.display_name || "the Action desk";
             return (
-              <li
-                key={a.id}
-                className="rounded-xl border border-border bg-card p-4"
-              >
-                <span className="text-xs font-medium text-brand">
-                  {articleCategoryLabel(a.category)}
-                </span>
-                <h3 className="mt-1 font-semibold leading-snug">{a.title}</h3>
-                {a.excerpt && (
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {a.excerpt}
-                  </p>
-                )}
-                <div className="mt-3 flex items-center gap-2">
-                  <Avatar name={author} className="size-7 text-xs" />
-                  <span className="text-xs text-muted-foreground">
-                    By {author}
+              <li key={a.id}>
+                <Link
+                  href={`/explore/articles/${a.id}`}
+                  className="block rounded-xl border border-border bg-card p-4 transition-colors hover:border-brand"
+                >
+                  <span className="text-xs font-medium text-brand">
+                    {articleCategoryLabel(a.category)}
                   </span>
-                </div>
+                  <h3 className="mt-1 font-semibold leading-snug">{a.title}</h3>
+                  {a.excerpt && (
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {a.excerpt}
+                    </p>
+                  )}
+                  <div className="mt-3 flex items-center gap-2">
+                    <Avatar name={author} className="size-7 text-xs" />
+                    <span className="text-xs text-muted-foreground">
+                      By {author}
+                    </span>
+                  </div>
+                </Link>
               </li>
             );
           })}

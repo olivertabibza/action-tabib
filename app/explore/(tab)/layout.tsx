@@ -4,13 +4,18 @@ import { createClient } from "@/lib/supabase/server";
 import { ProShell } from "@/components/ProShell";
 
 /**
- * Access gate for Pro explore, enforced in one place (mirrors
- * app/messages/layout.tsx):
+ * Access gate for the Pro Explore TAB (the index at /explore), enforced in one
+ * place (mirrors app/messages/layout.tsx):
  *   - logged-out                   → /login (the proxy also guards this)
  *   - not an approved professional → /home
  *   - approved pro                 → render inside the Pro shell
+ *
+ * This gate is scoped to the `(tab)` route group on purpose: the article and
+ * event DETAIL pages (app/explore/articles/[id], app/explore/events/[id]) live
+ * OUTSIDE this group so they stay PUBLIC — published content is open-access and
+ * logged-out fans must be able to read it.
  */
-export default async function ExploreLayout({
+export default async function ExploreTabLayout({
   children,
 }: {
   children: React.ReactNode;
