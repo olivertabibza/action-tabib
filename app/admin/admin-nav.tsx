@@ -2,11 +2,16 @@ import Link from "next/link";
 
 import { cn } from "@/lib/utils";
 
-/** Shared sub-nav for the two admin sections. */
-export function AdminNav({ active }: { active: "applications" | "projects" }) {
+/** Shared sub-nav for the admin sections. */
+export function AdminNav({
+  active,
+}: {
+  active: "applications" | "projects" | "content";
+}) {
   const tabs = [
     { href: "/admin", label: "Applications", key: "applications" },
     { href: "/admin/projects", label: "Listings", key: "projects" },
+    { href: "/admin/content", label: "Content", key: "content" },
   ] as const;
 
   return (

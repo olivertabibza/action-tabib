@@ -1,9 +1,11 @@
 import Link from "next/link";
-import { CalendarDays, Newspaper } from "lucide-react";
+import { CalendarDays, Newspaper, PenLine, Plus } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
 import { eventTypeLabel, articleCategoryLabel } from "@/lib/content";
+import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/Avatar";
+import { Button } from "@/components/ui/button";
 
 // Access (auth + approved pro) is gated in the (tab) route group's layout, which
 // also renders the ProShell around this page. The article/event DETAIL pages
@@ -27,9 +29,25 @@ type ArticleRow = {
   author: { display_name: string | null } | null;
 };
 
-export default async function ExplorePage() {
+// A pending/rejected submission the current user authored (event or article).
+type Submission = {
+  id: string;
+  title: string;
+  kind: "event" | "article";
+  status: "pending" | "rejected";
+};
+
+export default async function ExplorePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ submitted?: string }>;
+}) {
+  const { submitted } = await searchParams;
   const supabase = await createClient();
   const nowIso = new Date().toISOString();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   // Published, upcoming events — soonest first. RLS exposes published rows to
   // everyone, so a normal server query is all that's needed.
@@ -55,6 +73,40 @@ export default async function ExplorePage() {
     author: a.author as unknown as { display_name: string | null } | null,
   })) as ArticleRow[];
 
+  // The viewer's own not-yet-published submissions. RLS lets authors read their
+  // own pending/rejected rows, so a plain query scoped to created_by works.
+  const submissions: Submission[] = [];
+  if (user) {
+    const [{ data: myEvents }, { data: myArticles }] = await Promise.all([
+      supabase
+        .from("events")
+        .select("id, title, status, created_at")
+        .eq("created_by", user.id)
+        .in("status", ["pending", "rejected"])
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("articles")
+        .select("id, title, status, created_at")
+        .eq("created_by", user.id)
+        .in("status", ["pending", "rejected"])
+        .order("created_at", { ascending: false }),
+    ]);
+    for (const e of myEvents ?? [])
+      submissions.push({
+        id: e.id,
+        title: e.title,
+        kind: "event",
+        status: e.status as "pending" | "rejected",
+      });
+    for (const a of myArticles ?? [])
+      submissions.push({
+        id: a.id,
+        title: a.title,
+        kind: "article",
+        status: a.status as "pending" | "rejected",
+      });
+  }
+
   return (
     <main className="flex flex-1 flex-col px-4 py-6">
       <h1 className="text-2xl font-bold tracking-tight">Explore</h1>
@@ -62,10 +114,62 @@ export default async function ExplorePage() {
         Events, screenings, and articles from the film community.
       </p>
 
+      {submitted && (
+        <p className="mt-4 rounded-lg bg-brand/10 px-3 py-2 text-sm text-brand">
+          Thanks — your {submitted === "article" ? "article" : "event"} was
+          submitted and is pending review. We&rsquo;ll publish it once it&rsquo;s
+          approved.
+        </p>
+      )}
+
+      {/* Your submissions (pending / rejected) */}
+      {submissions.length > 0 && (
+        <>
+          <h2 className="mt-8 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            Your submissions
+          </h2>
+          <ul className="mt-3 flex flex-col gap-2">
+            {submissions.map((s) => (
+              <li key={`${s.kind}-${s.id}`}>
+                <Link
+                  href={`/explore/${s.kind}s/${s.id}`}
+                  className="flex items-center gap-3 rounded-lg border border-border bg-card px-3 py-2.5 transition-colors hover:border-brand"
+                >
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium">
+                    {s.title}
+                  </span>
+                  <span className="text-xs text-muted-foreground capitalize">
+                    {s.kind}
+                  </span>
+                  <span
+                    className={cn(
+                      "rounded-full px-2 py-0.5 text-xs font-medium capitalize",
+                      s.status === "rejected"
+                        ? "bg-destructive/10 text-destructive"
+                        : "bg-muted text-muted-foreground"
+                    )}
+                  >
+                    {s.status}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+
       {/* Upcoming events */}
-      <h2 className="mt-8 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-        Upcoming events
-      </h2>
+      <div className="mt-8 flex items-center justify-between gap-3">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          Upcoming events
+        </h2>
+        <Button asChild size="sm" variant="outline">
+          <Link href="/explore/events/new">
+            <Plus className="size-4" />
+            Host an event
+          </Link>
+        </Button>
+      </div>
       {events.length > 0 ? (
         <ul className="mt-3 flex flex-col gap-3">
           {events.map((e) => (
@@ -85,9 +189,17 @@ export default async function ExplorePage() {
       )}
 
       {/* Read */}
-      <h2 className="mt-8 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-        Read
-      </h2>
+      <div className="mt-8 flex items-center justify-between gap-3">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          Read
+        </h2>
+        <Button asChild size="sm" variant="outline">
+          <Link href="/explore/articles/new">
+            <PenLine className="size-4" />
+            Write an article
+          </Link>
+        </Button>
+      </div>
       {articles.length > 0 ? (
         <ul className="mt-3 flex flex-col gap-3">
           {articles.map((a) => (

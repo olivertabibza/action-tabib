@@ -4,6 +4,48 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
+import { eventSchema, type EventFormValues } from "./schema";
+
+/**
+ * Host an event. Inserts a row owned by the signed-in user; RLS also requires an
+ * approved professional and forces the default 'pending' status, so this can't
+ * self-publish. The date + time inputs are combined into `starts_at`. On success
+ * we redirect back to /explore with a flag the tab turns into a "pending review"
+ * banner.
+ */
+export async function createEvent(values: EventFormValues) {
+  const parsed = eventSchema.safeParse(values);
+  if (!parsed.success) {
+    return { error: "Please check the form and try again." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { error: "Your session has expired. Please log in again." };
+  }
+
+  const { date, time, ...rest } = parsed.data;
+  const starts = new Date(`${date}T${time}`);
+  if (Number.isNaN(starts.getTime())) {
+    return { error: "That date and time don't look right." };
+  }
+
+  const { error } = await supabase.from("events").insert({
+    created_by: user.id,
+    ...rest,
+    starts_at: starts.toISOString(),
+  });
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath("/explore");
+  redirect("/explore?submitted=event");
+}
 
 /**
  * Toggle the caller's RSVP for an event. Logged-out visitors are sent to
