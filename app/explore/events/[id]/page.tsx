@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { titleCase } from "@/lib/marketplace";
 import { eventTypeLabel } from "@/lib/content";
 import { Avatar } from "@/components/Avatar";
-import { Button } from "@/components/ui/button";
+import { RsvpButton } from "../rsvp-button";
 
 // PUBLIC page — no shell, no auth redirect. Published events are open-access
 // (RLS exposes published rows to anon), so logged-out fans can view them. We
@@ -51,6 +51,26 @@ export default async function EventDetailPage({
   }
   if (event.status !== "published" && !isHost && !isAdmin) {
     notFound();
+  }
+
+  // Attendee count is public (view is readable by anon); the viewer's own RSVP
+  // state only exists for a logged-in user.
+  const { data: countRow } = await supabase
+    .from("event_rsvp_counts")
+    .select("rsvp_count")
+    .eq("event_id", id)
+    .maybeSingle();
+  const rsvpCount = Number(countRow?.rsvp_count ?? 0);
+
+  let hasRsvped = false;
+  if (user) {
+    const { data: myRsvp } = await supabase
+      .from("event_rsvps")
+      .select("id")
+      .eq("event_id", id)
+      .eq("user_id", user.id)
+      .maybeSingle();
+    hasRsvped = !!myRsvp;
   }
 
   // Supabase types embedded relations as arrays; this FK is to-one at runtime.
@@ -120,12 +140,14 @@ export default async function EventDetailPage({
         </p>
       )}
 
-      {/* TODO: RSVP lands in a later step — this is a styled placeholder, not a
-          working button (no RSVP table / server action yet). */}
       <div className="mt-8">
-        <Button type="button" size="lg" disabled>
-          RSVP — coming soon
-        </Button>
+        <RsvpButton
+          eventId={event.id}
+          initialRsvped={hasRsvped}
+          rsvpCount={rsvpCount}
+          loggedIn={!!user}
+          size="lg"
+        />
       </div>
     </main>
   );
