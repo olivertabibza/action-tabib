@@ -1,6 +1,6 @@
 /**
  * Database seed — demo Industry Professionals, projects, applications, events,
- * and articles.
+ * articles, follows, and feed activity.
  *
  * SERVER-ONLY. Run with `npm run seed` (which loads .env.local via tsx's
  * --env-file). It uses the Supabase SECRET (service-role) key, which bypasses
@@ -10,7 +10,10 @@
  * Safe to re-run: seed accounts are identified by the @actionseed.test email
  * pattern. Existing seed auth users are reused (password reset to the shared
  * one); seed-owned projects, events, and articles are deleted first (projects
- * cascade their applications) before everything is re-inserted. Real, non-seed
+ * cascade their applications) before everything is re-inserted. Seed-authored
+ * activity_events and follow edges between two seed accounts are cleared and
+ * re-inserted too — but a follow where a REAL user is on either side (e.g.
+ * Oliver's fan account following a seed pro) is left untouched. Real, non-seed
  * data is never touched.
  */
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
@@ -469,9 +472,152 @@ const ARTICLES: ArticleSpec[] = [
   },
 ];
 
+// A realistic web of follows among the seed pros: [follower, following].
+// Actors follow the directors and producers they'd want to work with; crew
+// follow each other and the people who hire them; the newcomers (pending pros)
+// follow the established names.
+type FollowEdge = [followerKey: string, followingKey: string];
+
+const FOLLOWS: FollowEdge[] = [
+  ["actor-1", "director-1"],
+  ["actor-1", "producer-1"],
+  ["actor-2", "director-1"],
+  ["actor-2", "producer-1"],
+  ["actor-2", "actor-1"],
+  ["director-1", "cinematographer-1"],
+  ["director-1", "editor-1"],
+  ["director-1", "composer-1"],
+  ["director-1", "actor-1"],
+  ["director-1", "writer-1"],
+  ["producer-1", "director-1"],
+  ["producer-1", "cinematographer-1"],
+  ["producer-1", "editor-1"],
+  ["cinematographer-1", "director-1"],
+  ["cinematographer-1", "editor-1"],
+  ["editor-1", "composer-1"],
+  ["editor-1", "director-1"],
+  ["composer-1", "editor-1"],
+  ["writer-1", "director-1"],
+  ["writer-1", "producer-1"],
+  ["director-2", "director-1"],
+  ["director-2", "producer-1"],
+  ["writer-2", "writer-1"],
+  ["cinematographer-2", "cinematographer-1"],
+];
+
+type StatusUpdateSpec = {
+  key: string; // author — any seed pro
+  body: string;
+  daysAgo: number; // created_at, relative to seed time (spread over ~2 weeks)
+};
+
+const STATUS_UPDATES: StatusUpdateSpec[] = [
+  {
+    key: "director-1",
+    body: "Locked picture on the weekend short today. Fourteen months, thirty-one Saturdays, and it finally plays as one thing. Onto sound.",
+    daysAgo: 0.3,
+  },
+  {
+    key: "actor-1",
+    body: "Booked a supporting role in a contained two-hander shooting next month. Back to running lines on the subway.",
+    daysAgo: 1.1,
+  },
+  {
+    key: "producer-1",
+    body: "Festival submission for the fishing-town doc is in. The fees sting, but the cut is the best work any of us have done.",
+    daysAgo: 1.6,
+  },
+  {
+    key: "cinematographer-1",
+    body: "Tested the vintage anamorphics against the rain last night. Flares for days. A wet street at golden hour is honestly unfair.",
+    daysAgo: 2.2,
+  },
+  {
+    key: "editor-1",
+    body: "First assembly of the neo-noir came in at 19 minutes. Now the real work: finding the 12 that actually breathe.",
+    daysAgo: 2.9,
+  },
+  {
+    key: "composer-1",
+    body: "Delivered stems for a short this morning — modular drones under a lone cello. Tight turnaround, but I'm happy with it.",
+    daysAgo: 3.4,
+  },
+  {
+    key: "writer-1",
+    body: "New draft of the single-location script done. Cut two characters and a location. It's meaner and cheaper now, which is the point.",
+    daysAgo: 4.1,
+  },
+  {
+    key: "actor-2",
+    body: "Wrapped a weekend movement workshop. Good reminder that a scene lives in the body before the lines ever show up.",
+    daysAgo: 4.8,
+  },
+  {
+    key: "director-1",
+    body: "Scouted a 24-hour diner in Newark for the anthology short. Owner's in, as long as we shoot after 2am. Deal.",
+    daysAgo: 5.5,
+  },
+  {
+    key: "producer-1",
+    body: "Locked a venue and a five-person crew for the live-score concept short. Now to build a schedule that survives contact.",
+    daysAgo: 6.3,
+  },
+  {
+    key: "cinematographer-1",
+    body: "Rebuilt the lighting kit after the last shoot ate two bulbs. Ready for the next available-light gauntlet.",
+    daysAgo: 7.0,
+  },
+  {
+    key: "editor-1",
+    body: "Handed selects off to sound a day early. Rare feeling. The rhythm's there — the film knows what it wants to be.",
+    daysAgo: 8.2,
+  },
+  {
+    key: "actor-1",
+    body: "Self-tape day. Three scenes, one quiet room, and a fridge I finally unplugged for clean audio.",
+    daysAgo: 9.1,
+  },
+  {
+    key: "writer-1",
+    body: "The optioned short is officially in prep. Surreal to hand a thing you wrote to people who actually want to build it.",
+    daysAgo: 10.4,
+  },
+  {
+    key: "composer-1",
+    body: "Started sketching themes for the fishing-town doc. Salt air, but make it strings.",
+    daysAgo: 11.6,
+  },
+  {
+    key: "director-1",
+    body: "Note to first-timers, myself included: finish the short. The flawed one that exists beats the perfect one in your head.",
+    daysAgo: 13.2,
+  },
+];
+
+// A few follow announcements, each matching a real edge from FOLLOWS above.
+type FollowActivitySpec = {
+  actorKey: string; // must match an edge in FOLLOWS
+  targetKey: string;
+  daysAgo: number;
+};
+
+const FOLLOW_ACTIVITY: FollowActivitySpec[] = [
+  { actorKey: "actor-1", targetKey: "director-1", daysAgo: 0.7 },
+  { actorKey: "cinematographer-1", targetKey: "editor-1", daysAgo: 3.0 },
+  { actorKey: "editor-1", targetKey: "composer-1", daysAgo: 6.8 },
+  { actorKey: "writer-1", targetKey: "producer-1", daysAgo: 12.0 },
+];
+
 // ── Helpers ───────────────────────────────────────────────────────────────--
 
 const emailFor = (key: string) => `seed-${key}@${SEED_DOMAIN}`;
+
+/** Display name by seed key, for denormalized activity metadata. */
+const nameByKey = new Map(PROS.map((p) => [p.key, p.display_name]));
+
+/** ISO timestamp `days` in the past (fractional days = hours), for staggering. */
+const daysAgoIso = (days: number) =>
+  new Date(Date.now() - Math.round(days * 86_400_000)).toISOString();
 
 /** Map of seed email → existing auth user id, paging through all auth users. */
 async function fetchSeedAuthUsers(): Promise<Map<string, string>> {
@@ -558,6 +704,25 @@ async function main() {
     assertExpr(
       approvedKeys.has(art.ownerKey),
       `Article "${art.title}" owned by non-approved key "${art.ownerKey}"`
+    );
+  }
+  const allKeys = new Set(PROS.map((p) => p.key));
+  const followPairs = new Set<string>();
+  for (const [followerKey, followingKey] of FOLLOWS) {
+    assertExpr(allKeys.has(followerKey), `Follow from unknown key "${followerKey}"`);
+    assertExpr(allKeys.has(followingKey), `Follow to unknown key "${followingKey}"`);
+    assertExpr(followerKey !== followingKey, `Self-follow: "${followerKey}"`);
+    const pair = `${followerKey}::${followingKey}`;
+    assertExpr(!followPairs.has(pair), `Duplicate follow: ${pair}`);
+    followPairs.add(pair);
+  }
+  for (const s of STATUS_UPDATES) {
+    assertExpr(allKeys.has(s.key), `Status update by unknown key "${s.key}"`);
+  }
+  for (const f of FOLLOW_ACTIVITY) {
+    assertExpr(
+      followPairs.has(`${f.actorKey}::${f.targetKey}`),
+      `Follow activity "${f.actorKey}::${f.targetKey}" has no matching FOLLOWS edge`
     );
   }
 
@@ -684,6 +849,62 @@ async function main() {
     .select("id");
   if (artErr) throw artErr;
   console.log(`  articles: ${insertedArticles?.length ?? 0} created`);
+
+  // 6. Follows. Delete ONLY edges where both sides are seed accounts — chaining
+  //    two .in() filters is an AND — so a real user following a seed pro (or a
+  //    seed pro following a real user) survives a re-run. Then insert the seed
+  //    web.
+  const { error: delFolErr } = await admin
+    .from("follows")
+    .delete()
+    .in("follower_id", seedIds)
+    .in("following_id", seedIds);
+  if (delFolErr) throw delFolErr;
+
+  const followRows = FOLLOWS.map(([followerKey, followingKey]) => ({
+    follower_id: idByKey.get(followerKey)!,
+    following_id: idByKey.get(followingKey)!,
+  }));
+  const { data: insertedFollows, error: folErr } = await admin
+    .from("follows")
+    .insert(followRows)
+    .select("follower_id");
+  if (folErr) throw folErr;
+  console.log(`  follows: ${insertedFollows?.length ?? 0} created`);
+
+  // 7. Activity events (the feed). Delete seed-authored activity first, then
+  //    insert staggered status updates plus a few follow announcements. Column
+  //    shapes mirror the app exactly — app/dashboard/actions.ts for
+  //    'status_update', app/network/actions.ts for 'started_following' (subject_id
+  //    + denormalized target_name) — so the feed renders these like real posts.
+  const { error: delActErr } = await admin
+    .from("activity_events")
+    .delete()
+    .in("actor_id", seedIds);
+  if (delActErr) throw delActErr;
+
+  const statusRows = STATUS_UPDATES.map((s) => ({
+    actor_id: idByKey.get(s.key)!,
+    kind: "status_update",
+    body: s.body,
+    created_at: daysAgoIso(s.daysAgo),
+  }));
+  const followActivityRows = FOLLOW_ACTIVITY.map((f) => ({
+    actor_id: idByKey.get(f.actorKey)!,
+    kind: "started_following",
+    subject_id: idByKey.get(f.targetKey)!,
+    metadata: { target_name: nameByKey.get(f.targetKey) ?? null },
+    created_at: daysAgoIso(f.daysAgo),
+  }));
+  const { data: insertedActivity, error: actErr } = await admin
+    .from("activity_events")
+    .insert([...statusRows, ...followActivityRows])
+    .select("id");
+  if (actErr) throw actErr;
+  console.log(
+    `  activity: ${insertedActivity?.length ?? 0} events ` +
+      `(${statusRows.length} updates, ${followActivityRows.length} follows)`
+  );
 
   console.log("\nDone. ✅");
   console.log(`\n  Login email pattern:  seed-<role>-<n>@${SEED_DOMAIN}`);

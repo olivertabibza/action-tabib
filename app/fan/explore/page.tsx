@@ -6,19 +6,22 @@ import Link from "next/link";
 
 import { createClient } from "@/lib/supabase/server";
 import { eventTypeLabel, articleCategoryLabel } from "@/lib/content";
+import { titleCase } from "@/lib/marketplace";
 import { Avatar } from "@/components/Avatar";
 import {
   Card,
-  CardDescription,
+  CardContent,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { FanFollowButton } from "./follow-button";
 
-// PLACEHOLDER — fan-side following of films/filmmakers isn't built yet.
-const toFollow: { name: string; detail: string }[] = [
-  { name: "Rising filmmakers", detail: "Directors and writers to watch" },
-  { name: "New releases", detail: "Indie films screening now" },
-];
+type CreatorRow = {
+  id: string;
+  display_name: string | null;
+  role: string | null;
+  headline: string | null;
+};
 
 type EventRow = {
   id: string;
@@ -40,6 +43,30 @@ type ArticleRow = {
 export default async function FanExplorePage() {
   const supabase = await createClient();
   const nowIso = new Date().toISOString();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  // Approved pros to follow. Consumers can't read the profiles table directly
+  // (RLS), so we read the public_profiles view, which exposes only public-safe
+  // columns for approved pros.
+  const { data: creatorData } = await supabase
+    .from("public_profiles")
+    .select("id, display_name, role, headline")
+    .order("display_name", { nullsFirst: false })
+    .limit(12);
+  const creators = (creatorData ?? []) as CreatorRow[];
+
+  // Who this fan already follows, so each card shows the right state.
+  const { data: myFollows } = user
+    ? await supabase
+        .from("follows")
+        .select("following_id")
+        .eq("follower_id", user.id)
+    : { data: [] as { following_id: string }[] };
+  const followingSet = new Set(
+    (myFollows ?? []).map((f) => f.following_id as string)
+  );
 
   // A short strip of upcoming published events.
   const { data: eventData } = await supabase
@@ -71,20 +98,54 @@ export default async function FanExplorePage() {
         Follow filmmakers and read what&rsquo;s happening in indie film.
       </p>
 
-      {/* Films & filmmakers to follow (PLACEHOLDER — not wired yet) */}
+      {/* Filmmakers to follow (LIVE) */}
       <h2 className="mt-8 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-        Films &amp; filmmakers to follow
+        Filmmakers to follow
       </h2>
-      <div className="mt-3 flex flex-col gap-3">
-        {toFollow.map(({ name, detail }) => (
-          <Card key={name} className="p-2">
-            <CardHeader>
-              <CardTitle className="text-base">{name}</CardTitle>
-              <CardDescription>{detail}</CardDescription>
-            </CardHeader>
-          </Card>
-        ))}
-      </div>
+      {creators.length > 0 ? (
+        <div className="mt-3 flex flex-col gap-3">
+          {creators.map((c) => {
+            const name = c.display_name || "Unnamed filmmaker";
+            return (
+              <Card key={c.id} className="p-2">
+                <CardHeader className="flex items-center gap-3">
+                  <Avatar name={name} className="size-10" />
+                  <div className="min-w-0 flex-1">
+                    <CardTitle className="text-base leading-snug">
+                      <Link
+                        href={`/profile/${c.id}`}
+                        className="transition-colors hover:text-brand"
+                      >
+                        {name}
+                      </Link>
+                    </CardTitle>
+                    {c.role && (
+                      <p className="text-sm text-muted-foreground">
+                        {titleCase(c.role)}
+                      </p>
+                    )}
+                  </div>
+                  <FanFollowButton
+                    targetId={c.id}
+                    initialFollowing={followingSet.has(c.id)}
+                  />
+                </CardHeader>
+                {c.headline && (
+                  <CardContent>
+                    <p className="line-clamp-2 text-sm text-foreground/80">
+                      {c.headline}
+                    </p>
+                  </CardContent>
+                )}
+              </Card>
+            );
+          })}
+        </div>
+      ) : (
+        <p className="mt-3 text-sm text-muted-foreground">
+          No filmmakers to follow yet — check back soon.
+        </p>
+      )}
 
       {/* Happening soon (LIVE) */}
       {events.length > 0 && (
