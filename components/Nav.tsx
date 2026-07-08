@@ -94,10 +94,17 @@ export function Nav({
   }
 
   // The Fan and Pro apps each have their own shell (sidebar + bottom tab bar)
-  // and no global top nav. /profile is intentionally excluded — it's the shared
-  // profile page and isn't wrapped in the Pro shell yet, so it keeps the top nav.
+  // and no global top nav, so hide this nav there.
   const shellRoutes = ["/fan", "/dashboard", "/network", "/projects", "/messages"];
   if (shellRoutes.some((prefix) => pathname.startsWith(prefix))) {
+    return null;
+  }
+
+  // /profile is shared, so it's NOT in shellRoutes: consumers and anon visitors
+  // (incl. /profile/[id]) keep the top nav. But approved pros get the Pro shell
+  // there (see app/profile/layout.tsx), so hide the top nav for them to avoid
+  // stacking it on the shell sidebar.
+  if (isApprovedPro && pathname.startsWith("/profile")) {
     return null;
   }
 
