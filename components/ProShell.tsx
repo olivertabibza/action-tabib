@@ -9,6 +9,7 @@ import {
   GraduationCap,
   MessageSquare,
   Search,
+  Users,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -16,10 +17,12 @@ import { LogoutButton } from "@/components/LogoutButton";
 
 // Single source of truth for the Pro app's destinations — shared by the desktop
 // sidebar and the mobile bottom tab bar so the two can't drift apart. Messages
-// lives in a fixed top-right button instead (see ProShell), and Network now
-// lives on the Profile page.
+// lives in a fixed top-right button instead (see ProShell). Network is a
+// top-level tab next to the Feed: discovering pros to follow is what fills the
+// (follow-only) Feed.
 const navItems = [
   { href: "/dashboard", label: "Feed", icon: AlignLeft },
+  { href: "/network", label: "Network", icon: Users },
   { href: "/projects", label: "Projects", icon: Briefcase },
   { href: "/classes", label: "Classes", icon: GraduationCap },
   { href: "/explore", label: "Explore", icon: Search },
