@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { resolveBackLink } from "@/lib/back-link";
 import { signedPortfolioUrls } from "@/lib/portfolio";
 import { titleCase } from "@/lib/marketplace";
+import { MessageButton } from "@/app/messages/message-button";
 import {
   Card,
   CardContent,
@@ -49,6 +50,7 @@ export default async function PublicProfilePage({
   } = await supabase.auth.getUser();
   let fallbackHref = "/";
   let fallbackLabel = "Back";
+  let viewerIsApprovedPro = false;
   if (user) {
     const { data: viewer } = await supabase
       .from("profiles")
@@ -59,6 +61,7 @@ export default async function PublicProfilePage({
       viewer?.account_type === "professional" &&
       viewer?.application_status === "approved"
     ) {
+      viewerIsApprovedPro = true;
       fallbackHref = "/explore";
       fallbackLabel = "Back to Explore";
     } else {
@@ -113,6 +116,13 @@ export default async function PublicProfilePage({
 
       {profile.headline && (
         <p className="mt-3 text-lg text-foreground/90">{profile.headline}</p>
+      )}
+
+      {/* Message: only an approved pro can DM, and never yourself. */}
+      {viewerIsApprovedPro && user && user.id !== profile.id && (
+        <div className="mt-5">
+          <MessageButton otherId={profile.id} variant="default" />
+        </div>
       )}
 
       <div className="mt-8 flex flex-col gap-6">

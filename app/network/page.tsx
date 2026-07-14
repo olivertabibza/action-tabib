@@ -10,6 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { titleCase } from "@/lib/marketplace";
+import { MessageButton } from "@/app/messages/message-button";
 import { FollowButton } from "./follow-button";
 
 export default async function NetworkPage() {
@@ -85,11 +86,12 @@ export default async function NetworkPage() {
                     {c.headline}
                   </p>
                 )}
-                <div>
+                <div className="flex items-center gap-2">
                   <FollowButton
                     targetId={c.id}
                     initialFollowing={followingSet.has(c.id)}
                   />
+                  <MessageButton otherId={c.id} />
                 </div>
               </CardContent>
             </Card>

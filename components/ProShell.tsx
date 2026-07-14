@@ -7,13 +7,13 @@ import {
   Briefcase,
   Circle,
   GraduationCap,
-  MessageSquare,
   Search,
   Users,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { LogoutButton } from "@/components/LogoutButton";
+import { MessagesNavButton } from "@/app/messages/messages-nav-button";
 
 // Single source of truth for the Pro app's destinations — shared by the desktop
 // sidebar and the mobile bottom tab bar so the two can't drift apart. Messages
@@ -52,14 +52,9 @@ export function ProShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex w-full flex-1">
       {/* Messages: fixed top-right on every Pro screen, both desktop and mobile.
-          Sits above content so it never overlaps the page body. */}
-      <Link
-        href="/messages"
-        aria-label="Messages"
-        className="fixed right-4 top-4 z-50 flex size-10 items-center justify-center rounded-full border border-border bg-background/95 text-muted-foreground shadow-sm backdrop-blur transition-colors hover:text-foreground supports-[backdrop-filter]:bg-background/80"
-      >
-        <MessageSquare className="size-5" strokeWidth={1.75} />
-      </Link>
+          Sits above content so it never overlaps the page body. Carries the
+          unread-count badge. */}
+      <MessagesNavButton />
 
       {/* Desktop: left sidebar (hidden below md) */}
       <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-border px-4 py-6 md:flex">
