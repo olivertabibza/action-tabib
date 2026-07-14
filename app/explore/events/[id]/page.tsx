@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, CalendarDays, Clock, MapPin } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
+import { resolveBackLink } from "@/lib/back-link";
 import { titleCase } from "@/lib/marketplace";
 import { eventTypeLabel } from "@/lib/content";
 import { Avatar } from "@/components/Avatar";
@@ -24,6 +25,37 @@ export default async function EventDetailPage({
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  // Back-link target depends on the viewer: this page is public and shell-less,
+  // and /explore (the Pro Explore tab) redirects any non-approved-pro away — so
+  // sending a fan there bounces them to Pro home, and sending an anon there
+  // forces a login on an open-access page. Approved pros → Pro Explore; fans →
+  // the Fan app's Explore; logged-out → the landing page. This is the fallback:
+  // when the viewer arrived from another in-app page we send them back there
+  // instead (resolveBackLink, via the referer).
+  let fallbackHref = "/";
+  let fallbackLabel = "Back";
+  if (user) {
+    const { data: viewer } = await supabase
+      .from("profiles")
+      .select("account_type, application_status")
+      .eq("id", user.id)
+      .maybeSingle();
+    if (
+      viewer?.account_type === "professional" &&
+      viewer?.application_status === "approved"
+    ) {
+      fallbackHref = "/explore";
+      fallbackLabel = "Back to Explore";
+    } else {
+      fallbackHref = "/fan/events";
+      fallbackLabel = "Back to events";
+    }
+  }
+  const { href: backHref, label: backLabel } = await resolveBackLink(
+    `/explore/events/${id}`,
+    { href: fallbackHref, label: fallbackLabel }
+  );
 
   const { data: event } = await supabase
     .from("events")
@@ -91,11 +123,11 @@ export default async function EventDetailPage({
   return (
     <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-12 sm:px-6 sm:py-16">
       <Link
-        href="/explore"
+        href={backHref}
         className="mb-6 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
       >
         <ArrowLeft className="size-4" />
-        Back to Explore
+        {backLabel}
       </Link>
 
       <p className="text-sm font-medium text-brand">

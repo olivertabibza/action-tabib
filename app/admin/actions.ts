@@ -89,7 +89,12 @@ export async function decideContent(
   const gate = await requireAdmin();
   if ("error" in gate) return { error: gate.error };
 
-  const table = parsedKind.data === "event" ? "events" : "articles";
+  const table =
+    parsedKind.data === "event"
+      ? "events"
+      : parsedKind.data === "article"
+        ? "articles"
+        : "classes";
   const { error } = await gate.supabase
     .from(table)
     .update({ status: parsedDecision.data })
@@ -100,10 +105,16 @@ export async function decideContent(
   }
 
   revalidatePath("/admin/content");
-  revalidatePath("/explore");
-  revalidatePath("/fan/explore");
-  revalidatePath("/fan/events");
-  revalidatePath(`/explore/${table}/${id}`);
+  if (table === "classes") {
+    // Classes are pro-only and live under /classes, not /explore.
+    revalidatePath("/classes");
+    revalidatePath(`/classes/${id}`);
+  } else {
+    revalidatePath("/explore");
+    revalidatePath("/fan/explore");
+    revalidatePath("/fan/events");
+    revalidatePath(`/explore/${table}/${id}`);
+  }
   return { success: true };
 }
 

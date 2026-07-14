@@ -1,8 +1,21 @@
 import Link from "next/link";
-import { CalendarDays, Inbox, MapPin, Newspaper } from "lucide-react";
+import {
+  CalendarDays,
+  GraduationCap,
+  Inbox,
+  MapPin,
+  Newspaper,
+} from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
-import { eventTypeLabel, articleCategoryLabel } from "@/lib/content";
+import { titleCase } from "@/lib/marketplace";
+import {
+  eventTypeLabel,
+  articleCategoryLabel,
+  classLevelLabel,
+  classFormatLabel,
+  formatPrice,
+} from "@/lib/content";
 import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { AdminNav } from "../admin-nav";
@@ -29,6 +42,21 @@ type ArticleRow = {
   excerpt: string;
   created_at: string;
   author: { display_name: string | null } | null;
+};
+
+type ClassRow = {
+  id: string;
+  title: string;
+  description: string;
+  discipline: string;
+  level: string;
+  format: string;
+  venue: string;
+  price_cents: number;
+  capacity: number;
+  starts_at: string;
+  created_at: string;
+  instructor: { display_name: string | null } | null;
 };
 
 function submittedOn(iso: string) {
@@ -75,11 +103,23 @@ export default async function AdminContentPage({
     author: a.author as unknown as { display_name: string | null } | null,
   })) as ArticleRow[];
 
+  const { data: classData } = await supabase
+    .from("classes")
+    .select(
+      "id, title, description, discipline, level, format, venue, price_cents, capacity, starts_at, created_at, instructor:profiles!classes_created_by_fkey(display_name)"
+    )
+    .eq("status", status)
+    .order("created_at", { ascending: false });
+  const classes = (classData ?? []).map((c) => ({
+    ...c,
+    instructor: c.instructor as unknown as { display_name: string | null } | null,
+  })) as ClassRow[];
+
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-12 sm:px-6 sm:py-16">
       <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Admin</h1>
       <p className="mt-2 text-muted-foreground">
-        Review events and articles submitted by professionals.
+        Review events, classes, and articles submitted by professionals.
       </p>
 
       <div className="mt-8">
@@ -220,6 +260,84 @@ export default async function AdminContentPage({
         </div>
       ) : (
         <EmptyState label={`No ${status} articles.`} />
+      )}
+
+      {/* Classes */}
+      <h2 className="mb-3 mt-10 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+        <GraduationCap className="size-4" />
+        Classes
+      </h2>
+      {classes.length > 0 ? (
+        <div className="flex flex-col gap-4">
+          {classes.map((c) => {
+            const instructor = c.instructor?.display_name || "Unknown instructor";
+            const starts = new Date(c.starts_at);
+            const location =
+              c.format === "virtual" ? "Virtual" : c.venue || "In person";
+            return (
+              <Card key={c.id} className="p-2">
+                <CardContent className="flex flex-col gap-3 pt-6">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <h3 className="text-lg font-semibold">
+                      <Link
+                        href={`/classes/${c.id}`}
+                        className="hover:underline"
+                      >
+                        {c.title}
+                      </Link>
+                    </h3>
+                    <span className="rounded-full bg-brand/10 px-2.5 py-1 text-xs font-medium text-brand">
+                      {titleCase(c.discipline)}
+                    </span>
+                    <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
+                      {classLevelLabel(c.level)}
+                    </span>
+                  </div>
+
+                  <p className="text-sm text-muted-foreground">
+                    Taught by {instructor} · submitted{" "}
+                    {submittedOn(c.created_at)}
+                  </p>
+
+                  <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+                    <span className="inline-flex items-center gap-1.5">
+                      <CalendarDays className="size-4 text-brand" />
+                      {submittedOn(c.starts_at)}{" "}
+                      {starts.toLocaleTimeString(undefined, {
+                        hour: "numeric",
+                        minute: "2-digit",
+                      })}
+                    </span>
+                    <span className="inline-flex items-center gap-1.5">
+                      <MapPin className="size-4 text-brand" />
+                      {location} · {classFormatLabel(c.format)}
+                    </span>
+                    <span className="inline-flex items-center gap-1.5">
+                      <GraduationCap className="size-4 text-brand" />
+                      {formatPrice(c.price_cents)} · {c.capacity} seats
+                    </span>
+                  </p>
+
+                  {c.description && (
+                    <p className="line-clamp-3 whitespace-pre-wrap text-sm text-muted-foreground">
+                      {c.description}
+                    </p>
+                  )}
+
+                  <div className="border-t border-border pt-4">
+                    <ContentDecisionButtons
+                      kind="class"
+                      id={c.id}
+                      current={status}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      ) : (
+        <EmptyState label={`No ${status} classes.`} />
       )}
     </main>
   );

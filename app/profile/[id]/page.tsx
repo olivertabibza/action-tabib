@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowLeft, ExternalLink, FileText, UserRound } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
+import { resolveBackLink } from "@/lib/back-link";
 import { signedPortfolioUrls } from "@/lib/portfolio";
 import { titleCase } from "@/lib/marketplace";
 import {
@@ -37,6 +38,39 @@ export default async function PublicProfilePage({
     .eq("id", id)
     .maybeSingle();
 
+  // Back-link target depends on the viewer: /projects (the old target) is
+  // pro-only and redirects fans away. Approved pros reach profiles from Network;
+  // fans reach them from their Explore. Read the session only to pick the link.
+  // This is the fallback: when the viewer arrived from another in-app page
+  // (Feed, Projects, Network, Admin…) we send them back there instead
+  // (resolveBackLink, via the referer).
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  let fallbackHref = "/";
+  let fallbackLabel = "Back";
+  if (user) {
+    const { data: viewer } = await supabase
+      .from("profiles")
+      .select("account_type, application_status")
+      .eq("id", user.id)
+      .maybeSingle();
+    if (
+      viewer?.account_type === "professional" &&
+      viewer?.application_status === "approved"
+    ) {
+      fallbackHref = "/explore";
+      fallbackLabel = "Back to Explore";
+    } else {
+      fallbackHref = "/fan/explore";
+      fallbackLabel = "Back to Explore";
+    }
+  }
+  const { href: backHref, label: backLabel } = await resolveBackLink(
+    `/profile/${id}`,
+    { href: fallbackHref, label: fallbackLabel }
+  );
+
   if (!profile) {
     return (
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-12 sm:px-6 sm:py-16">
@@ -59,11 +93,11 @@ export default async function PublicProfilePage({
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-12 sm:px-6 sm:py-16">
       <Link
-        href="/projects"
+        href={backHref}
         className="mb-6 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
       >
         <ArrowLeft className="size-4" />
-        Back to projects
+        {backLabel}
       </Link>
 
       <div className="flex flex-wrap items-center gap-3">

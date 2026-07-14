@@ -26,6 +26,6 @@ export const contentDecisionSchema = z.enum([
 export type ContentDecision = z.infer<typeof contentDecisionSchema>;
 
 /** Which content table a decision targets. */
-export const contentKindSchema = z.enum(["event", "article"]);
+export const contentKindSchema = z.enum(["event", "article", "class"]);
 
 export type ContentKind = z.infer<typeof contentKindSchema>;
