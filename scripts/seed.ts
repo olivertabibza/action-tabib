@@ -850,6 +850,37 @@ async function main() {
   if (artErr) throw artErr;
   console.log(`  articles: ${insertedArticles?.length ?? 0} created`);
 
+  // 5b. Classes test fixture. The RLS tests need a PUBLISHED class to enroll
+  //     into, but only an admin can publish and tests never use the service-role
+  //     key — so the fixture is created HERE (where service-role is legitimate).
+  //     Delete-then-insert on seed-owned classes keeps re-runs duplicate-free
+  //     (deleting the class cascades its enrollments). Small capacity so the
+  //     capacity-enforcement test can fill it. Tagged "[TEST]" like all test data.
+  const { error: delClsErr } = await admin
+    .from("classes")
+    .delete()
+    .in("created_by", seedIds);
+  if (delClsErr) throw delClsErr;
+
+  const { data: insertedClasses, error: clsErr } = await admin
+    .from("classes")
+    .insert({
+      created_by: idByKey.get("director-1")!,
+      title: "[TEST] Scene Study Fixture",
+      description: "[TEST] fixture class used by the automated RLS tests.",
+      discipline: "actor",
+      format: "in_person",
+      level: "all",
+      venue: "[TEST] Studio",
+      price_cents: 0,
+      capacity: 2,
+      starts_at: new Date(Date.now() + 21 * 86_400_000).toISOString(),
+      status: "published",
+    })
+    .select("id");
+  if (clsErr) throw clsErr;
+  console.log(`  classes: ${insertedClasses?.length ?? 0} test fixture created`);
+
   // 6. Follows. Delete ONLY edges where both sides are seed accounts — chaining
   //    two .in() filters is an AND — so a real user following a seed pro (or a
   //    seed pro following a real user) survives a re-run. Then insert the seed

@@ -1,0 +1,38 @@
+name: test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+
+      # Layer 1 (RLS/integration) only. These act solely as seed accounts against
+      # the shared Supabase instance, so the three vars below must be set as repo
+      # secrets. No service-role key here — the tests never need one.
+      - run: npm test
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SEED_PASSWORD: ${{ secrets.SEED_PASSWORD }}
+
+      # NOTE: the Playwright E2E suite (npm run test:e2e) is intentionally NOT run
+      # in CI. It needs a live Next server, seeded data, and browser binaries —
+      # run it locally. Wire it up here later once there's a disposable DB.

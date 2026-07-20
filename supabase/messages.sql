@@ -188,9 +188,18 @@ create policy "Read messages in own conversations"
 -- (your own participant row exists), AND ONLY IF THE OTHER PARTY STILL HAS A ROW.
 -- That last EXISTS is the teeth of "Ignore": once the recipient deletes their
 -- participant row, no row with user_id <> me remains, so this insert fails and
--- the sender can't pile on. Enforced HERE in the DB, never in app code. The
--- caller can see the other party's row because in_conversation(me) is true, so
--- the participants SELECT policy exposes both rows of this conversation.
+-- the sender can't pile on. Enforced HERE in the DB, never in app code.
+--
+-- The recipient check hangs off public.conversations (aliased c), deliberately.
+-- `conversation_id` in `c.id = conversation_id` is the NEW message's column — and
+-- it can only mean that because c (conversations) has no `conversation_id` column
+-- to shadow it. (Writing `where p.conversation_id = conversation_id` inside a
+-- subquery that selects `from conversation_participants p` would instead bind the
+-- bare name to p.conversation_id — the condition becomes always-true and the
+-- check silently spans the WHOLE table, so Ignore stops blocking anyone. Same
+-- shadowing trap fixed in classes.sql.) The inner participant lookup correlates
+-- to c.id, which is unambiguous. The caller can read both participant rows
+-- because in_conversation(me) is true.
 drop policy if exists "Send into own un-ignored conversations" on public.messages;
 create policy "Send into own un-ignored conversations"
   on public.messages for insert
@@ -200,9 +209,13 @@ create policy "Send into own un-ignored conversations"
     and public.is_approved_pro()
     and public.in_conversation(conversation_id)
     and exists (
-      select 1 from public.conversation_participants p
-      where p.conversation_id = conversation_id
-        and p.user_id <> auth.uid()
+      select 1 from public.conversations c
+      where c.id = conversation_id
+        and exists (
+          select 1 from public.conversation_participants p
+          where p.conversation_id = c.id
+            and p.user_id <> auth.uid()
+        )
     )
   );
 
