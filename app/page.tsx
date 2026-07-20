@@ -11,6 +11,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { destinationFor } from "@/lib/auth-dispatch";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -125,14 +126,14 @@ export default async function Home() {
   } = await supabase.auth.getUser();
 
   // Logged-in users skip the marketing page and go straight to their app.
-  // Mirrors the account-type dispatch in app/home/page.tsx and login.
+  // destinationFor is the shared dispatch rule (see lib/auth-dispatch.ts).
   if (user) {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("account_type")
+      .select("account_type, application_status")
       .eq("id", user.id)
       .maybeSingle();
-    redirect(profile?.account_type === "consumer" ? "/fan" : "/dashboard");
+    redirect(destinationFor(profile));
   }
 
   return (

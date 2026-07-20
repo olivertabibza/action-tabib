@@ -1,13 +1,14 @@
 import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
+import { destinationFor } from "@/lib/auth-dispatch";
 import { ProShell } from "@/components/ProShell";
 
 /**
  * Access gate for Pro classes, enforced in one place (mirrors
  * app/messages/layout.tsx):
  *   - logged-out                   → /login (the proxy also guards this)
- *   - not an approved professional → /home
+ *   - not an approved professional → their own app (destinationFor)
  *   - approved pro                 → render inside the Pro shell
  */
 export default async function ClassesLayout({
@@ -34,7 +35,7 @@ export default async function ClassesLayout({
     profile?.account_type !== "professional" ||
     profile?.application_status !== "approved"
   ) {
-    redirect("/home");
+    redirect(destinationFor(profile));
   }
 
   return <ProShell>{children}</ProShell>;

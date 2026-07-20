@@ -1,13 +1,14 @@
 import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
+import { destinationFor } from "@/lib/auth-dispatch";
 import { ProShell } from "@/components/ProShell";
 
 /**
  * Access gate for the Pro Explore TAB (the index at /explore), enforced in one
  * place (mirrors app/messages/layout.tsx):
  *   - logged-out                   → /login (the proxy also guards this)
- *   - not an approved professional → /home
+ *   - not an approved professional → their own app (destinationFor)
  *   - approved pro                 → render inside the Pro shell
  *
  * This gate is scoped to the `(tab)` route group on purpose: the article and
@@ -39,7 +40,7 @@ export default async function ExploreTabLayout({
     profile?.account_type !== "professional" ||
     profile?.application_status !== "approved"
   ) {
-    redirect("/home");
+    redirect(destinationFor(profile));
   }
 
   return <ProShell>{children}</ProShell>;

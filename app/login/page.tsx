@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/client";
+import { destinationFor } from "@/lib/auth-dispatch";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -45,20 +46,20 @@ export default function LoginPage() {
     // pages render logged-in immediately, without a manual reload).
     router.refresh();
 
-    // Route by account type so there's no flash of /home before the proxy's
-    // own server-side redirect takes over. Consumers → Fan app; professionals
-    // (or a missing profile) → Pro app.
+    // Route with the shared dispatch rule (lib/auth-dispatch.ts) so there's no
+    // flash of the wrong app before the proxy's own server-side redirect takes
+    // over — and so pending pros land on /apply/pending, not the Pro app.
     const {
       data: { user },
     } = await supabase.auth.getUser();
     const { data: profile } = user
       ? await supabase
           .from("profiles")
-          .select("account_type")
+          .select("account_type, application_status")
           .eq("id", user.id)
           .maybeSingle()
       : { data: null };
-    router.push(profile?.account_type === "consumer" ? "/fan" : "/dashboard");
+    router.push(destinationFor(profile));
   }
 
   return (

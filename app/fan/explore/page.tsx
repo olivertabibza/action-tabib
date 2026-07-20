@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/server";
 import { eventTypeLabel, articleCategoryLabel } from "@/lib/content";
 import { titleCase } from "@/lib/marketplace";
 import { Avatar } from "@/components/Avatar";
+import { GlobalSearch } from "@/components/GlobalSearch";
 import {
   Card,
   CardContent,
@@ -97,6 +98,8 @@ export default async function FanExplorePage() {
       <p className="mt-2 text-sm text-muted-foreground">
         Follow filmmakers and read what&rsquo;s happening in indie film.
       </p>
+
+      <GlobalSearch className="mt-4" placeholder="Search films & filmmakers…" />
 
       {/* Filmmakers to follow (LIVE) */}
       <h2 className="mt-8 text-sm font-semibold uppercase tracking-wide text-muted-foreground">

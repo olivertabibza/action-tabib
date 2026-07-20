@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { eventTypeLabel, articleCategoryLabel } from "@/lib/content";
 import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/Avatar";
+import { GlobalSearch } from "@/components/GlobalSearch";
 import { Button } from "@/components/ui/button";
 
 // Access (auth + approved pro) is gated in the (tab) route group's layout, which
@@ -113,6 +114,11 @@ export default async function ExplorePage({
       <p className="mt-2 text-sm text-muted-foreground">
         Events, screenings, and articles from the film community.
       </p>
+
+      <GlobalSearch
+        className="mt-4"
+        placeholder="Search projects, classes, people…"
+      />
 
       {submitted && (
         <p className="mt-4 rounded-lg bg-brand/10 px-3 py-2 text-sm text-brand">

@@ -1,6 +1,8 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+import { destinationFor } from "@/lib/auth-dispatch";
+
 /**
  * Proxy — Next.js 16's replacement for Middleware (same functionality, renamed
  * in v16). Runs before every matched request and refreshes the user's Supabase
@@ -56,20 +58,18 @@ export async function proxy(request: NextRequest) {
   }
 
   // Logged-in users shouldn't see the login/signup pages — send them straight
-  // into their app by account type. Consumers get the Fan app (/fan); everyone
-  // else (professionals, or a missing profile) gets the Pro app (/dashboard),
-  // whose own layout gate handles unapproved pros. The profiles query is
+  // into their app. destinationFor (lib/auth-dispatch.ts) owns that rule:
+  // consumers → /fan, approved pros → /dashboard, everyone else (pending or
+  // rejected pros, missing profile) → /apply/pending. The profiles query is
   // guarded to this branch so it only runs on the auth-page redirect, never on
   // every request.
   if (user && isAuthPage) {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("account_type")
+      .select("account_type, application_status")
       .eq("id", user.id)
       .maybeSingle();
-    const destination =
-      profile?.account_type === "consumer" ? "/fan" : "/dashboard";
-    return redirectKeepingSession(request, response, destination);
+    return redirectKeepingSession(request, response, destinationFor(profile));
   }
 
   return response;

@@ -1,13 +1,14 @@
 import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
+import { destinationFor } from "@/lib/auth-dispatch";
 import { ProShell } from "@/components/ProShell";
 
 /**
  * Access gate for Pro messages, enforced in one place (mirrors
  * app/dashboard/layout.tsx and app/network/layout.tsx):
  *   - logged-out                   → /login (the proxy also guards this)
- *   - not an approved professional → /home
+ *   - not an approved professional → their own app (destinationFor)
  *   - approved pro                 → render inside the Pro shell
  */
 export default async function MessagesLayout({
@@ -34,7 +35,7 @@ export default async function MessagesLayout({
     profile?.account_type !== "professional" ||
     profile?.application_status !== "approved"
   ) {
-    redirect("/home");
+    redirect(destinationFor(profile));
   }
 
   return <ProShell>{children}</ProShell>;

@@ -13,6 +13,11 @@
 --   * Enrollment is CAPPED (capacity), and the cap is enforced in the INSERT
 --     policy so a race can't oversubscribe — the DB is the only place two
 --     simultaneous enrolls can't both slip past a check-then-insert in app code.
+--     The head-count comes from the security-definer helper
+--     public.class_seats_taken(), NOT from an inline subquery over
+--     class_enrollments: that table's SELECT policy ("Users read own
+--     enrollments") hides other people's rows, so an inline count evaluated as
+--     the enrolling user reads 0 and the cap never fires. See §4.
 --   * Classes are PROFESSIONAL-ONLY. Unlike RSVPs (open to any authenticated
 --     user, fans included), only approved pros may enroll — enforced in the
 --     INSERT policy via public.is_approved_pro().
@@ -140,6 +145,33 @@ create policy "Users read own enrollments"
   to authenticated
   using (user_id = auth.uid());
 
+-- The TRUE head-count for a class, for the capacity check below.
+--
+-- security definer is REQUIRED, and this is the whole reason the function
+-- exists: the policy needs the count across ALL enrollees, but the SELECT policy
+-- above ("Users read own enrollments") restricts class_enrollments to the
+-- caller's own rows. A plain inline subquery in the INSERT policy is evaluated
+-- in the ENROLLING user's security context, so it sees only that user's rows —
+-- zero for someone not yet enrolled. The count came back 0 every time and
+-- capacity was never enforced: a class could be oversubscribed without limit.
+--
+-- Running as the function owner bypasses that SELECT RLS for THIS COUNT ONLY —
+-- the same, narrow elevation used by class_enrollment_counts (§5) and the
+-- is_approved_pro() / is_member() helpers. It is not the service-role / secret
+-- key, and it leaks no rows: callers get a bigint, never WHO enrolled, so the
+-- privacy model is untouched.
+create or replace function public.class_seats_taken(p_class_id uuid)
+returns bigint
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select count(*) from public.class_enrollments where class_id = p_class_id;
+$$;
+
+grant execute on function public.class_seats_taken(uuid) to anon, authenticated;
+
 -- Enroll as yourself, only into a PUBLISHED class, only as an APPROVED PRO, and
 -- only while there's room. The capacity check lives HERE, not just in the action,
 -- because the database is the only place a check-then-insert race can't slip
@@ -147,13 +179,12 @@ create policy "Users read own enrollments"
 -- an app-level check, but the policy is evaluated per-row against the committed
 -- table state.
 --
--- Everything hangs off ONE correlated subquery over public.classes (aliased c),
--- deliberately. `class_id` here is the class_id of the row being inserted — and
--- it can only mean that because c (classes) has no `class_id` column to shadow
--- it. (If we instead wrote `where e.class_id = class_id` inside a subquery that
--- selects `from public.class_enrollments e`, the bare `class_id` would bind to
--- e.class_id and the count would silently span the WHOLE table.) The inner count
--- correlates to c.id, which is unambiguous.
+-- The class checks hang off ONE correlated subquery over public.classes (aliased
+-- c), deliberately. `class_id` here is the class_id of the row being inserted —
+-- and it can only mean that because c (classes) has no `class_id` column to
+-- shadow it. The seat count is delegated to public.class_seats_taken(c.id)
+-- rather than counted inline, because an inline count runs under the enrolling
+-- user's SELECT policy and would always read 0 (see the note on that function).
 drop policy if exists "Approved pros enroll in published classes" on public.class_enrollments;
 create policy "Approved pros enroll in published classes"
   on public.class_enrollments for insert
@@ -165,10 +196,7 @@ create policy "Approved pros enroll in published classes"
       select 1 from public.classes c
       where c.id = class_id
         and c.status = 'published'
-        and (
-          select count(*) from public.class_enrollments e
-          where e.class_id = c.id
-        ) < c.capacity
+        and public.class_seats_taken(c.id) < c.capacity
     )
   );
 
