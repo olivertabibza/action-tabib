@@ -93,11 +93,9 @@ create policy "Read follows you are part of"
   on public.follows for select
   using (follower_id = auth.uid() or following_id = auth.uid());
 
--- Only an approved member can follow, and only as themselves.
-drop policy if exists "Approved members follow" on public.follows;
-create policy "Approved members follow"
-  on public.follows for insert
-  with check (follower_id = auth.uid() and public.is_approved_pro());
+-- (The follows INSERT policy lives in fan-follows.sql — the single source of
+-- truth. It widened this from pros-only to any member so fans can follow too;
+-- defining it here as well would let the two files diverge on the live DB.)
 
 -- Unfollow: you can only delete your own outgoing follow.
 drop policy if exists "Unfollow your own" on public.follows;

@@ -8,6 +8,7 @@ import { titleCase } from "@/lib/marketplace";
 import { eventTypeLabel } from "@/lib/content";
 import { Avatar } from "@/components/Avatar";
 import { RsvpButton } from "../rsvp-button";
+import { SaveButton } from "../../saved/save-button";
 
 // PUBLIC page — no shell, no auth redirect. Published events are open-access
 // (RLS exposes published rows to anon), so logged-out fans can view them. We
@@ -95,6 +96,7 @@ export default async function EventDetailPage({
   const rsvpCount = Number(countRow?.rsvp_count ?? 0);
 
   let hasRsvped = false;
+  let initialSaved = false;
   if (user) {
     const { data: myRsvp } = await supabase
       .from("event_rsvps")
@@ -103,6 +105,15 @@ export default async function EventDetailPage({
       .eq("user_id", user.id)
       .maybeSingle();
     hasRsvped = !!myRsvp;
+
+    const { data: mySave } = await supabase
+      .from("saved_items")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("item_type", "event")
+      .eq("item_id", id)
+      .maybeSingle();
+    initialSaved = !!mySave;
   }
 
   // Supabase types embedded relations as arrays; this FK is to-one at runtime.
@@ -172,13 +183,19 @@ export default async function EventDetailPage({
         </p>
       )}
 
-      <div className="mt-8">
+      <div className="mt-8 flex items-center gap-3">
         <RsvpButton
           eventId={event.id}
           initialRsvped={hasRsvped}
           rsvpCount={rsvpCount}
           loggedIn={!!user}
           size="lg"
+        />
+        <SaveButton
+          itemType="event"
+          itemId={event.id}
+          initialSaved={initialSaved}
+          loggedIn={!!user}
         />
       </div>
     </main>

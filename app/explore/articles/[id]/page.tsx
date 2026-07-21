@@ -7,6 +7,7 @@ import { resolveBackLink } from "@/lib/back-link";
 import { titleCase } from "@/lib/marketplace";
 import { articleCategoryLabel } from "@/lib/content";
 import { Avatar } from "@/components/Avatar";
+import { SaveButton } from "../../saved/save-button";
 
 // PUBLIC page — no shell, no auth redirect. Published articles are open-access
 // (RLS exposes published rows to anon), so logged-out fans can read them. We
@@ -84,6 +85,19 @@ export default async function ArticleDetailPage({
     notFound();
   }
 
+  // Whether the viewer has saved this article (logged-in only; anon → false).
+  let initialSaved = false;
+  if (user) {
+    const { data: mySave } = await supabase
+      .from("saved_items")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("item_type", "article")
+      .eq("item_id", id)
+      .maybeSingle();
+    initialSaved = !!mySave;
+  }
+
   // Supabase types embedded relations as arrays; this FK is to-one at runtime.
   const author = article.author as unknown as Person | null;
   const authorName = author?.display_name || "the Action desk";
@@ -112,13 +126,19 @@ export default async function ArticleDetailPage({
 
       <div className="mt-5 flex items-center gap-3">
         <Avatar name={authorName} className="size-9" />
-        <div className="text-sm">
+        <div className="min-w-0 flex-1 text-sm">
           <p className="font-medium">
             {authorName}
             {author?.role ? ` · ${titleCase(author.role)}` : ""}
           </p>
           <p className="text-muted-foreground">{published}</p>
         </div>
+        <SaveButton
+          itemType="article"
+          itemId={article.id}
+          initialSaved={initialSaved}
+          loggedIn={!!user}
+        />
       </div>
 
       {/* TODO: a NYT-style "log in to keep reading" metering gate will wrap this
