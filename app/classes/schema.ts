@@ -42,3 +42,22 @@ export const classSchema = z.object({
 });
 
 export type ClassFormValues = z.infer<typeof classSchema>;
+
+/**
+ * Validation for a class review. The star picker supplies the rating; the body
+ * is optional (a star-only review is fine). RLS separately enforces WHO may
+ * review (enrolled, approved pro); this only checks the values.
+ */
+export const reviewSchema = z.object({
+  rating: z
+    .number({ error: "Pick a star rating." })
+    .int()
+    .min(1, "Pick a star rating.")
+    .max(5, "Ratings go up to 5 stars."),
+  body: z
+    .string()
+    .trim()
+    .max(1000, "Keep the review under 1000 characters."),
+});
+
+export type ReviewFormValues = z.infer<typeof reviewSchema>;

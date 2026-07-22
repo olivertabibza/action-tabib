@@ -472,6 +472,141 @@ const ARTICLES: ArticleSpec[] = [
   },
 ];
 
+// Classes: the published "[TEST]" fixture the RLS tests enroll into (small
+// capacity so the capacity test can fill it — it must get NO seed enrollments
+// or reviews, or those tests break), plus two published demo classes that give
+// the Classes screens real cards with ratings.
+type ClassSpec = {
+  title: string;
+  ownerKey: string; // must be an approved pro
+  discipline: Discipline | "any";
+  format: "in_person" | "virtual";
+  level: "beginner" | "intermediate" | "advanced" | "all";
+  venue: string;
+  description: string;
+  price_cents: number;
+  capacity: number;
+  daysFromNow: number; // starts_at, relative to seed time
+};
+
+const CLASSES: ClassSpec[] = [
+  {
+    title: "[TEST] Scene Study Fixture",
+    ownerKey: "director-1",
+    discipline: "actor",
+    format: "in_person",
+    level: "all",
+    venue: "[TEST] Studio",
+    description: "[TEST] fixture class used by the automated RLS tests.",
+    price_cents: 0,
+    capacity: 2,
+    daysFromNow: 21,
+  },
+  {
+    title: "Scene Study Intensive",
+    ownerKey: "director-1",
+    discipline: "actor",
+    format: "in_person",
+    level: "intermediate",
+    venue: "The Loft Studio, Brooklyn, NY",
+    description:
+      "A hands-on afternoon working two-person scenes on their feet. Bring a memorized scene; leave with notes you can actually use on set.",
+    price_cents: 4500,
+    capacity: 12,
+    daysFromNow: 12,
+  },
+  {
+    title: "Cold Read & Audition Technique",
+    ownerKey: "actor-1",
+    discipline: "actor",
+    format: "virtual",
+    level: "all",
+    venue: "",
+    description:
+      "Sides you've never seen, thirty seconds to prep, camera on. We drill the self-tape and cold-read muscles casting actually tests.",
+    price_cents: 3000,
+    capacity: 15,
+    daysFromNow: 18,
+  },
+];
+
+// Who takes the demo classes (never the owner, never over capacity)…
+type ClassEnrollmentSpec = { classTitle: string; keys: string[] };
+
+const CLASS_ENROLLMENTS: ClassEnrollmentSpec[] = [
+  {
+    classTitle: "Scene Study Intensive",
+    keys: ["actor-1", "actor-2", "writer-1", "composer-1"],
+  },
+  {
+    classTitle: "Cold Read & Audition Technique",
+    keys: ["actor-2", "editor-1", "cinematographer-1"],
+  },
+];
+
+// …and what they thought. Reviewers must be enrollees of that class (that's
+// what RLS enforces for real users). Mostly 4–5 with one 3 so the averages
+// look lived-in, staggered newest-first.
+type ClassReviewSpec = {
+  classTitle: string;
+  reviewerKey: string;
+  rating: number;
+  body: string;
+  daysAgo: number;
+};
+
+const CLASS_REVIEWS: ClassReviewSpec[] = [
+  {
+    classTitle: "Scene Study Intensive",
+    reviewerKey: "actor-1",
+    rating: 5,
+    body: "Sharpest scene notes I've gotten outside a real set. Left with two usable self-tape scenes.",
+    daysAgo: 1.2,
+  },
+  {
+    classTitle: "Scene Study Intensive",
+    reviewerKey: "actor-2",
+    rating: 4,
+    body: "Great room, generous feedback. Would love more time on physical work.",
+    daysAgo: 2.8,
+  },
+  {
+    classTitle: "Scene Study Intensive",
+    reviewerKey: "writer-1",
+    rating: 5,
+    body: "Came as a writer to hear my dialogue on its feet — worth every minute.",
+    daysAgo: 4.5,
+  },
+  {
+    classTitle: "Scene Study Intensive",
+    reviewerKey: "composer-1",
+    rating: 3,
+    body: "Well run, but it's squarely aimed at actors. Sat out more than I'd hoped.",
+    daysAgo: 6.1,
+  },
+  {
+    classTitle: "Cold Read & Audition Technique",
+    reviewerKey: "actor-2",
+    rating: 5,
+    body: "The thirty-second prep drills are brutal in the best way. My tapes got faster immediately.",
+    daysAgo: 0.9,
+  },
+  {
+    classTitle: "Cold Read & Audition Technique",
+    reviewerKey: "editor-1",
+    rating: 4,
+    body: "Took it to understand what actors go through in auditions. Eye-opening and practical.",
+    daysAgo: 3.3,
+  },
+  {
+    classTitle: "Cold Read & Audition Technique",
+    reviewerKey: "cinematographer-1",
+    rating: 5,
+    body: "Ran the camera side of the mock tapes and still learned a ton. Tight, well-paced session.",
+    daysAgo: 5.7,
+  },
+];
+
 // A realistic web of follows among the seed pros: [follower, following].
 // Actors follow the directors and producers they'd want to work with; crew
 // follow each other and the people who hire them; the newcomers (pending pros)
@@ -706,6 +841,51 @@ async function main() {
       `Article "${art.title}" owned by non-approved key "${art.ownerKey}"`
     );
   }
+  const classByTitle = new Map(CLASSES.map((c) => [c.title, c]));
+  for (const cls of CLASSES) {
+    assertExpr(
+      approvedKeys.has(cls.ownerKey),
+      `Class "${cls.title}" owned by non-approved key "${cls.ownerKey}"`
+    );
+  }
+  const enrolleesByClass = new Map<string, Set<string>>();
+  for (const ce of CLASS_ENROLLMENTS) {
+    const cls = classByTitle.get(ce.classTitle);
+    assertExpr(!!cls, `Enrollments reference unknown class "${ce.classTitle}"`);
+    assertExpr(
+      !ce.classTitle.startsWith("[TEST]"),
+      `Seed enrollments on "${ce.classTitle}" would break the RLS capacity test`
+    );
+    assertExpr(
+      ce.keys.length <= cls!.capacity,
+      `Class "${ce.classTitle}" over-enrolled (${ce.keys.length} > ${cls!.capacity})`
+    );
+    const seen = new Set<string>();
+    for (const key of ce.keys) {
+      assertExpr(approvedKeys.has(key), `Enrollee "${key}" is not an approved pro`);
+      assertExpr(
+        key !== cls!.ownerKey,
+        `Owner "${key}" enrolled in their own "${ce.classTitle}"`
+      );
+      assertExpr(!seen.has(key), `Duplicate enrollee "${key}" in "${ce.classTitle}"`);
+      seen.add(key);
+    }
+    enrolleesByClass.set(ce.classTitle, seen);
+  }
+  const reviewPairs = new Set<string>();
+  for (const rev of CLASS_REVIEWS) {
+    assertExpr(
+      enrolleesByClass.get(rev.classTitle)?.has(rev.reviewerKey) ?? false,
+      `Review by "${rev.reviewerKey}" on "${rev.classTitle}" without an enrollment`
+    );
+    assertExpr(
+      rev.rating >= 1 && rev.rating <= 5,
+      `Review rating out of range on "${rev.classTitle}" by "${rev.reviewerKey}"`
+    );
+    const pair = `${rev.classTitle}::${rev.reviewerKey}`;
+    assertExpr(!reviewPairs.has(pair), `Duplicate review: ${pair}`);
+    reviewPairs.add(pair);
+  }
   const allKeys = new Set(PROS.map((p) => p.key));
   const followPairs = new Set<string>();
   for (const [followerKey, followingKey] of FOLLOWS) {
@@ -850,36 +1030,81 @@ async function main() {
   if (artErr) throw artErr;
   console.log(`  articles: ${insertedArticles?.length ?? 0} created`);
 
-  // 5b. Classes test fixture. The RLS tests need a PUBLISHED class to enroll
-  //     into, but only an admin can publish and tests never use the service-role
-  //     key — so the fixture is created HERE (where service-role is legitimate).
+  // 5b. Classes. Two kinds, all published (tests and the app never use the
+  //     service-role key, and only an admin can publish — so it happens HERE):
+  //       * the "[TEST] Scene Study Fixture" the RLS tests enroll into — small
+  //         capacity so the capacity test can fill it, and deliberately given
+  //         NO seed enrollments or reviews (either would break those tests);
+  //       * two demo classes with enrollees and reviews so the Classes screens
+  //         render the ★-rating block with data.
   //     Delete-then-insert on seed-owned classes keeps re-runs duplicate-free
-  //     (deleting the class cascades its enrollments). Small capacity so the
-  //     capacity-enforcement test can fill it. Tagged "[TEST]" like all test data.
+  //     (deleting a class cascades its enrollments AND reviews, the same way
+  //     projects cascade their applications). The extra reviews delete catches
+  //     stray seed-authored reviews on non-seed classes.
+  const { error: delRevErr } = await admin
+    .from("class_reviews")
+    .delete()
+    .in("reviewer_id", seedIds);
+  if (delRevErr) throw delRevErr;
+
   const { error: delClsErr } = await admin
     .from("classes")
     .delete()
     .in("created_by", seedIds);
   if (delClsErr) throw delClsErr;
 
+  const classRows = CLASSES.map((c) => ({
+    created_by: idByKey.get(c.ownerKey)!,
+    title: c.title,
+    description: c.description,
+    discipline: c.discipline,
+    format: c.format,
+    level: c.level,
+    venue: c.venue,
+    price_cents: c.price_cents,
+    capacity: c.capacity,
+    starts_at: new Date(Date.now() + c.daysFromNow * 86_400_000).toISOString(),
+    status: "published",
+  }));
   const { data: insertedClasses, error: clsErr } = await admin
     .from("classes")
-    .insert({
-      created_by: idByKey.get("director-1")!,
-      title: "[TEST] Scene Study Fixture",
-      description: "[TEST] fixture class used by the automated RLS tests.",
-      discipline: "actor",
-      format: "in_person",
-      level: "all",
-      venue: "[TEST] Studio",
-      price_cents: 0,
-      capacity: 2,
-      starts_at: new Date(Date.now() + 21 * 86_400_000).toISOString(),
-      status: "published",
-    })
-    .select("id");
+    .insert(classRows)
+    .select("id, title");
   if (clsErr) throw clsErr;
-  console.log(`  classes: ${insertedClasses?.length ?? 0} test fixture created`);
+  const classIdByTitle = new Map(
+    (insertedClasses ?? []).map((c: { id: string; title: string }) => [
+      c.title,
+      c.id,
+    ])
+  );
+  console.log(`  classes: ${insertedClasses?.length ?? 0} created`);
+
+  const enrollmentRows = CLASS_ENROLLMENTS.flatMap((ce) =>
+    ce.keys.map((key) => ({
+      class_id: classIdByTitle.get(ce.classTitle)!,
+      user_id: idByKey.get(key)!,
+    }))
+  );
+  const { data: insertedEnrollments, error: enrErr } = await admin
+    .from("class_enrollments")
+    .insert(enrollmentRows)
+    .select("id");
+  if (enrErr) throw enrErr;
+  console.log(`  enrollments: ${insertedEnrollments?.length ?? 0} created`);
+
+  const reviewRows = CLASS_REVIEWS.map((r) => ({
+    class_id: classIdByTitle.get(r.classTitle)!,
+    reviewer_id: idByKey.get(r.reviewerKey)!,
+    rating: r.rating,
+    body: r.body,
+    created_at: daysAgoIso(r.daysAgo),
+  }));
+  const { data: insertedReviews, error: revErr } = await admin
+    .from("class_reviews")
+    .insert(reviewRows)
+    .select("id");
+  if (revErr) throw revErr;
+  console.log(`  reviews: ${insertedReviews?.length ?? 0} created`);
 
   // 6. Follows. Delete ONLY edges where both sides are seed accounts — chaining
   //    two .in() filters is an AND — so a real user following a seed pro (or a
@@ -914,15 +1139,22 @@ async function main() {
     .in("actor_id", seedIds);
   if (delActErr) throw delActErr;
 
+  //    Both row shapes spell out body AND metadata even where the app relies on
+  //    the column default: PostgREST unifies the column list across a batch
+  //    insert and fills a row's missing keys with explicit nulls, which bypass
+  //    column defaults — so mixing shapes in one insert violates the not-null
+  //    constraints on body/metadata.
   const statusRows = STATUS_UPDATES.map((s) => ({
     actor_id: idByKey.get(s.key)!,
     kind: "status_update",
     body: s.body,
+    metadata: {},
     created_at: daysAgoIso(s.daysAgo),
   }));
   const followActivityRows = FOLLOW_ACTIVITY.map((f) => ({
     actor_id: idByKey.get(f.actorKey)!,
     kind: "started_following",
+    body: "",
     subject_id: idByKey.get(f.targetKey)!,
     metadata: { target_name: nameByKey.get(f.targetKey) ?? null },
     created_at: daysAgoIso(f.daysAgo),

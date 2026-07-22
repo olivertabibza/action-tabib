@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
-import { classSchema, type ClassFormValues } from "./schema";
+import { classSchema, reviewSchema, type ClassFormValues } from "./schema";
 
 /**
  * Teach a class. Inserts a row owned by the signed-in user; RLS also requires an
@@ -95,6 +95,76 @@ export async function toggleEnrollment(classId: string) {
         return { error: "This class is full." };
       }
     }
+  }
+
+  revalidatePath(`/classes/${classId}`);
+  revalidatePath("/classes");
+  return { success: true };
+}
+
+/**
+ * Submit (or edit) the caller's review of a class. The upsert targets the
+ * unique (class_id, reviewer_id) pair, so submitting again updates your
+ * existing review instead of failing. RLS is the enforcement layer: only an
+ * enrolled, approved pro can insert, and only the reviewer can hit the
+ * conflict-update path — so a denial here means "you're not enrolled".
+ */
+export async function submitReview(
+  classId: string,
+  rating: number,
+  body: string
+) {
+  const parsed = reviewSchema.safeParse({ rating, body });
+  if (!parsed.success) {
+    return { error: "Please check your review and try again." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { error: "Your session has expired. Please log in again." };
+  }
+
+  const { error } = await supabase.from("class_reviews").upsert(
+    {
+      class_id: classId,
+      reviewer_id: user.id,
+      rating: parsed.data.rating,
+      body: parsed.data.body,
+    },
+    { onConflict: "class_id,reviewer_id" }
+  );
+
+  if (error) {
+    return { error: "Only people enrolled in this class can review it." };
+  }
+
+  revalidatePath(`/classes/${classId}`);
+  revalidatePath("/classes");
+  return { success: true };
+}
+
+/** Delete the caller's own review of a class. RLS restricts the delete to
+ *  rows where reviewer_id = auth.uid(); the filter is the in-app echo. */
+export async function deleteReview(classId: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { error: "Your session has expired. Please log in again." };
+  }
+
+  const { error } = await supabase
+    .from("class_reviews")
+    .delete()
+    .eq("class_id", classId)
+    .eq("reviewer_id", user.id);
+
+  if (error) {
+    return { error: error.message };
   }
 
   revalidatePath(`/classes/${classId}`);

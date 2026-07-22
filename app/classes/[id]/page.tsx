@@ -6,20 +6,51 @@ import {
   Clock,
   MapPin,
   Signal,
+  Star,
   Users,
 } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
 import { titleCase } from "@/lib/marketplace";
 import { classLevelLabel, classFormatLabel, formatPrice } from "@/lib/content";
+import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/Avatar";
 import { EnrollButton } from "../enroll-button";
+import { ReviewComposer } from "../review-composer";
 
 // Gated + wrapped in ProShell by app/classes/layout.tsx (classes are pro-only),
 // so — unlike the public event detail page — this page assumes an approved pro
 // viewer and needs no anon/back-link handling.
 
 type Person = { display_name: string | null; role: string | null };
+
+type Review = {
+  id: string;
+  rating: number;
+  body: string;
+  created_at: string;
+  reviewer_id: string;
+  reviewer: Person | null;
+};
+
+/** Read-only 1–5 star row, filled up to `rating`. */
+function RatingStars({ rating }: { rating: number }) {
+  return (
+    <span className="flex items-center gap-0.5">
+      {[1, 2, 3, 4, 5].map((n) => (
+        <Star
+          key={n}
+          className={cn(
+            "size-3.5",
+            n <= rating
+              ? "fill-amber-500 text-amber-500"
+              : "text-muted-foreground/40"
+          )}
+        />
+      ))}
+    </span>
+  );
+}
 
 export default async function ClassDetailPage({
   params,
@@ -81,6 +112,46 @@ export default async function ClassDetailPage({
       .maybeSingle();
     isEnrolled = !!mine;
   }
+
+  // Reviews, newest first, with each reviewer's profile embedded via the FK —
+  // one query, no N+1. RLS scopes this to a published class (or your own row).
+  const { data: reviewData } = await supabase
+    .from("class_reviews")
+    .select(
+      "id, rating, body, created_at, reviewer_id, reviewer:profiles!class_reviews_reviewer_id_fkey(display_name, role)"
+    )
+    .eq("class_id", id)
+    .order("created_at", { ascending: false });
+  const reviews: Review[] = (reviewData ?? []).map((r) => ({
+    ...r,
+    reviewer: r.reviewer as unknown as Person | null,
+  }));
+
+  // "Reviews from your connections": the viewer's own follow rows are
+  // self-readable, so fetch them and float followed reviewers to the top.
+  // Each partition keeps the newest-first order from the query.
+  let followedIds = new Set<string>();
+  if (user && reviews.length > 0) {
+    const { data: follows } = await supabase
+      .from("follows")
+      .select("following_id")
+      .eq("follower_id", user.id);
+    followedIds = new Set((follows ?? []).map((f) => f.following_id as string));
+  }
+  const connectionReviews = reviews.filter((r) => followedIds.has(r.reviewer_id));
+  const orderedReviews = [
+    ...connectionReviews,
+    ...reviews.filter((r) => !followedIds.has(r.reviewer_id)),
+  ];
+
+  const reviewCount = reviews.length;
+  const avgRating =
+    reviewCount > 0
+      ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviewCount
+      : 0;
+  const ownReview = user
+    ? reviews.find((r) => r.reviewer_id === user.id) ?? null
+    : null;
 
   // Supabase types embedded relations as arrays; this FK is to-one at runtime.
   const instructor = klass.instructor as unknown as Person | null;
@@ -163,9 +234,19 @@ export default async function ClassDetailPage({
         </p>
       </div>
 
-      {/* REVIEWS GO HERE — a ratings/reviews block (the ★4.8 in the mockup) is a
-          later pass; deliberately not built now. Leave this gap under the header
-          for it. */}
+      {/* Rating summary (the ★4.8 from the mockup) — hidden until the class has
+          reviews. The full review list + composer live at the bottom of the
+          page; this line keeps the headline number up here under the
+          instructor. */}
+      {reviewCount > 0 && (
+        <p className="mt-3 flex items-center gap-1.5 text-sm">
+          <Star className="size-4 fill-amber-500 text-amber-500" />
+          <span className="font-semibold">{avgRating.toFixed(1)}</span>
+          <span className="text-muted-foreground">
+            ({reviewCount} {reviewCount === 1 ? "review" : "reviews"})
+          </span>
+        </p>
+      )}
 
       <p className="mt-8 text-2xl font-bold">{formatPrice(klass.price_cents)}</p>
 
@@ -188,6 +269,63 @@ export default async function ClassDetailPage({
             : "Class full"}
         </span>
       </div>
+
+      {/* Reviews. Section only exists when there's something to show: a list,
+          or the composer (enrolled viewers only — RLS backs that gate up). */}
+      {(orderedReviews.length > 0 || isEnrolled) && (
+        <section className="mt-10">
+          <h2 className="text-lg font-semibold">
+            {connectionReviews.length > 0
+              ? "Reviews from your connections"
+              : "Reviews"}
+          </h2>
+
+          {orderedReviews.length > 0 && (
+            <ul className="mt-4 flex flex-col gap-5">
+              {orderedReviews.map((r) => {
+                const name = r.reviewer?.display_name || "A member";
+                return (
+                  <li key={r.id} className="flex items-start gap-3">
+                    <Avatar name={name} className="size-9" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm">
+                        <Link
+                          href={`/profile/${r.reviewer_id}`}
+                          className="font-medium hover:underline"
+                        >
+                          {name}
+                        </Link>
+                        {r.reviewer?.role ? (
+                          <span className="text-muted-foreground">
+                            {" "}
+                            · {titleCase(r.reviewer.role)}
+                          </span>
+                        ) : null}
+                      </p>
+                      <div className="mt-1">
+                        <RatingStars rating={r.rating} />
+                      </div>
+                      {r.body && (
+                        <p className="mt-1.5 whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
+                          {r.body}
+                        </p>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+
+          {isEnrolled && (
+            <ReviewComposer
+              classId={klass.id}
+              initialRating={ownReview?.rating ?? null}
+              initialBody={ownReview?.body ?? ""}
+            />
+          )}
+        </section>
+      )}
     </main>
   );
 }

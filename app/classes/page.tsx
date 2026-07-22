@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { GraduationCap, Plus } from "lucide-react";
+import { GraduationCap, Plus, Star } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
 import { titleCase } from "@/lib/marketplace";
@@ -67,6 +67,26 @@ export default async function ClassesPage({
   const enrolledByClass = new Map<string, number>();
   for (const r of countRows ?? [])
     enrolledByClass.set(r.class_id as string, Number(r.enrolled_count));
+
+  // Rating summaries for every listed class in ONE query (no per-card
+  // queries), aggregated here — the cards show "★ 4.8 (12)" when a class has
+  // reviews.
+  const ratingByClass = new Map<string, { sum: number; count: number }>();
+  if (classes.length > 0) {
+    const { data: reviewRows } = await supabase
+      .from("class_reviews")
+      .select("class_id, rating")
+      .in(
+        "class_id",
+        classes.map((c) => c.id)
+      );
+    for (const r of reviewRows ?? []) {
+      const agg = ratingByClass.get(r.class_id as string) ?? { sum: 0, count: 0 };
+      agg.sum += Number(r.rating);
+      agg.count += 1;
+      ratingByClass.set(r.class_id as string, agg);
+    }
+  }
 
   // The viewer's own not-yet-published submissions, so an author can track a
   // class they've sent for review (mirrors Explore's "Your submissions").
@@ -157,6 +177,7 @@ export default async function ClassesPage({
                     0,
                     c.capacity - (enrolledByClass.get(c.id) ?? 0)
                   )}
+                  rating={ratingByClass.get(c.id) ?? null}
                 />
               </Link>
             </li>
@@ -179,9 +200,11 @@ export default async function ClassesPage({
 function ClassCard({
   klass,
   spotsLeft,
+  rating,
 }: {
   klass: ClassRow;
   spotsLeft: number;
+  rating: { sum: number; count: number } | null;
 }) {
   const d = new Date(klass.starts_at);
   const month = d
@@ -202,8 +225,19 @@ function ClassCard({
       </span>
       <div className="min-w-0 flex-1">
         <p className="font-semibold leading-snug">{klass.title}</p>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {instructor} · {location}
+        <p className="mt-1 flex flex-wrap items-center gap-x-1 text-sm text-muted-foreground">
+          {rating && (
+            <>
+              <span className="inline-flex items-center gap-1 font-medium text-foreground">
+                <Star className="size-3.5 fill-amber-500 text-amber-500" />
+                {(rating.sum / rating.count).toFixed(1)} ({rating.count})
+              </span>
+              <span>·</span>
+            </>
+          )}
+          <span>
+            {instructor} · {location}
+          </span>
         </p>
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
           <span className="rounded-full bg-brand/10 px-2 py-0.5 text-xs font-medium text-brand">
