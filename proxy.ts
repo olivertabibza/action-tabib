@@ -43,6 +43,33 @@ export async function proxy(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
+
+  // NYT-style article meter, anon readers only: the FIRST article a logged-out
+  // visitor opens becomes their one free article. The cookie stores WHICH
+  // article (not a count), so revisiting it stays free; the article page gates
+  // every other id. It's set here, not in the page, because server components
+  // can't write cookies during render. Same dual-write as the Supabase pattern
+  // above: mutate the request cookies and rebuild the response around the
+  // mutated request (carrying over any auth cookies getUser() refreshed onto
+  // the old response), so the server component rendering THIS request already
+  // sees the cookie. "/explore/articles/new" is the submission form, not an
+  // article — never meter it.
+  const articleId = pathname.match(/^\/explore\/articles\/([^/]+)$/)?.[1];
+  if (!user && articleId && articleId !== "new") {
+    if (!request.cookies.get("article_meter")) {
+      request.cookies.set("article_meter", articleId);
+      const refreshed = response.cookies.getAll();
+      response = NextResponse.next({ request });
+      refreshed.forEach((cookie) => response.cookies.set(cookie));
+      response.cookies.set("article_meter", articleId, {
+        httpOnly: true,
+        sameSite: "lax",
+        maxAge: 60 * 60 * 24 * 30, // ~30 days
+        path: "/",
+      });
+    }
+  }
+
   // /profile (own editable profile) is protected, but /profile/<id> is a
   // public read-only view of an approved professional — leave it open.
   const isProtected =

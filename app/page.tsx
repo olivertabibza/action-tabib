@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { destinationFor } from "@/lib/auth-dispatch";
+import { articleCategoryLabel } from "@/lib/content";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -70,35 +71,8 @@ const features: { icon: LucideIcon; title: string; blurb: string }[] = [
   },
 ];
 
-// Static placeholder content for the discovery section — NOT real data. Real
-// articles/events and a "log in to read more" gate come in a later step.
-const sampleArticles: {
-  category: string;
-  title: string;
-  teaser: string;
-  byline: string;
-}[] = [
-  {
-    category: "Interview",
-    title: "How a microbudget short found its festival run",
-    teaser:
-      "A first-time director on stretching $4k across three shooting days.",
-    byline: "By the Action desk · 6 min read",
-  },
-  {
-    category: "Craft",
-    title: "Five casting directors on what a self-tape needs",
-    teaser: "The small choices that get you to the next round — and the ones that don't.",
-    byline: "By the Action desk · 4 min read",
-  },
-  {
-    category: "Scene Report",
-    title: "Inside an underground short-film circuit",
-    teaser: "Where rising filmmakers screen the work that won't play the multiplex.",
-    byline: "By the Action desk · 5 min read",
-  },
-];
-
+// Static placeholder content for the events row — NOT real data yet. (The
+// articles section fetches real published rows; see the query in Home.)
 const sampleEvents: {
   month: string;
   day: string;
@@ -135,6 +109,22 @@ export default async function Home() {
       .maybeSingle();
     redirect(destinationFor(profile));
   }
+
+  // Latest from Action: the 3 newest published articles, feeding the article
+  // meter's free read. Runs as anon (any logged-in viewer was just redirected
+  // away) — RLS exposes published rows to anon, so no elevated access needed.
+  const { data: articleData } = await supabase
+    .from("articles")
+    .select(
+      "id, title, category, excerpt, author:profiles!articles_created_by_fkey(display_name)"
+    )
+    .eq("status", "published")
+    .order("created_at", { ascending: false })
+    .limit(3);
+  const latestArticles = (articleData ?? []).map((a) => ({
+    ...a,
+    author: a.author as unknown as { display_name: string | null } | null,
+  }));
 
   return (
     <main className="flex-1">
@@ -230,26 +220,41 @@ export default async function Home() {
             </p>
           </div>
 
-          {/* From the community */}
-          <h3 className="mt-12 text-sm font-semibold tracking-wide text-muted-foreground uppercase">
-            From the community
-          </h3>
-          <div className="mt-5 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {sampleArticles.map(({ category, title, teaser, byline }) => (
-              <Card key={title} className="h-full p-2">
-                <CardHeader>
-                  <Tag>{category}</Tag>
-                  <CardTitle className="mt-3 text-lg leading-snug">
-                    {title}
-                  </CardTitle>
-                  <CardDescription className="mt-1.5">{teaser}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-xs text-muted-foreground">{byline}</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+          {/* Latest from Action — real published articles; each opens the
+              article page, where the anon meter grants one free read. */}
+          {latestArticles.length > 0 && (
+            <>
+              <h3 className="mt-12 text-sm font-semibold tracking-wide text-muted-foreground uppercase">
+                Latest from Action
+              </h3>
+              <div className="mt-5 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                {latestArticles.map((article) => (
+                  <Link
+                    key={article.id}
+                    href={`/explore/articles/${article.id}`}
+                    className="block h-full"
+                  >
+                    <Card className="h-full p-2 transition-colors hover:border-brand">
+                      <CardHeader>
+                        <Tag>{articleCategoryLabel(article.category)}</Tag>
+                        <CardTitle className="mt-3 text-lg leading-snug">
+                          {article.title}
+                        </CardTitle>
+                        <CardDescription className="mt-1.5">
+                          {article.excerpt}
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-xs text-muted-foreground">
+                          By {article.author?.display_name || "the Action desk"}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                ))}
+              </div>
+            </>
+          )}
 
           {/* Happening soon */}
           <h3 className="mt-12 text-sm font-semibold tracking-wide text-muted-foreground uppercase">

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
@@ -8,12 +9,27 @@ import { titleCase } from "@/lib/marketplace";
 import { articleCategoryLabel } from "@/lib/content";
 import { Avatar } from "@/components/Avatar";
 import { SaveButton } from "../../saved/save-button";
+import { ArticleGateCard, FreeArticleBanner } from "../meter";
 
 // PUBLIC page — no shell, no auth redirect. Published articles are open-access
 // (RLS exposes published rows to anon), so logged-out fans can read them. We
 // still fetch the viewer (if any) to allow the author/admin to preview a draft.
 
 type Person = { display_name: string | null; role: string | null };
+
+/**
+ * The teaser shown above the gate. Cut after the second paragraph, or at a
+ * word boundary around ~500 characters — whichever is shorter. This runs on
+ * the SERVER so the gated response never contains the full body (a CSS-only
+ * hide would leave the text one view-source away).
+ */
+function teaserFrom(body: string): string {
+  const byParagraph = body.split(/\n\s*\n/).slice(0, 2).join("\n\n");
+  if (byParagraph.length <= 550) return byParagraph;
+  const slice = byParagraph.slice(0, 550);
+  const lastSpace = slice.lastIndexOf(" ");
+  return slice.slice(0, lastSpace > 450 ? lastSpace : 550).trimEnd() + "…";
+}
 
 export default async function ArticleDetailPage({
   params,
@@ -98,6 +114,20 @@ export default async function ArticleDetailPage({
     initialSaved = !!mySave;
   }
 
+  // Article meter (logged-out readers only): proxy.ts stamps the FIRST article
+  // an anon visitor opens into the `article_meter` cookie. That article stays
+  // fully readable on every visit; any other id gets a server-side teaser and
+  // the gate. A missing cookie means this IS the first view (the proxy set it
+  // on this very request), so it's the free article. Logged-in viewers never
+  // gate.
+  let isFreeArticle = false;
+  let gated = false;
+  if (!user) {
+    const meter = (await cookies()).get("article_meter")?.value;
+    isFreeArticle = !meter || meter === id;
+    gated = !isFreeArticle;
+  }
+
   // Supabase types embedded relations as arrays; this FK is to-one at runtime.
   const author = article.author as unknown as Person | null;
   const authorName = author?.display_name || "the Action desk";
@@ -141,12 +171,28 @@ export default async function ArticleDetailPage({
         />
       </div>
 
-      {/* TODO: a NYT-style "log in to keep reading" metering gate will wrap this
-          body later — counting an anonymous reader's free articles and prompting
-          them to sign up partway through. For now the full body is open. */}
-      <article className="mt-8 whitespace-pre-wrap text-base leading-relaxed text-foreground/90">
-        {article.body || article.excerpt || "This article has no content yet."}
-      </article>
+      {isFreeArticle && <FreeArticleBanner />}
+
+      {gated ? (
+        <>
+          <div className="relative">
+            <article className="mt-8 whitespace-pre-wrap text-base leading-relaxed text-foreground/90">
+              {teaserFrom(
+                article.body ||
+                  article.excerpt ||
+                  "This article has no content yet."
+              )}
+            </article>
+            {/* Fade the teaser into the gate. */}
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-background to-transparent" />
+          </div>
+          <ArticleGateCard />
+        </>
+      ) : (
+        <article className="mt-8 whitespace-pre-wrap text-base leading-relaxed text-foreground/90">
+          {article.body || article.excerpt || "This article has no content yet."}
+        </article>
+      )}
     </main>
   );
 }
