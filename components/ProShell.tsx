@@ -8,7 +8,6 @@ import {
   Circle,
   GraduationCap,
   Search,
-  Users,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -17,12 +16,10 @@ import { MessagesNavButton } from "@/app/messages/messages-nav-button";
 
 // Single source of truth for the Pro app's destinations — shared by the desktop
 // sidebar and the mobile bottom tab bar so the two can't drift apart. Messages
-// lives in a fixed top-right button instead (see ProShell). Network is a
-// top-level tab next to the Feed: discovering pros to follow is what fills the
-// (follow-only) Feed.
+// lives in a fixed top-right button instead (see ProShell). Network lives under
+// Profile rather than as a top-level tab.
 const navItems = [
   { href: "/dashboard", label: "Feed", icon: AlignLeft },
-  { href: "/network", label: "Network", icon: Users },
   { href: "/projects", label: "Projects", icon: Briefcase },
   { href: "/classes", label: "Classes", icon: GraduationCap },
   { href: "/explore", label: "Explore", icon: Search },
@@ -30,8 +27,10 @@ const navItems = [
 ] as const;
 
 // None of these routes is an index-of-the-others (unlike "/fan"), so a simple
-// prefix match is correct for each tab.
+// prefix match is correct for each tab. Network pages belong to the Profile
+// tab, so they keep it highlighted.
 function isActive(pathname: string, href: string) {
+  if (href === "/profile" && pathname.startsWith("/network")) return true;
   return pathname.startsWith(href);
 }
 

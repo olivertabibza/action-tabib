@@ -9,6 +9,7 @@ import { Avatar } from "@/components/Avatar";
 import { Button } from "@/components/ui/button";
 import { FollowButton } from "@/app/network/follow-button";
 import { ComposeBox } from "./compose-box";
+import { CommentThread } from "./comment-thread";
 
 // PLACEHOLDER — class recommendations need a classes table; see Classes stub at
 // /classes. The whole Recommended card is rendered from this constant, NOT from
@@ -78,6 +79,23 @@ export default async function DashboardPage() {
     actor: e.actor as unknown as Actor | null,
   })) as FeedEvent[];
 
+  // Comment counts for the visible events in ONE grouped query (no per-post
+  // fetch). RLS on activity_comments already restricts rows to visible events.
+  const commentCounts = new Map<string, number>();
+  if (events.length > 0) {
+    const { data: commentRows } = await supabase
+      .from("activity_comments")
+      .select("event_id")
+      .in(
+        "event_id",
+        events.map((e) => e.id)
+      );
+    for (const row of commentRows ?? []) {
+      const id = row.event_id as string;
+      commentCounts.set(id, (commentCounts.get(id) ?? 0) + 1);
+    }
+  }
+
   // Connect suggestions (LIVE) — approved professionals the user doesn't already
   // follow and isn't themselves. Same query shape as app/network/page.tsx.
   const { data: candidates } = await supabase
@@ -124,7 +142,11 @@ export default async function DashboardPage() {
         <ul className="mt-8 flex flex-col gap-4">
           {events.map((event) => (
             <li key={event.id}>
-              <FeedItem event={event} currentUserId={user.id} />
+              <FeedItem
+                event={event}
+                currentUserId={user.id}
+                commentCount={commentCounts.get(event.id) ?? 0}
+              />
             </li>
           ))}
         </ul>
@@ -187,9 +209,11 @@ export default async function DashboardPage() {
 function FeedItem({
   event,
   currentUserId,
+  commentCount,
 }: {
   event: FeedEvent;
   currentUserId: string;
+  commentCount: number;
 }) {
   const actorName = event.actor?.display_name || "A creator";
   const isOwnPost = event.actor_id === currentUserId;
@@ -235,6 +259,12 @@ function FeedItem({
               .
             </p>
           ) : null}
+
+          <CommentThread
+            eventId={event.id}
+            currentUserId={currentUserId}
+            initialCount={commentCount}
+          />
         </div>
       </div>
     </article>

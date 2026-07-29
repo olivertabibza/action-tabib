@@ -754,6 +754,78 @@ const FOLLOW_ACTIVITY: FollowActivitySpec[] = [
   { actorKey: "writer-1", targetKey: "producer-1", daysAgo: 12.0 },
 ];
 
+// Comments on the seeded status updates (one level of replies, mirroring the
+// activity_comments RLS). Every author must be able to SEE the update under
+// RLS — i.e. be its author or follow them via FOLLOWS — so the seeded threads
+// look exactly like ones real users could have written.
+type CommentReplySpec = {
+  authorKey: string;
+  body: string;
+  daysAgo: number; // must be more recent (smaller) than its parent
+};
+
+type CommentSpec = {
+  updateIndex: number; // index into STATUS_UPDATES
+  authorKey: string;
+  body: string;
+  daysAgo: number; // must be more recent (smaller) than the update
+  replies?: CommentReplySpec[];
+};
+
+const COMMENTS: CommentSpec[] = [
+  {
+    updateIndex: 0, // director-1: locked picture on the weekend short
+    authorKey: "editor-1",
+    body: "Thirty-one Saturdays — congrats. Can't wait to hear it with sound on.",
+    daysAgo: 0.25,
+    replies: [
+      {
+        authorKey: "director-1",
+        body: "Couldn't have locked it without your notes on the assembly.",
+        daysAgo: 0.2,
+      },
+    ],
+  },
+  {
+    updateIndex: 0,
+    authorKey: "producer-1",
+    body: "Huge milestone. Ping me when you're ready to talk festival strategy.",
+    daysAgo: 0.1,
+  },
+  {
+    updateIndex: 3, // cinematographer-1: anamorphics in the rain
+    authorKey: "director-1",
+    body: "Save those flare frames — I want a few for the lookbook.",
+    daysAgo: 2.0,
+    replies: [
+      {
+        authorKey: "cinematographer-1",
+        body: "Already pulled stills, sending them over tonight.",
+        daysAgo: 1.9,
+      },
+    ],
+  },
+  {
+    updateIndex: 4, // editor-1: 19-minute first assembly
+    authorKey: "composer-1",
+    body: "When you're near picture lock I'll start sketching against the cut.",
+    daysAgo: 2.5,
+  },
+  {
+    updateIndex: 6, // writer-1: meaner, cheaper draft
+    authorKey: "director-1",
+    body: "Meaner and cheaper is exactly what we can shoot. Send it over.",
+    daysAgo: 3.8,
+    replies: [
+      {
+        authorKey: "writer-1",
+        body: "In your inbox — flag anything that still smells expensive.",
+        daysAgo: 3.6,
+      },
+    ],
+  },
+];
+
 // ── Helpers ───────────────────────────────────────────────────────────────--
 
 const emailFor = (key: string) => `seed-${key}@${SEED_DOMAIN}`;
@@ -920,6 +992,32 @@ async function main() {
       followPairs.has(`${f.actorKey}::${f.targetKey}`),
       `Follow activity "${f.actorKey}::${f.targetKey}" has no matching FOLLOWS edge`
     );
+  }
+  // Comment authors must be able to see the update under RLS: they are its
+  // author, or they follow the author.
+  const canSeeUpdateBy = (viewerKey: string, posterKey: string) =>
+    viewerKey === posterKey || followPairs.has(`${viewerKey}::${posterKey}`);
+  for (const c of COMMENTS) {
+    const update = STATUS_UPDATES[c.updateIndex];
+    assertExpr(!!update, `Comment references unknown update index ${c.updateIndex}`);
+    assertExpr(
+      canSeeUpdateBy(c.authorKey, update.key),
+      `Comment by "${c.authorKey}" on an update they can't see (by "${update.key}")`
+    );
+    assertExpr(
+      c.daysAgo <= update.daysAgo,
+      `Comment by "${c.authorKey}" predates the update it's on (index ${c.updateIndex})`
+    );
+    for (const r of c.replies ?? []) {
+      assertExpr(
+        canSeeUpdateBy(r.authorKey, update.key),
+        `Reply by "${r.authorKey}" on an update they can't see (by "${update.key}")`
+      );
+      assertExpr(
+        r.daysAgo <= c.daysAgo,
+        `Reply by "${r.authorKey}" predates its parent comment (index ${c.updateIndex})`
+      );
+    }
   }
 
   console.log("Seeding marketplace…\n");
@@ -1180,11 +1278,67 @@ async function main() {
   const { data: insertedActivity, error: actErr } = await admin
     .from("activity_events")
     .insert([...statusRows, ...followActivityRows])
-    .select("id");
+    .select("id, kind, body");
   if (actErr) throw actErr;
   console.log(
     `  activity: ${insertedActivity?.length ?? 0} events ` +
       `(${statusRows.length} updates, ${followActivityRows.length} follows)`
+  );
+
+  // 8. Comments on the seeded status updates. The activity delete above
+  //    already cascaded prior seed threads; this extra delete catches stray
+  //    seed-authored comments on non-seed events. Updates are matched to their
+  //    inserted event ids by body (unique in STATUS_UPDATES), and replies to
+  //    their parent ids by body the same way — no reliance on insert order.
+  const { error: delComErr } = await admin
+    .from("activity_comments")
+    .delete()
+    .in("author_id", seedIds);
+  if (delComErr) throw delComErr;
+
+  const eventIdByBody = new Map(
+    (insertedActivity ?? [])
+      .filter((e: { kind: string }) => e.kind === "status_update")
+      .map((e: { id: string; body: string }) => [e.body, e.id])
+  );
+  const eventIdFor = (c: CommentSpec) =>
+    eventIdByBody.get(STATUS_UPDATES[c.updateIndex].body)!;
+
+  const topLevelCommentRows = COMMENTS.map((c) => ({
+    event_id: eventIdFor(c),
+    author_id: idByKey.get(c.authorKey)!,
+    body: c.body,
+    created_at: daysAgoIso(c.daysAgo),
+  }));
+  const { data: insertedComments, error: comErr } = await admin
+    .from("activity_comments")
+    .insert(topLevelCommentRows)
+    .select("id, body");
+  if (comErr) throw comErr;
+
+  const commentIdByBody = new Map(
+    (insertedComments ?? []).map((c: { id: string; body: string }) => [
+      c.body,
+      c.id,
+    ])
+  );
+  const replyRows = COMMENTS.flatMap((c) =>
+    (c.replies ?? []).map((r) => ({
+      event_id: eventIdFor(c),
+      author_id: idByKey.get(r.authorKey)!,
+      parent_id: commentIdByBody.get(c.body)!,
+      body: r.body,
+      created_at: daysAgoIso(r.daysAgo),
+    }))
+  );
+  const { data: insertedReplies, error: repErr } = await admin
+    .from("activity_comments")
+    .insert(replyRows)
+    .select("id");
+  if (repErr) throw repErr;
+  console.log(
+    `  comments: ${(insertedComments?.length ?? 0) + (insertedReplies?.length ?? 0)} created ` +
+      `(${insertedComments?.length ?? 0} top-level, ${insertedReplies?.length ?? 0} replies)`
   );
 
   console.log("\nDone. ✅");

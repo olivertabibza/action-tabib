@@ -12,6 +12,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { ProfileForm } from "./profile-form";
+import { WorkSamplesManager, type WorkSample } from "./work-samples-manager";
 
 function accountLabel(accountType: string | null | undefined) {
   if (accountType === "professional") return "Industry Professional";
@@ -55,6 +56,18 @@ export default async function ProfilePage() {
   }
 
   const isProfessional = profile?.account_type === "professional";
+
+  // Work samples (public bucket — plain URLs, minted client-side in the
+  // manager). Only professionals have these.
+  let workSamples: WorkSample[] = [];
+  if (isProfessional) {
+    const { data } = await supabase
+      .from("work_samples")
+      .select("id, title, storage_path")
+      .eq("profile_id", user.id)
+      .order("created_at", { ascending: false });
+    workSamples = data ?? [];
+  }
 
   const initial = {
     display_name: profile?.display_name ?? "",
@@ -104,6 +117,22 @@ export default async function ProfilePage() {
             </Button>
           </CardContent>
         </Card>
+
+        {/* Work samples — short clips shown publicly on the pro's profile. */}
+        {isProfessional && (
+          <Card className="p-2">
+            <CardHeader>
+              <CardTitle className="text-xl">Your work</CardTitle>
+              <CardDescription>
+                Short clips — shorts, reels, scenes — shown on your public
+                profile. Up to 6.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <WorkSamplesManager userId={user.id} initial={workSamples} />
+            </CardContent>
+          </Card>
+        )}
 
         {/* Account info (read-only) */}
         <Card className="p-2">

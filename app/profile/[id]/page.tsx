@@ -93,6 +93,20 @@ export default async function PublicProfilePage({
   // the anon client can mint signed URLs here.
   const files = await signedPortfolioUrls(supabase, profile.portfolio_files);
 
+  // Work samples: RLS lets any signed-in user (pro or fan) read the rows; the
+  // "work_samples" bucket is public, so getPublicUrl needs no signing.
+  const { data: workSampleRows } = await supabase
+    .from("work_samples")
+    .select("id, title, storage_path")
+    .eq("profile_id", profile.id)
+    .order("created_at", { ascending: false });
+  const workSamples = (workSampleRows ?? []).map((sample) => ({
+    id: sample.id,
+    title: sample.title,
+    url: supabase.storage.from("work_samples").getPublicUrl(sample.storage_path)
+      .data.publicUrl,
+  }));
+
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-12 sm:px-6 sm:py-16">
       <Link
@@ -151,6 +165,34 @@ export default async function PublicProfilePage({
               <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
                 {profile.bio}
               </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Work — only rendered when the pro has uploaded clips. */}
+        {workSamples.length > 0 && (
+          <Card className="p-2">
+            <CardHeader>
+              <CardTitle className="text-xl">Work</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ul className="grid gap-4 sm:grid-cols-2">
+                {workSamples.map((sample) => (
+                  <li key={sample.id} className="flex flex-col gap-1.5">
+                    <video
+                      controls
+                      preload="metadata"
+                      src={sample.url}
+                      className="aspect-video w-full rounded-lg border border-border bg-black"
+                    />
+                    {sample.title && (
+                      <p className="truncate text-sm font-medium">
+                        {sample.title}
+                      </p>
+                    )}
+                  </li>
+                ))}
+              </ul>
             </CardContent>
           </Card>
         )}
