@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
-import { titleCase } from "@/lib/marketplace";
+import { disciplineLabel } from "@/lib/marketplace";
 import {
   eventTypeLabel,
   articleCategoryLabel,
@@ -287,7 +287,7 @@ export default async function AdminContentPage({
                       </Link>
                     </h3>
                     <span className="rounded-full bg-brand/10 px-2.5 py-1 text-xs font-medium text-brand">
-                      {titleCase(c.discipline)}
+                      {disciplineLabel(c.discipline)}
                     </span>
                     <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
                       {classLevelLabel(c.level)}

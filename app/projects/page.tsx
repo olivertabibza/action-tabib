@@ -19,14 +19,15 @@ export default async function ProjectsPage({
   let query = supabase
     .from("projects")
     .select(
-      "id, title, discipline, location, compensation, status, created_at, poster:profiles!projects_created_by_fkey(display_name, role)"
+      "id, title, disciplines, location, compensation, status, created_at, poster:profiles!projects_created_by_fkey(display_name, role)"
     )
     .eq("status", "open")
     .order("created_at", { ascending: false });
 
-  // A discipline filter also surfaces "any discipline" projects.
+  // A discipline filter matches any project whose disciplines array contains
+  // the selected value — and also surfaces "any discipline" projects.
   if (discipline) {
-    query = query.in("discipline", [discipline, "any"]);
+    query = query.overlaps("disciplines", [discipline, "any"]);
   }
   if (location) {
     query = query.ilike("location", `%${location}%`);

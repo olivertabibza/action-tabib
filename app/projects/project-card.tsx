@@ -2,12 +2,12 @@ import Link from "next/link";
 import { Clapperboard, MapPin, Wallet } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { titleCase } from "@/lib/marketplace";
+import { disciplineLabel, titleCase } from "@/lib/marketplace";
 
 export type ProjectCardData = {
   id: string;
   title: string;
-  discipline: string;
+  disciplines: string[];
   location: string;
   compensation: string;
   status?: string;
@@ -42,11 +42,18 @@ export function ProjectCard({
           </CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-2 text-sm text-muted-foreground">
-          <span className="inline-flex items-center gap-2">
-            <Clapperboard className="size-4 shrink-0 text-brand" />
-            {project.discipline === "any"
-              ? "Any discipline"
-              : titleCase(project.discipline)}
+          <span className="inline-flex items-start gap-2">
+            <Clapperboard className="mt-0.5 size-4 shrink-0 text-brand" />
+            <span className="flex flex-wrap gap-1.5">
+              {project.disciplines.map((d) => (
+                <span
+                  key={d}
+                  className="rounded-full bg-brand/10 px-2 py-0.5 text-xs font-medium text-brand"
+                >
+                  {disciplineLabel(d)}
+                </span>
+              ))}
+            </span>
           </span>
           <span className="inline-flex items-center gap-2">
             <MapPin className="size-4 shrink-0 text-brand" />
@@ -59,7 +66,7 @@ export function ProjectCard({
           {posterName && (
             <span className="mt-1 text-foreground/80">
               Posted by {posterName}
-              {posterRole ? ` · ${titleCase(posterRole)}` : ""}
+              {posterRole ? ` · ${disciplineLabel(posterRole)}` : ""}
             </span>
           )}
           {meta && <div className="mt-1">{meta}</div>}

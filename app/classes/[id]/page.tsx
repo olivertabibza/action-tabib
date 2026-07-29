@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
-import { titleCase } from "@/lib/marketplace";
+import { disciplineLabel } from "@/lib/marketplace";
 import { classLevelLabel, classFormatLabel, formatPrice } from "@/lib/content";
 import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/Avatar";
@@ -182,7 +182,7 @@ export default async function ClassDetailPage({
 
       <div className="flex flex-wrap items-center gap-2">
         <span className="rounded-full bg-brand/10 px-2.5 py-1 text-xs font-medium text-brand">
-          {titleCase(klass.discipline)}
+          {disciplineLabel(klass.discipline)}
         </span>
         <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
           {classLevelLabel(klass.level)}
@@ -228,7 +228,7 @@ export default async function ClassDetailPage({
           {instructor?.role ? (
             <span className="text-muted-foreground">
               {" "}
-              · {titleCase(instructor.role)}
+              · {disciplineLabel(instructor.role)}
             </span>
           ) : null}
         </p>
@@ -298,7 +298,7 @@ export default async function ClassDetailPage({
                         {r.reviewer?.role ? (
                           <span className="text-muted-foreground">
                             {" "}
-                            · {titleCase(r.reviewer.role)}
+                            · {disciplineLabel(r.reviewer.role)}
                           </span>
                         ) : null}
                       </p>

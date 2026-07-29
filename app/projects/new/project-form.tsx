@@ -14,6 +14,7 @@ import { NativeSelect } from "@/components/ui/native-select";
 import {
   COMPENSATION,
   PROJECT_DISCIPLINES,
+  disciplineLabel,
   titleCase,
 } from "@/lib/marketplace";
 import { projectSchema, type ProjectFormValues } from "../schema";
@@ -27,17 +28,36 @@ export function ProjectForm() {
   const {
     register,
     handleSubmit,
+    setValue,
+    watch,
     formState: { errors },
   } = useForm<ProjectFormValues>({
     resolver: zodResolver(projectSchema),
     defaultValues: {
       title: "",
-      discipline: "any",
+      disciplines: [],
       description: "",
       location: "",
       compensation: "unpaid",
     },
   });
+
+  // "Any discipline" is mutually exclusive with the specific ones: checking it
+  // clears the rest, and while it's checked the rest are disabled.
+  const disciplines = watch("disciplines");
+  const anySelected = disciplines.includes("any");
+
+  function toggleDiscipline(value: ProjectFormValues["disciplines"][number]) {
+    const next =
+      value === "any"
+        ? anySelected
+          ? []
+          : ["any" as const]
+        : disciplines.includes(value)
+          ? disciplines.filter((d) => d !== value)
+          : [...disciplines, value];
+    setValue("disciplines", next, { shouldValidate: true });
+  }
 
   function onSubmit(values: ProjectFormValues) {
     setServerError(null);
@@ -66,46 +86,55 @@ export function ProjectForm() {
         )}
       </div>
 
-      <div className="grid gap-5 sm:grid-cols-2">
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="discipline">Discipline</Label>
-          <NativeSelect
-            id="discipline"
-            aria-invalid={!!errors.discipline}
-            {...register("discipline")}
-          >
-            {PROJECT_DISCIPLINES.map((d) => (
-              <option key={d} value={d}>
-                {d === "any" ? "Any discipline" : titleCase(d)}
-              </option>
-            ))}
-          </NativeSelect>
-          {errors.discipline && (
-            <p className="text-sm text-destructive">
-              {errors.discipline.message}
-            </p>
-          )}
+      <fieldset className="flex flex-col gap-2">
+        <legend className="mb-2 text-sm font-medium">Disciplines</legend>
+        <div className="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-3">
+          {PROJECT_DISCIPLINES.map((d) => {
+            const disabled = d !== "any" && anySelected;
+            return (
+              <label
+                key={d}
+                className={`inline-flex items-center gap-2 text-sm ${
+                  disabled ? "text-muted-foreground opacity-60" : ""
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  className="size-4 accent-brand"
+                  checked={disciplines.includes(d)}
+                  disabled={disabled}
+                  onChange={() => toggleDiscipline(d)}
+                />
+                {disciplineLabel(d)}
+              </label>
+            );
+          })}
         </div>
+        {errors.disciplines && (
+          <p className="text-sm text-destructive">
+            {errors.disciplines.message}
+          </p>
+        )}
+      </fieldset>
 
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="compensation">Compensation</Label>
-          <NativeSelect
-            id="compensation"
-            aria-invalid={!!errors.compensation}
-            {...register("compensation")}
-          >
-            {COMPENSATION.map((c) => (
-              <option key={c} value={c}>
-                {titleCase(c)}
-              </option>
-            ))}
-          </NativeSelect>
-          {errors.compensation && (
-            <p className="text-sm text-destructive">
-              {errors.compensation.message}
-            </p>
-          )}
-        </div>
+      <div className="flex flex-col gap-2 sm:w-56">
+        <Label htmlFor="compensation">Compensation</Label>
+        <NativeSelect
+          id="compensation"
+          aria-invalid={!!errors.compensation}
+          {...register("compensation")}
+        >
+          {COMPENSATION.map((c) => (
+            <option key={c} value={c}>
+              {titleCase(c)}
+            </option>
+          ))}
+        </NativeSelect>
+        {errors.compensation && (
+          <p className="text-sm text-destructive">
+            {errors.compensation.message}
+          </p>
+        )}
       </div>
 
       <div className="flex flex-col gap-2">

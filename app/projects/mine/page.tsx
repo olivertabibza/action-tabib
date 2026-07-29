@@ -20,7 +20,7 @@ export default async function MyProjectsPage() {
   const { data: posted } = await supabase
     .from("projects")
     .select(
-      "id, title, discipline, location, compensation, status, created_at, applications(count)"
+      "id, title, disciplines, location, compensation, status, created_at, applications(count)"
     )
     .eq("created_by", user.id)
     .order("created_at", { ascending: false });
@@ -29,7 +29,7 @@ export default async function MyProjectsPage() {
   const { data: applied } = await supabase
     .from("applications")
     .select(
-      "id, status, created_at, project:projects(id, title, discipline, location, compensation, status)"
+      "id, status, created_at, project:projects(id, title, disciplines, location, compensation, status)"
     )
     .eq("applicant_id", user.id)
     .order("created_at", { ascending: false });

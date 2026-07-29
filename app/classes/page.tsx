@@ -2,7 +2,7 @@ import Link from "next/link";
 import { GraduationCap, Plus, Star } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
-import { titleCase } from "@/lib/marketplace";
+import { disciplineLabel } from "@/lib/marketplace";
 import { classLevelLabel, classFormatLabel, formatPrice } from "@/lib/content";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -241,7 +241,7 @@ function ClassCard({
         </p>
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
           <span className="rounded-full bg-brand/10 px-2 py-0.5 text-xs font-medium text-brand">
-            {titleCase(klass.discipline)}
+            {disciplineLabel(klass.discipline)}
           </span>
           <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
             {classLevelLabel(klass.level)}

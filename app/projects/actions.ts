@@ -29,9 +29,21 @@ export async function createProject(values: ProjectFormValues) {
     return { error: "Your session has expired. Please log in again." };
   }
 
+  // "any" is mutually exclusive with specific disciplines (the form enforces
+  // this too, but never trust the client). The legacy single-value column keeps
+  // being written as the first entry for backward compatibility.
+  const disciplines = parsed.data.disciplines.includes("any")
+    ? ["any"]
+    : parsed.data.disciplines;
+
   const { data, error } = await supabase
     .from("projects")
-    .insert({ created_by: user.id, ...parsed.data })
+    .insert({
+      created_by: user.id,
+      ...parsed.data,
+      disciplines,
+      discipline: disciplines[0],
+    })
     .select("id")
     .single();
 

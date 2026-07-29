@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { DISCIPLINES } from "@/lib/marketplace";
+
 /**
  * Shared validation for the editable profile fields. Imported by both the
  * client form (for instant feedback) and the server action (so we never trust
@@ -19,6 +21,8 @@ export const profileSchema = z.object({
     .trim()
     .max(120, "Keep your headline under 120 characters."),
   bio: z.string().trim().max(600, "Keep your bio under 600 characters."),
+  // Other roles the professional can work; never includes "any".
+  skills: z.array(z.enum(DISCIPLINES)),
 });
 
 export type ProfileFormValues = z.infer<typeof profileSchema>;

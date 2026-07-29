@@ -1,7 +1,7 @@
 import { FolderOpen } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
-import { titleCase } from "@/lib/marketplace";
+import { disciplineLabel } from "@/lib/marketplace";
 import { cn } from "@/lib/utils";
 import { AdminNav } from "../admin-nav";
 import { CloseButton } from "./close-button";
@@ -14,7 +14,7 @@ export default async function AdminProjectsPage() {
   const { data: projects, error } = await supabase
     .from("projects")
     .select(
-      "id, title, discipline, status, created_at, owner:profiles!projects_created_by_fkey(display_name)"
+      "id, title, disciplines, status, created_at, owner:profiles!projects_created_by_fkey(display_name)"
     )
     .order("created_at", { ascending: false });
 
@@ -62,8 +62,8 @@ export default async function AdminProjectsPage() {
                     </span>
                   </div>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    {titleCase(p.discipline)} ·{" "}
-                    {owner?.display_name || "Unknown owner"} · {created}
+                    {(p.disciplines as string[]).map(disciplineLabel).join(", ")}{" "}
+                    · {owner?.display_name || "Unknown owner"} · {created}
                   </p>
                 </div>
                 {p.status === "open" && <CloseButton projectId={p.id} />}

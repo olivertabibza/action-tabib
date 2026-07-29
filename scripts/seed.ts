@@ -57,11 +57,17 @@ type Discipline =
   | "producer"
   | "cinematographer"
   | "editor"
-  | "composer";
+  | "composer"
+  | "videographer"
+  | "sound_designer"
+  | "sound_operator"
+  | "costume_designer"
+  | "makeup_artist";
 
 type ProAccount = {
   key: string; // local-part of the seed email, e.g. "actor-1"
   discipline: Discipline;
+  skills?: Discipline[]; // other roles they can work (profiles.skills)
   status: "approved" | "pending";
   display_name: string;
   headline: string;
@@ -81,6 +87,7 @@ const PROS: ProAccount[] = [
   {
     key: "actor-2",
     discipline: "actor",
+    skills: ["writer"],
     status: "approved",
     display_name: "Desmond Okafor",
     headline: "Physical actor and improviser, comedy to quiet drama",
@@ -113,6 +120,7 @@ const PROS: ProAccount[] = [
   {
     key: "cinematographer-1",
     discipline: "cinematographer",
+    skills: ["videographer", "editor"],
     status: "approved",
     display_name: "Theo Adeyemi",
     headline: "DP — available light, anamorphic, lots of patience",
@@ -121,6 +129,7 @@ const PROS: ProAccount[] = [
   {
     key: "editor-1",
     discipline: "editor",
+    skills: ["sound_designer"],
     status: "approved",
     display_name: "Yuki Tanaka",
     headline: "Editor cutting narrative shorts and music docs",
@@ -164,7 +173,9 @@ const PROS: ProAccount[] = [
 type ProjectSpec = {
   title: string;
   ownerKey: string; // must be an approved pro
-  discipline: Discipline | "any";
+  // Roles the project needs. The legacy single `discipline` column is written
+  // as the FIRST entry; 'any' stands alone (never mixed with specific roles).
+  disciplines: (Discipline | "any")[];
   description: string;
   location: string;
   compensation: "paid" | "unpaid" | "deferred";
@@ -175,7 +186,7 @@ const PROJECTS: ProjectSpec[] = [
   {
     title: "Last Train to Lisbon",
     ownerKey: "director-1",
-    discipline: "actor",
+    disciplines: ["actor"],
     description:
       "Casting a lead (30s, any background) for a contained drama set over one night in a near-empty train station. Three shoot days, scripted, SAG-friendly.",
     location: "Brooklyn, NY",
@@ -185,7 +196,7 @@ const PROJECTS: ProjectSpec[] = [
   {
     title: "The Quiet Hours",
     ownerKey: "director-1",
-    discipline: "cinematographer",
+    disciplines: ["cinematographer", "sound_operator", "actor"],
     description:
       "Need a DP for a slow-cinema short shot mostly in available light. Vintage glass a plus. Two weekends, deferred + meals + festival credit.",
     location: "Hudson Valley, NY",
@@ -195,7 +206,7 @@ const PROJECTS: ProjectSpec[] = [
   {
     title: "Neon Saints",
     ownerKey: "producer-1",
-    discipline: "editor",
+    disciplines: ["editor", "sound_designer", "composer"],
     description:
       "Looking for an editor to cut a 12-minute neo-noir short. ~6 hours of footage, Resolve preferred. Paid flat rate, remote OK.",
     location: "Remote",
@@ -205,7 +216,7 @@ const PROJECTS: ProjectSpec[] = [
   {
     title: "Coastline",
     ownerKey: "producer-1",
-    discipline: "composer",
+    disciplines: ["composer", "sound_designer"],
     description:
       "Feature documentary about a fishing town needs an original score — restrained, textural, ~25 min of music. Paid, generous timeline.",
     location: "Remote",
@@ -215,7 +226,7 @@ const PROJECTS: ProjectSpec[] = [
   {
     title: "Staged",
     ownerKey: "writer-1",
-    discipline: "director",
+    disciplines: ["director"],
     description:
       "Six-episode comedy web series about a failing community theatre. Scripts done. Seeking a director who loves ensemble work. Unpaid, profit-share if it sells.",
     location: "Chicago, IL",
@@ -225,7 +236,7 @@ const PROJECTS: ProjectSpec[] = [
   {
     title: "Macro",
     ownerKey: "cinematographer-1",
-    discipline: "actor",
+    disciplines: ["actor"],
     description:
       "Experimental one-shot short, single performer, lots of close work. Looking for an actor comfortable with stillness and improvisation. Unpaid, one day.",
     location: "Los Angeles, CA",
@@ -235,7 +246,7 @@ const PROJECTS: ProjectSpec[] = [
   {
     title: "Cut to Black",
     ownerKey: "editor-1",
-    discipline: "writer",
+    disciplines: ["writer"],
     description:
       "I have footage and an idea but no script — looking for a writer to shape a found-footage short in the edit. Deferred, collaborative credit.",
     location: "Remote",
@@ -245,7 +256,7 @@ const PROJECTS: ProjectSpec[] = [
   {
     title: "Resonance",
     ownerKey: "composer-1",
-    discipline: "producer",
+    disciplines: ["producer", "sound_operator", "videographer"],
     description:
       "Concept short built around a live score. Need a producer to lock a venue, schedule, and a tiny crew. Unpaid, strong reel piece.",
     location: "Austin, TX",
@@ -255,7 +266,7 @@ const PROJECTS: ProjectSpec[] = [
   {
     title: "Two-Hander",
     ownerKey: "actor-1",
-    discipline: "actor",
+    disciplines: ["actor"],
     description:
       "Self-produced two-person dialogue piece — seeking a second actor to develop and perform it with me. Deferred, equal creative footing.",
     location: "Brooklyn, NY",
@@ -265,7 +276,7 @@ const PROJECTS: ProjectSpec[] = [
   {
     title: "Open Mic",
     ownerKey: "actor-2",
-    discipline: "writer",
+    disciplines: ["writer"],
     description:
       "Stand-up-adjacent short set at an open mic night. Looking for a writer to punch up a loose outline into a tight 8 pages. Unpaid, fast and fun.",
     location: "Los Angeles, CA",
@@ -275,7 +286,7 @@ const PROJECTS: ProjectSpec[] = [
   {
     title: "Midnight Diner",
     ownerKey: "director-1",
-    discipline: "any",
+    disciplines: ["any"],
     description:
       "Anthology short set in a 24-hour diner. Building a full crew — reach out with your role and reel. Paid day rates, three nights.",
     location: "Newark, NJ",
@@ -285,7 +296,7 @@ const PROJECTS: ProjectSpec[] = [
   {
     title: "Archive (wrapped)",
     ownerKey: "producer-1",
-    discipline: "editor",
+    disciplines: ["editor"],
     description:
       "Short doc assembled from family archive footage. Picture is locked — posting closed, kept up for reference.",
     location: "Remote",
@@ -811,6 +822,11 @@ async function main() {
       approvedKeys.has(proj.ownerKey),
       `Project "${proj.title}" owned by non-approved key "${proj.ownerKey}"`
     );
+    assertExpr(
+      proj.disciplines.length > 0 &&
+        (!proj.disciplines.includes("any") || proj.disciplines.length === 1),
+      `Project "${proj.title}" needs a non-empty disciplines list ('any' stands alone)`
+    );
   }
   const projectByTitle = new Map(PROJECTS.map((p) => [p.title, p]));
   const seenPairs = new Set<string>();
@@ -924,6 +940,7 @@ async function main() {
         account_type: "professional",
         application_status: pro.status,
         role: pro.discipline,
+        skills: pro.skills ?? [],
         display_name: pro.display_name,
         headline: pro.headline,
         bio: pro.bio,
@@ -949,7 +966,8 @@ async function main() {
   const projectRows = PROJECTS.map((p) => ({
     created_by: idByKey.get(p.ownerKey)!,
     title: p.title,
-    discipline: p.discipline,
+    disciplines: p.disciplines,
+    discipline: p.disciplines[0], // legacy single-value column
     description: p.description,
     location: p.location,
     compensation: p.compensation,

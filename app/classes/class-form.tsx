@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { NativeSelect } from "@/components/ui/native-select";
-import { PROJECT_DISCIPLINES, titleCase } from "@/lib/marketplace";
+import { PROJECT_DISCIPLINES, disciplineLabel } from "@/lib/marketplace";
 import {
   CLASS_LEVELS,
   CLASS_FORMATS,
@@ -83,7 +83,7 @@ export function ClassForm() {
           >
             {PROJECT_DISCIPLINES.map((d) => (
               <option key={d} value={d}>
-                {titleCase(d)}
+                {disciplineLabel(d)}
               </option>
             ))}
           </NativeSelect>

@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { NativeSelect } from "@/components/ui/native-select";
-import { DISCIPLINES, titleCase } from "@/lib/marketplace";
+import { DISCIPLINES, disciplineLabel } from "@/lib/marketplace";
 
 /**
  * Discipline + location filters. State lives in the URL query string so the
@@ -48,7 +48,7 @@ export function ProjectsFilters({
           <option value="">All disciplines</option>
           {DISCIPLINES.map((d) => (
             <option key={d} value={d}>
-              {titleCase(d)}
+              {disciplineLabel(d)}
             </option>
           ))}
         </NativeSelect>

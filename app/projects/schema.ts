@@ -12,7 +12,9 @@ export const projectSchema = z.object({
     .trim()
     .min(1, "Please add a title.")
     .max(120, "Keep the title under 120 characters."),
-  discipline: z.enum(PROJECT_DISCIPLINES),
+  disciplines: z
+    .array(z.enum(PROJECT_DISCIPLINES))
+    .min(1, "Pick at least one discipline."),
   description: z
     .string()
     .trim()

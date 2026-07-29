@@ -4,7 +4,7 @@ import { ArrowLeft, ExternalLink, FileText, UserRound } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { resolveBackLink } from "@/lib/back-link";
 import { signedPortfolioUrls } from "@/lib/portfolio";
-import { titleCase } from "@/lib/marketplace";
+import { disciplineLabel } from "@/lib/marketplace";
 import { MessageButton } from "@/app/messages/message-button";
 import {
   Card,
@@ -35,7 +35,7 @@ export default async function PublicProfilePage({
   const supabase = await createClient();
   const { data: profile } = await supabase
     .from("public_profiles")
-    .select("id, display_name, role, headline, bio, portfolio_files")
+    .select("id, display_name, role, headline, bio, portfolio_files, skills")
     .eq("id", id)
     .maybeSingle();
 
@@ -109,13 +109,29 @@ export default async function PublicProfilePage({
         </h1>
         {profile.role && (
           <span className="rounded-full bg-brand/10 px-2.5 py-1 text-xs font-medium text-brand">
-            {titleCase(profile.role)}
+            {disciplineLabel(profile.role)}
           </span>
         )}
       </div>
 
       {profile.headline && (
         <p className="mt-3 text-lg text-foreground/90">{profile.headline}</p>
+      )}
+
+      {Array.isArray(profile.skills) && profile.skills.length > 0 && (
+        <div className="mt-4">
+          <p className="text-sm font-medium text-muted-foreground">Skills</p>
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            {(profile.skills as string[]).map((skill) => (
+              <span
+                key={skill}
+                className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-foreground/80"
+              >
+                {disciplineLabel(skill)}
+              </span>
+            ))}
+          </div>
+        </div>
       )}
 
       {/* Message: only an approved pro can DM, and never yourself. */}

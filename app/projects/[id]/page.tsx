@@ -21,7 +21,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { titleCase } from "@/lib/marketplace";
+import { disciplineLabel, titleCase } from "@/lib/marketplace";
 import { ApplyForm } from "./apply-form";
 import { OwnerControls } from "./owner-controls";
 
@@ -80,7 +80,7 @@ export default async function ProjectDetailPage({
           {poster && (
             <p className="mt-2 text-muted-foreground">
               Posted by {poster.display_name || "A member"}
-              {poster.role ? ` · ${titleCase(poster.role)}` : ""}
+              {poster.role ? ` · ${disciplineLabel(poster.role)}` : ""}
             </p>
           )}
         </div>
@@ -96,11 +96,18 @@ export default async function ProjectDetailPage({
       </div>
 
       <div className="mt-6 flex flex-wrap gap-4 text-sm text-muted-foreground">
-        <span className="inline-flex items-center gap-2">
-          <Clapperboard className="size-4 text-brand" />
-          {project.discipline === "any"
-            ? "Any discipline"
-            : titleCase(project.discipline)}
+        <span className="inline-flex items-start gap-2">
+          <Clapperboard className="mt-0.5 size-4 shrink-0 text-brand" />
+          <span className="flex flex-wrap gap-1.5">
+            {((project.disciplines as string[]) ?? []).map((d) => (
+              <span
+                key={d}
+                className="rounded-full bg-brand/10 px-2 py-0.5 text-xs font-medium text-brand"
+              >
+                {disciplineLabel(d)}
+              </span>
+            ))}
+          </span>
         </span>
         <span className="inline-flex items-center gap-2">
           <MapPin className="size-4 text-brand" />
@@ -202,7 +209,7 @@ async function ApplicantsList({ projectId }: { projectId: string }) {
                     )}
                     {applicant?.role && (
                       <span className="text-sm text-muted-foreground">
-                        · {titleCase(applicant.role)}
+                        · {disciplineLabel(applicant.role)}
                       </span>
                     )}
                   </div>

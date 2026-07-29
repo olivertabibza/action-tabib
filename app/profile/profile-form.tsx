@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { NativeSelect } from "@/components/ui/native-select";
-import { DISCIPLINES, titleCase } from "@/lib/marketplace";
+import { DISCIPLINES, disciplineLabel } from "@/lib/marketplace";
 import { profileSchema, type ProfileFormValues } from "./schema";
 import { updateProfile } from "./actions";
 
@@ -19,8 +19,15 @@ import { updateProfile } from "./actions";
  * Read view + edit form for the user's display name, headline, and bio.
  * Starts in a read-only state; the "Edit profile" button swaps in a
  * React Hook Form + Zod form that saves through the `updateProfile` action.
+ * `showSkills` gates the skills picker to professionals.
  */
-export function ProfileForm({ initial }: { initial: ProfileFormValues }) {
+export function ProfileForm({
+  initial,
+  showSkills,
+}: {
+  initial: ProfileFormValues;
+  showSkills: boolean;
+}) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [current, setCurrent] = useState(initial);
@@ -31,11 +38,22 @@ export function ProfileForm({ initial }: { initial: ProfileFormValues }) {
     register,
     handleSubmit,
     reset,
+    setValue,
+    watch,
     formState: { errors },
   } = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
     defaultValues: current,
   });
+
+  const skills = watch("skills");
+
+  function toggleSkill(value: ProfileFormValues["skills"][number]) {
+    const next = skills.includes(value)
+      ? skills.filter((s) => s !== value)
+      : [...skills, value];
+    setValue("skills", next, { shouldValidate: true });
+  }
 
   function startEditing() {
     setServerError(null);
@@ -76,9 +94,15 @@ export function ProfileForm({ initial }: { initial: ProfileFormValues }) {
     return (
       <div className="flex flex-col gap-6">
         <ReadField label="Display name" value={current.display_name} />
-        <ReadField label="Role" value={titleCase(current.role)} />
+        <ReadField label="Role" value={disciplineLabel(current.role)} />
         <ReadField label="Headline" value={current.headline} />
         <ReadField label="Bio" value={current.bio} multiline />
+        {showSkills && (
+          <ReadField
+            label="Skills"
+            value={current.skills.map(disciplineLabel).join(", ")}
+          />
+        )}
         <div>
           <Button type="button" variant="outline" onClick={startEditing}>
             <Pencil className="size-4" />
@@ -116,7 +140,7 @@ export function ProfileForm({ initial }: { initial: ProfileFormValues }) {
           <option value="">Select your role</option>
           {roleOptions.map((r) => (
             <option key={r} value={r}>
-              {titleCase(r)}
+              {disciplineLabel(r)}
             </option>
           ))}
         </NativeSelect>
@@ -137,6 +161,33 @@ export function ProfileForm({ initial }: { initial: ProfileFormValues }) {
           <p className="text-sm text-destructive">{errors.headline.message}</p>
         )}
       </div>
+
+      {showSkills && (
+        <fieldset className="flex flex-col gap-2">
+          <legend className="mb-2 text-sm font-medium">
+            Skills — other roles you can work
+          </legend>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-3">
+            {DISCIPLINES.map((d) => (
+              <label
+                key={d}
+                className="inline-flex items-center gap-2 text-sm"
+              >
+                <input
+                  type="checkbox"
+                  className="size-4 accent-brand"
+                  checked={skills.includes(d)}
+                  onChange={() => toggleSkill(d)}
+                />
+                {disciplineLabel(d)}
+              </label>
+            ))}
+          </div>
+          {errors.skills && (
+            <p className="text-sm text-destructive">{errors.skills.message}</p>
+          )}
+        </fieldset>
+      )}
 
       <div className="flex flex-col gap-2">
         <Label htmlFor="bio">Bio</Label>

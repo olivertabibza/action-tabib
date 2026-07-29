@@ -32,6 +32,7 @@ export async function updateProfile(values: ProfileFormValues) {
       role: parsed.data.role,
       headline: parsed.data.headline,
       bio: parsed.data.bio,
+      skills: parsed.data.skills,
     })
     .eq("id", user.id);
 

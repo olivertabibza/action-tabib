@@ -61,6 +61,7 @@ export default async function ProfilePage() {
     role: profile?.role ?? "",
     headline: profile?.headline ?? "",
     bio: profile?.bio ?? "",
+    skills: Array.isArray(profile?.skills) ? profile.skills : [],
   };
 
   return (
@@ -82,7 +83,7 @@ export default async function ProfilePage() {
             <CardDescription>How you show up on Action.</CardDescription>
           </CardHeader>
           <CardContent>
-            <ProfileForm initial={initial} />
+            <ProfileForm initial={initial} showSkills={isProfessional} />
           </CardContent>
         </Card>
 

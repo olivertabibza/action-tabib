@@ -12,6 +12,11 @@ export const DISCIPLINES = [
   "cinematographer",
   "editor",
   "composer",
+  "videographer",
+  "sound_designer",
+  "sound_operator",
+  "costume_designer",
+  "makeup_artist",
 ] as const;
 
 export type Discipline = (typeof DISCIPLINES)[number];
@@ -26,4 +31,18 @@ export type Compensation = (typeof COMPENSATION)[number];
 export function titleCase(value: string | null | undefined): string {
   if (!value) return "";
   return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+/**
+ * Display label for a discipline value: splits on underscores so
+ * "makeup_artist" → "Makeup Artist", with "any" → "Any discipline".
+ * Use this (not titleCase) for anything holding a discipline.
+ */
+export function disciplineLabel(value: string | null | undefined): string {
+  if (!value) return "";
+  if (value === "any") return "Any discipline";
+  return value
+    .split("_")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
 }
