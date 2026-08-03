@@ -31,3 +31,16 @@ A running log of significant decisions. Newest entries go at the top.
 **Reasoning:** The business plan is a static marketing artifact with a different lifecycle than the product; keeping them apart avoids coupling deploys and dependencies. A clean repo lets the product start with the stack we actually want. Choosing established, well-supported tools (see [STACK.md](STACK.md)) keeps velocity high and risk low for an early-stage build.
 
 **Alternatives considered:** Building the product inside the existing business-plan repo — rejected because it would entangle two unrelated codebases and deployments. Reaching for the newest experimental tooling — rejected as unnecessary risk this early.
+
+## Design tokens: --accent is Callboard navy, not shadcn's highlight
+
+--accent is Callboard's brand navy (#14213d light / #8aa6d8 dark). shadcn
+components use bg-accent / text-accent-foreground for subtle hover and
+highlight states, which under this palette renders solid navy.
+
+When adding any shadcn component via the CLI, remap its bg-accent /
+text-accent-foreground pattern to bg-surface-sunken / text-text-primary
+before committing. Affected: dropdown-menu, select, command,
+navigation-menu, sidebar, context-menu, menubar.
+
+components/ui/combobox.tsx has already been remapped.

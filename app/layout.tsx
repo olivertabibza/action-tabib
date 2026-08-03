@@ -1,18 +1,28 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Barlow, Barlow_Condensed, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
-import { Nav } from "@/components/Nav";
-import { createClient } from "@/lib/supabase/server";
 
-const geistSans = Geist({
-  variable: "--font-sans",
+const barlow = Barlow({
+  variable: "--font-barlow",
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const barlowCondensed = Barlow_Condensed({
+  variable: "--font-barlow-condensed",
   subsets: ["latin"],
+  weight: ["600", "700"],
 });
+
+const jetbrainsMono = JetBrains_Mono({
+  variable: "--font-jetbrains-mono",
+  subsets: ["latin"],
+  weight: ["400", "700"],
+});
+
+// Runs before first paint so the persisted (or OS-preferred) theme applies
+// with no flash. localStorage "light"/"dark" wins; otherwise follow the OS.
+const themeInitScript = `(function(){try{var t=localStorage.getItem("theme");if(t==="dark"||(t!=="light"&&window.matchMedia("(prefers-color-scheme: dark)").matches)){document.documentElement.classList.add("dark")}}catch(e){}})();`;
 
 export const metadata: Metadata = {
   title: "Action — Where the next generation of film gets made",
@@ -20,51 +30,25 @@ export const metadata: Metadata = {
     "A private network for pre-union actors, writers, and filmmakers — and the fans who follow them.",
 };
 
-export default async function RootLayout({
+// The global top nav is NOT rendered here: ProShell / FanShell own the chrome
+// on authenticated routes, and the (public) route group layout renders
+// <SiteNav> for logged-out / marketing / public routes. Rendering it here
+// would stack two top bars on every shell route.
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // Read the session once on the server so the nav renders in the correct
-  // (logged-in / logged-out) state without a flash.
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  let displayName: string | null = null;
-  let isAdmin = false;
-  let isApprovedPro = false;
-  let isConsumer = false;
-  if (user) {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("display_name, is_admin, account_type, application_status")
-      .eq("id", user.id)
-      .maybeSingle();
-    displayName = profile?.display_name || user.email || null;
-    isAdmin = !!profile?.is_admin;
-    isApprovedPro =
-      profile?.account_type === "professional" &&
-      profile?.application_status === "approved";
-    isConsumer = profile?.account_type === "consumer";
-  }
-
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      suppressHydrationWarning
+      className={`${barlow.variable} ${barlowCondensed.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">
-        <Nav
-          authed={!!user}
-          displayName={displayName}
-          isAdmin={isAdmin}
-          isApprovedPro={isApprovedPro}
-          isConsumer={isConsumer}
-        />
-        {children}
-      </body>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
+      <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );
 }

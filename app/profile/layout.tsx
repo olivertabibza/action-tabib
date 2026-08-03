@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { ProShell } from "@/components/ProShell";
+import { SiteNav } from "@/components/SiteNav";
 
 /**
  * /profile is a SHARED, partly-public surface, so the Pro shell is applied
@@ -11,8 +12,9 @@ import { ProShell } from "@/components/ProShell";
  *
  * The session + profile read mirrors app/dashboard/layout.tsx, but without its
  * gate: /profile/[id] must stay reachable by anon users and consumers must keep
- * access to /profile. The matching top-nav hide for approved pros lives in
- * components/Nav.tsx (so the top nav and shell sidebar don't stack).
+ * access to /profile. The global top nav is no longer in the root layout, so
+ * the non-pro branch renders <SiteNav> here — every viewer gets exactly one
+ * nav (pros: ProShell, everyone else: the top nav).
  */
 export default async function ProfileLayout({
   children,
@@ -39,5 +41,10 @@ export default async function ProfileLayout({
   if (isApprovedPro) {
     return <ProShell>{children}</ProShell>;
   }
-  return <>{children}</>;
+  return (
+    <>
+      <SiteNav />
+      {children}
+    </>
+  );
 }

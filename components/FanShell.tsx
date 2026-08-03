@@ -2,18 +2,19 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { AlignLeft, Calendar, Circle, Search } from "lucide-react";
+import { AlignLeft, Calendar, Search, User } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { LogoutButton } from "@/components/LogoutButton";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
-// Single source of truth for the Fan app's destinations — shared by the desktop
-// sidebar and the mobile bottom tab bar so the two can't drift apart.
+// Single source of truth for the Fan app's destinations — shared by the
+// desktop top nav and the mobile bottom tab bar so the two can't drift apart.
 const navItems = [
   { href: "/fan", label: "Feed", icon: AlignLeft },
   { href: "/fan/explore", label: "Explore", icon: Search },
   { href: "/fan/events", label: "Events", icon: Calendar },
-  { href: "/fan/profile", label: "Profile", icon: Circle },
+  { href: "/fan/profile", label: "Profile", icon: User },
 ] as const;
 
 // Feed lives at the index route, so it must match exactly — every other tab's
@@ -24,12 +25,19 @@ function isActive(pathname: string, href: string) {
 
 function Wordmark() {
   return (
-    <div className="flex items-center gap-2">
-      <span className="text-2xl font-bold tracking-tight">Action</span>
-      <span className="rounded-full bg-brand/10 px-2 py-0.5 text-xs font-semibold text-brand">
-        Fan
+    <span className="flex items-center gap-2.5">
+      <span className="flex size-9 items-center justify-center rounded-[11px] bg-accent font-condensed text-[19px] font-bold text-on-accent">
+        A
       </span>
-    </div>
+      <span className="flex flex-col leading-none">
+        <span className="font-condensed text-[21px] font-bold tracking-[0.01em] text-text-primary">
+          ACTION
+        </span>
+        <span className="font-mono text-[9.5px] font-medium tracking-[0.18em] text-text-tertiary">
+          FAN
+        </span>
+      </span>
+    </span>
   );
 }
 
@@ -37,55 +45,90 @@ export function FanShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   return (
-    <div className="flex w-full flex-1">
-      {/* Desktop: left sidebar (hidden below md) */}
-      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-border px-4 py-6 md:flex">
-        <div className="px-2">
+    <div className="flex w-full flex-1 flex-col">
+      {/* Top bar: 68px, surface, 1px bottom border, 36px side padding. */}
+      <header className="sticky top-0 z-50 border-b border-border bg-surface">
+        <div className="flex h-[68px] items-center gap-[22px] px-9 max-lg:gap-3.5 max-sm:px-4">
           <Link
             href="/fan"
-            className="inline-block transition-opacity hover:opacity-80"
+            className="focus-ring rounded-md transition-opacity hover:opacity-80"
           >
             <Wordmark />
           </Link>
+
+          {/* Search pill → Explore (the Fan search surface). */}
+          <Link
+            href="/fan/explore"
+            className="focus-ring hidden w-[286px] items-center gap-[9px] rounded-full border border-border-hairline bg-surface-sunken px-[15px] py-2.5 lg:flex"
+          >
+            <Search className="size-[17px] text-text-tertiary" strokeWidth={1.5} />
+            <span className="text-sm text-text-tertiary">
+              Search creators, events
+            </span>
+          </Link>
+
+          <span className="flex-1" />
+
+          {/* Desktop horizontal nav; the bottom tab bar takes over ≤640px. */}
+          <nav className="flex h-[68px] items-stretch max-sm:hidden">
+            {navItems.map(({ href, label, icon: Icon }) => {
+              const active = isActive(pathname, href);
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  aria-current={active ? "page" : undefined}
+                  className={cn(
+                    "focus-ring relative flex min-w-[86px] flex-col items-center justify-center gap-1 border-b-[2.5px] max-lg:min-w-16",
+                    active ? "border-accent" : "border-transparent"
+                  )}
+                >
+                  <Icon
+                    className={cn(
+                      "size-[22px]",
+                      active ? "text-accent" : "text-text-tertiary"
+                    )}
+                    strokeWidth={1.5}
+                  />
+                  <span
+                    className={cn(
+                      "text-[13px]",
+                      active
+                        ? "font-semibold text-text-primary"
+                        : "font-medium text-text-secondary"
+                    )}
+                  >
+                    {label}
+                  </span>
+                </Link>
+              );
+            })}
+          </nav>
+
+          {/* Right cluster — mobile logout lives on the Profile page instead. */}
+          <div className="flex items-center gap-3.5 border-l border-border-hairline pl-[18px] max-sm:border-l-0 max-sm:pl-0">
+            <ThemeToggle />
+            <LogoutButton
+              className="focus-ring hidden items-center gap-2 rounded-full text-[13px] font-medium text-text-secondary transition-colors hover:text-text-primary disabled:opacity-50 sm:flex"
+              iconClassName="size-[21px]"
+              strokeWidth={1.5}
+            />
+          </div>
         </div>
-        <nav className="mt-8 flex flex-col gap-1">
-          {navItems.map(({ href, label, icon: Icon }) => {
-            const active = isActive(pathname, href);
-            return (
-              <Link
-                key={href}
-                href={href}
-                aria-current={active ? "page" : undefined}
-                className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                  active
-                    ? "bg-brand/10 text-brand"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                )}
-              >
-                <Icon className="size-5" strokeWidth={active ? 2.25 : 1.75} />
-                {label}
-              </Link>
-            );
-          })}
-        </nav>
+      </header>
 
-        {/* Pinned to the bottom of the sidebar — mobile logout lives on the
-            Profile page instead (the bottom bar is already full). */}
-        <LogoutButton className="mt-auto flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50" />
-      </aside>
-
-      {/* Content column — centered and width-capped; bottom padding clears the
-          mobile bar, dropped on desktop where the bar is hidden. */}
-      <div className="flex w-full flex-1 flex-col pb-20 md:pb-0">
-        <div className="mx-auto flex w-full max-w-md flex-1 flex-col md:max-w-2xl">
-          {children}
+      {/* Content: 1248px canvas; bottom padding clears the mobile tab bar. */}
+      <div className="flex w-full flex-1 flex-col pb-[calc(70px+env(safe-area-inset-bottom))] sm:pb-0">
+        <div className="callboard-container flex flex-1 flex-col">
+          <div className="mx-auto flex w-full max-w-md flex-1 flex-col md:max-w-2xl">
+            {children}
+          </div>
         </div>
       </div>
 
-      {/* Mobile: fixed bottom tab bar (hidden md and up) */}
-      <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 md:hidden">
-        <div className="mx-auto flex max-w-md items-stretch justify-around">
+      {/* Mobile bottom tab bar: 60px + home-indicator inset, 44px targets. */}
+      <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-surface pb-[max(10px,env(safe-area-inset-bottom))] sm:hidden">
+        <div className="flex items-stretch">
           {navItems.map(({ href, label, icon: Icon }) => {
             const active = isActive(pathname, href);
             return (
@@ -94,14 +137,24 @@ export function FanShell({ children }: { children: React.ReactNode }) {
                 href={href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "flex flex-1 flex-col items-center gap-1 py-2.5 text-xs font-medium transition-colors",
-                  active
-                    ? "text-brand"
-                    : "text-muted-foreground hover:text-foreground"
+                  "focus-ring relative flex h-[60px] min-w-11 flex-1 flex-col items-center justify-center gap-1",
+                  active ? "text-accent" : "text-text-tertiary"
                 )}
               >
-                <Icon className="size-5" strokeWidth={active ? 2.25 : 1.75} />
-                {label}
+                {active && (
+                  <span className="absolute top-0 h-[3px] w-[34px] rounded-b-[3px] bg-accent" />
+                )}
+                <Icon className="size-[23px]" strokeWidth={1.5} />
+                <span
+                  className={cn(
+                    "text-[11.5px]",
+                    active
+                      ? "font-semibold text-accent"
+                      : "font-medium text-text-secondary"
+                  )}
+                >
+                  {label}
+                </span>
               </Link>
             );
           })}

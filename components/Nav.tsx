@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { LogOut, Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
@@ -109,55 +110,80 @@ export function Nav({
   }
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <nav className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-4 sm:px-6">
+    <header className="sticky top-0 z-50 w-full border-b border-border bg-surface">
+      <nav className="mx-auto flex h-[68px] w-full max-w-[1320px] items-center justify-between px-4 sm:px-9">
         <Link
           href={authed ? "/home" : "/"}
-          className="text-2xl font-bold tracking-tight text-brand"
+          className="focus-ring flex items-center gap-2.5 rounded-md transition-opacity hover:opacity-80"
           onClick={() => setOpen(false)}
         >
-          Action
+          <span className="flex size-9 items-center justify-center rounded-[11px] bg-accent font-condensed text-[19px] font-bold text-on-accent">
+            A
+          </span>
+          <span className="font-condensed text-[21px] font-bold tracking-[0.01em] text-text-primary">
+            ACTION
+          </span>
         </Link>
 
         {/* Desktop links */}
-        <div className="hidden items-center gap-6 md:flex">
+        <div className="hidden h-full items-center gap-6 md:flex">
           {authed ? (
             <>
-              {links.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className="text-sm font-medium text-foreground/80 transition-colors hover:text-foreground"
-                >
-                  {link.label}
-                </Link>
-              ))}
+              {links.map((link) => {
+                const active = pathname.startsWith(link.href);
+                return (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    aria-current={active ? "page" : undefined}
+                    className={cn(
+                      "focus-ring flex h-full items-center border-b-[2.5px] text-sm transition-colors",
+                      active
+                        ? "border-accent font-semibold text-text-primary"
+                        : "border-transparent font-medium text-text-secondary hover:text-text-primary"
+                    )}
+                  >
+                    {link.label}
+                  </Link>
+                );
+              })}
               {displayName && (
-                <span className="max-w-[12rem] truncate text-sm text-muted-foreground">
+                <span className="max-w-[12rem] truncate text-sm text-text-tertiary">
                   {displayName}
                 </span>
               )}
+              <ThemeToggle />
               <Button
                 variant="outline"
                 size="lg"
                 onClick={handleLogout}
                 disabled={loggingOut}
               >
-                <LogOut className="size-4" />
+                <LogOut className="size-4" strokeWidth={1.5} />
                 {loggingOut ? "Logging out…" : "Log out"}
               </Button>
             </>
           ) : (
             <>
-              {loggedOutLinks.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className="text-sm font-medium text-foreground/80 transition-colors hover:text-foreground"
-                >
-                  {link.label}
-                </Link>
-              ))}
+              {loggedOutLinks.map((link) => {
+                const active = pathname.startsWith(link.href);
+                return (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    aria-current={active ? "page" : undefined}
+                    className={cn(
+                      "focus-ring flex h-full items-center border-b-[2.5px] text-sm transition-colors",
+                      active
+                        ? "border-accent font-semibold text-text-primary"
+                        : "border-transparent font-medium text-text-secondary hover:text-text-primary"
+                    )}
+                  >
+                    {link.label}
+                  </Link>
+                );
+              })}
+              <ThemeToggle />
               <Button asChild size="lg" className="px-5">
                 <Link href="/signup">Sign up</Link>
               </Button>
@@ -166,21 +192,28 @@ export function Nav({
         </div>
 
         {/* Mobile toggle */}
-        <button
-          type="button"
-          aria-label={open ? "Close menu" : "Open menu"}
-          aria-expanded={open}
-          onClick={() => setOpen((v) => !v)}
-          className="inline-flex items-center justify-center rounded-md p-2 text-foreground md:hidden"
-        >
-          {open ? <X className="size-6" /> : <Menu className="size-6" />}
-        </button>
+        <div className="flex items-center gap-1 md:hidden">
+          <ThemeToggle />
+          <button
+            type="button"
+            aria-label={open ? "Close menu" : "Open menu"}
+            aria-expanded={open}
+            onClick={() => setOpen((v) => !v)}
+            className="focus-ring inline-flex items-center justify-center rounded-md p-2 text-foreground"
+          >
+            {open ? (
+              <X className="size-6" strokeWidth={1.5} />
+            ) : (
+              <Menu className="size-6" strokeWidth={1.5} />
+            )}
+          </button>
+        </div>
       </nav>
 
       {/* Mobile menu */}
       <div
         className={cn(
-          "border-t border-border bg-background md:hidden",
+          "border-t border-border-hairline bg-surface md:hidden",
           open ? "block" : "hidden"
         )}
       >
