@@ -1,12 +1,13 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Loader2, MessageCircle, Trash2 } from "lucide-react";
+import { Loader2, MessageSquare, Trash2 } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/client";
 import { Avatar } from "@/components/Avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { FeedAction } from "./feed-action";
 
 const MAX_COMMENT_LENGTH = 1000;
 
@@ -36,27 +37,31 @@ function timeAgo(iso: string) {
 }
 
 /**
- * Comment affordance + inline thread for one feed event. Comments are lazy —
- * nothing is fetched until the thread is opened. Reads/writes go through the
- * browser Supabase client with local-state updates (same pattern as
- * app/profile/work-samples-manager.tsx); RLS scopes every query to events the
- * viewer can see (see supabase/comments.sql). Threading is one level deep:
- * only top-level comments offer a Reply button, mirroring the DB constraint.
+ * The post card's action bar plus the inline comment well for one feed event.
+ * The Comment action is the only live one this phase; the static
+ * Congratulate / Endorse / Share actions render around it via the
+ * actionsBefore / actionsAfter slots so the bar lays out as equal targets.
+ * Comments stay lazy — nothing is fetched until the well is opened.
+ * Reads/writes go through the browser Supabase client with local-state
+ * updates; RLS scopes every query to events the viewer can see (see
+ * supabase/comments.sql). Threading is one level deep: only top-level
+ * comments offer a Reply button, mirroring the DB constraint.
  */
 export function CommentThread({
   eventId,
   currentUserId,
-  initialCount,
+  actionsBefore,
+  actionsAfter,
 }: {
   eventId: string;
   currentUserId: string;
-  initialCount: number;
+  actionsBefore?: React.ReactNode;
+  actionsAfter?: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [comments, setComments] = useState<Comment[]>([]);
-  const [count, setCount] = useState(initialCount);
   const [body, setBody] = useState("");
   const [replyTo, setReplyTo] = useState<{ id: string; name: string } | null>(
     null
@@ -95,7 +100,6 @@ export function CommentThread({
         author: c.author as unknown as Comment["author"],
       })) as Comment[];
       setComments(rows);
-      setCount(rows.length);
       setLoaded(true);
     }
     setLoading(false);
@@ -135,7 +139,6 @@ export function CommentThread({
       author: data.author as unknown as Comment["author"],
     } as Comment;
     setComments((prev) => [...prev, row]);
-    setCount((c) => c + 1);
     setBody("");
     setReplyTo(null);
     setBusy(false);
@@ -171,7 +174,6 @@ export function CommentThread({
 
     const removed = new Set([comment.id, ...replyIds]);
     setComments((prev) => prev.filter((c) => !removed.has(c.id)));
-    setCount((c) => Math.max(0, c - removed.size));
     if (replyTo && removed.has(replyTo.id)) setReplyTo(null);
     setDeletingId(null);
   }
@@ -189,16 +191,20 @@ export function CommentThread({
     comments.filter((c) => c.parent_id === parentId);
 
   return (
-    <div className="mt-3">
-      <Button type="button" variant="ghost" size="sm" onClick={toggle}>
-        <MessageCircle className="size-3.5" />
-        {count > 0 ? count : "Comment"}
-      </Button>
+    <div className="border-t border-border-hairline">
+      <div className="flex items-stretch gap-1 px-2.5 py-1.5">
+        {actionsBefore}
+        <FeedAction interactive onClick={toggle} aria-expanded={open}>
+          <MessageSquare className="size-[17px]" strokeWidth={1.5} />
+          Comment
+        </FeedAction>
+        {actionsAfter}
+      </div>
 
       {open && (
-        <div className="mt-2 border-t border-border pt-3">
+        <div className="border-t border-border-hairline bg-surface-sunken px-4 py-3.5">
           {loading ? (
-            <Loader2 className="size-4 animate-spin text-muted-foreground" />
+            <Loader2 className="size-4 animate-spin text-text-tertiary" />
           ) : (
             <>
               {topLevel.length > 0 && (
@@ -213,7 +219,7 @@ export function CommentThread({
                         onReply={startReply}
                       />
                       {repliesFor(comment.id).length > 0 && (
-                        <ul className="mt-2 flex flex-col gap-2 border-l border-border pl-3 sm:ml-9 sm:pl-4">
+                        <ul className="mt-2 flex flex-col gap-2 border-l border-border pl-3 sm:ml-11 sm:pl-4">
                           {repliesFor(comment.id).map((reply) => (
                             <li key={reply.id}>
                               <CommentRow
@@ -233,16 +239,15 @@ export function CommentThread({
 
               <form
                 onSubmit={handleSubmit}
-                className="mt-3 flex flex-col gap-2"
+                className={topLevel.length > 0 ? "mt-3 flex flex-col gap-2" : "flex flex-col gap-2"}
               >
                 {replyTo && (
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-text-tertiary">
                     Replying to{" "}
-                    <span className="text-foreground/90">{replyTo.name}</span>{" "}
-                    —{" "}
+                    <span className="text-text-primary">{replyTo.name}</span> —{" "}
                     <button
                       type="button"
-                      className="text-brand hover:underline"
+                      className="text-accent hover:underline"
                       onClick={() => setReplyTo(null)}
                     >
                       cancel
@@ -253,14 +258,20 @@ export function CommentThread({
                   ref={composerRef}
                   rows={2}
                   maxLength={MAX_COMMENT_LENGTH}
-                  placeholder={replyTo ? "Write a reply…" : "Add a comment…"}
+                  className="rounded-card-nested border-border-hairline bg-surface text-[14.5px]"
+                  placeholder={replyTo ? "Write a reply…" : "Write a comment…"}
                   aria-label={replyTo ? "Reply" : "Comment"}
                   value={body}
                   onChange={(e) => setBody(e.target.value)}
                   disabled={busy}
                 />
                 <div className="flex justify-end">
-                  <Button type="submit" size="sm" disabled={busy}>
+                  <Button
+                    type="submit"
+                    size="sm"
+                    className="rounded-full font-semibold"
+                    disabled={busy}
+                  >
                     {busy && <Loader2 className="size-3.5 animate-spin" />}
                     {busy ? "Posting…" : replyTo ? "Reply" : "Comment"}
                   </Button>
@@ -298,27 +309,30 @@ function CommentRow({
 }) {
   const name = comment.author?.display_name || "A creator";
   return (
-    <div className="flex gap-2">
-      <Avatar name={name} className="size-7 text-xs" />
+    <div className="flex gap-2.5">
+      <Avatar
+        name={name}
+        className="size-9 bg-avatar-fill text-xs text-text-secondary"
+      />
       <div className="min-w-0 flex-1">
-        <p className="text-sm">
-          <span className="font-semibold">{name}</span>{" "}
-          <span className="text-xs text-muted-foreground">
-            {timeAgo(comment.created_at)}
-          </span>
-        </p>
-        <p className="whitespace-pre-wrap text-sm text-foreground/90">
-          {comment.body}
-        </p>
-        {onReply && (
-          <button
-            type="button"
-            className="mt-0.5 text-xs font-medium text-muted-foreground transition-colors hover:text-brand"
-            onClick={() => onReply(comment)}
-          >
-            Reply
-          </button>
-        )}
+        <div className="rounded-card-nested bg-surface px-3.5 py-2.5">
+          <p className="text-[15px] font-semibold text-text-primary">{name}</p>
+          <p className="whitespace-pre-wrap text-[14.5px] leading-[1.55] text-text-secondary">
+            {comment.body}
+          </p>
+        </div>
+        <div className="mt-1 flex items-center gap-3 px-1 text-xs font-medium text-text-tertiary">
+          {onReply && (
+            <button
+              type="button"
+              className="transition-colors hover:text-accent"
+              onClick={() => onReply(comment)}
+            >
+              Reply
+            </button>
+          )}
+          <span>{timeAgo(comment.created_at)}</span>
+        </div>
       </div>
       {comment.author_id === currentUserId && (
         <Button

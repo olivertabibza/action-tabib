@@ -79,7 +79,15 @@ function Wordmark() {
   );
 }
 
-export function ProShell({ children }: { children: React.ReactNode }) {
+// `wide` skips the narrow inner column so a page can use the full 1248px
+// canvas (the Feed's three-column grid). Everything else keeps the default.
+export function ProShell({
+  children,
+  wide = false,
+}: {
+  children: React.ReactNode;
+  wide?: boolean;
+}) {
   const pathname = usePathname();
   // Stub counts (all zeros for now) — badges only render once these are wired.
   const counts: NavCounts = getNavCounts();
@@ -184,10 +192,20 @@ export function ProShell({ children }: { children: React.ReactNode }) {
 
       {/* Content: 1248px canvas; bottom padding clears the mobile tab bar. */}
       <div className="flex w-full flex-1 flex-col pb-[calc(70px+env(safe-area-inset-bottom))] sm:pb-0">
-        <div className="callboard-container flex flex-1 flex-col">
-          <div className="mx-auto flex w-full max-w-md flex-1 flex-col md:max-w-2xl">
-            {children}
-          </div>
+        <div
+          className={cn(
+            "callboard-container flex flex-1 flex-col",
+            // The Feed's three fixed columns need a 1272px canvas, not 1248px.
+            wide && "[--callboard-canvas:1272px]"
+          )}
+        >
+          {wide ? (
+            children
+          ) : (
+            <div className="mx-auto flex w-full max-w-md flex-1 flex-col md:max-w-2xl">
+              {children}
+            </div>
+          )}
         </div>
       </div>
 
