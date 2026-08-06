@@ -39,5 +39,7 @@ export default async function DashboardLayout({
     redirect(destinationFor(profile));
   }
 
-  return <ProShell>{children}</ProShell>;
+  // wide: the Feed uses the full three-column 1248px canvas; every other
+  // ProShell page keeps the default narrow column.
+  return <ProShell wide>{children}</ProShell>;
 }

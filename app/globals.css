@@ -203,10 +203,13 @@
   }
 }
 
-/* 1248px content canvas with 36px desktop / 12px mobile gutters. */
+/* Content canvas with 36px desktop / 12px mobile gutters. Defaults to the
+   single-column 1248px; the Feed overrides --callboard-canvas because its three
+   FIXED columns (264 + 616 + 344, all flex:none in the prototype) plus two 24px
+   gaps come to 1272px. */
 @utility callboard-container {
   width: 100%;
-  max-width: calc(1248px + 2 * 36px);
+  max-width: calc(var(--callboard-canvas, 1248px) + 2 * 36px);
   margin-inline: auto;
   padding-inline: 36px;
   @media (width < 40rem) {
