@@ -69,6 +69,7 @@ create index if not exists connections_addressee_status_idx
 create or replace function public.connections_freeze_pair()
 returns trigger
 language plpgsql
+set search_path = public
 as $$
 begin
   if new.requester_id <> old.requester_id
