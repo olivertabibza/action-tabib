@@ -2,7 +2,6 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
   ArrowRight,
-  BadgeCheck,
   Bookmark,
   Briefcase,
   CircleCheck,
@@ -14,17 +13,26 @@ import {
 
 import { createClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
-import { titleCase, disciplineLabel } from "@/lib/marketplace";
+import { titleCase, disciplineLabel, DISCIPLINES } from "@/lib/marketplace";
 import { Avatar } from "@/components/Avatar";
 import { CallboardCard } from "@/components/CallboardCard";
 import { ComposeBox } from "./compose-box";
 import { CommentThread } from "./comment-thread";
 import { FeedAction } from "./feed-action";
+import { ConnectPill, type ConnectionState } from "./connect-pill";
+import { CongratulateButton } from "./congratulate-button";
+import { ConnectionRequestActions } from "./connection-request-actions";
+import {
+  EndorseAction,
+  EndorsePicker,
+  type EndorsableSkill,
+} from "./endorse-picker";
 
 type Actor = {
   display_name: string | null;
   role: string | null;
   headline: string | null;
+  skills: string[] | null;
 };
 
 type FeedEvent = {
@@ -44,13 +52,11 @@ type Suggestion = {
   role: string | null;
 };
 
-/** The Connect pill's state for one profile, derived from the viewer's own
- * connection rows (see supabase/connections.sql). */
-type ConnectionState =
-  | "none"
-  | "pending_outgoing"
-  | "pending_incoming"
-  | "connected";
+type ConnectionRequest = {
+  id: string;
+  display_name: string | null;
+  role: string | null;
+};
 
 type EnrolledClass = {
   id: string;
@@ -83,6 +89,32 @@ function timeAgo(iso: string) {
   });
 }
 
+/**
+ * What a post's author can be endorsed for: their primary discipline
+ * (profiles.role — free text, with legacy title-cased values like "Editor")
+ * plus their secondary profiles.skills (discipline slugs). Deduped
+ * case-insensitively, first occurrence winning, and each value kept EXACTLY as
+ * stored: profile_lists_skill() matches the skills array case-sensitively and
+ * endorsement_count() compares exactly, so only the label is prettified.
+ */
+function endorsableSkills(actor: Actor | null): EndorsableSkill[] {
+  const seen = new Set<string>();
+  const out: EndorsableSkill[] = [];
+  for (const value of [actor?.role, ...(actor?.skills ?? [])]) {
+    if (!value) continue;
+    const key = value.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({
+      value,
+      label: (DISCIPLINES as readonly string[]).includes(key)
+        ? disciplineLabel(value)
+        : titleCase(value),
+    });
+  }
+  return out;
+}
+
 export default async function DashboardPage() {
   const supabase = await createClient();
   const {
@@ -107,7 +139,7 @@ export default async function DashboardPage() {
   const { data, error } = await supabase
     .from("activity_events")
     .select(
-      "id, kind, actor_id, body, subject_id, metadata, created_at, actor:profiles!activity_events_actor_id_fkey(display_name, role, headline)"
+      "id, kind, actor_id, body, subject_id, metadata, created_at, actor:profiles!activity_events_actor_id_fkey(display_name, role, headline, skills)"
     )
     .order("created_at", { ascending: false })
     .limit(50);
@@ -153,6 +185,16 @@ export default async function DashboardPage() {
     }
   }
 
+  // Every endorsement the viewer has given, in ONE query (the SELECT policy is
+  // member-wide). Keyed subject::skill so each post's picker can pre-fill.
+  const { data: myEndorsements } = await supabase
+    .from("endorsements")
+    .select("subject_id, skill")
+    .eq("endorser_id", user.id);
+  const endorsedByMe = new Set(
+    (myEndorsements ?? []).map((e) => `${e.subject_id}::${e.skill}`)
+  );
+
   // Connect suggestions (LIVE) — approved professionals the user doesn't already
   // follow and isn't themselves. Same query shape as app/network/page.tsx.
   const { data: candidates } = await supabase
@@ -180,7 +222,7 @@ export default async function DashboardPage() {
   // state derives in TypeScript (no connection_status() per row).
   const { data: connectionRows } = await supabase
     .from("connections")
-    .select("requester_id, addressee_id, status");
+    .select("requester_id, addressee_id, status, created_at");
   const connectionStates = new Map<string, ConnectionState>();
   for (const c of connectionRows ?? []) {
     const other = (
@@ -194,6 +236,29 @@ export default async function DashboardPage() {
           ? "pending_outgoing"
           : "pending_incoming"
     );
+  }
+
+  // Incoming requests for the rail card — derived from the SAME rows above
+  // (the viewer is a party to all of them), newest first. Only the requesters'
+  // names need fetching, and that's one .in() query, never one per row.
+  const incoming = (connectionRows ?? [])
+    .filter((c) => c.addressee_id === user.id && c.status === "pending")
+    .sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
+  let connectionRequests: ConnectionRequest[] = [];
+  if (incoming.length > 0) {
+    const { data: requesters } = await supabase
+      .from("profiles")
+      .select("id, display_name, role")
+      .in(
+        "id",
+        incoming.map((c) => c.requester_id)
+      );
+    const byId = new Map(
+      (requesters ?? []).map((p) => [p.id as string, p as ConnectionRequest])
+    );
+    connectionRequests = incoming
+      .map((c) => byId.get(c.requester_id as string))
+      .filter((p): p is ConnectionRequest => p !== undefined);
   }
 
   // "N mutual connections" — mutual_connection_count IS an RPC on purpose: the
@@ -309,21 +374,32 @@ export default async function DashboardPage() {
 
         {!error && events.length > 0 ? (
           <ul className="flex flex-col gap-4 max-sm:gap-3">
-            {events.map((event) => (
-              <li key={event.id}>
-                <FeedItem
-                  event={event}
-                  currentUserId={user.id}
-                  commentCount={commentCounts.get(event.id) ?? 0}
-                  congratsCount={congratsCounts.get(event.id) ?? 0}
-                  viewerCongratulated={congratulatedByMe.has(event.id)}
-                  mutualCount={mutualCounts.get(event.actor_id) ?? 0}
-                  connectionState={
-                    connectionStates.get(event.actor_id) ?? "none"
-                  }
-                />
-              </li>
-            ))}
+            {events.map((event) => {
+              // No endorsing yourself (the CHECK and the picker agree).
+              const skills =
+                event.actor_id === user.id ? [] : endorsableSkills(event.actor);
+              return (
+                <li key={event.id}>
+                  <FeedItem
+                    event={event}
+                    currentUserId={user.id}
+                    commentCount={commentCounts.get(event.id) ?? 0}
+                    congratsCount={congratsCounts.get(event.id) ?? 0}
+                    viewerCongratulated={congratulatedByMe.has(event.id)}
+                    mutualCount={mutualCounts.get(event.actor_id) ?? 0}
+                    connectionState={
+                      connectionStates.get(event.actor_id) ?? "none"
+                    }
+                    skills={skills}
+                    endorsedSkills={skills
+                      .filter((s) =>
+                        endorsedByMe.has(`${event.actor_id}::${s.value}`)
+                      )
+                      .map((s) => s.value)}
+                  />
+                </li>
+              );
+            })}
           </ul>
         ) : (
           !error && (
@@ -350,6 +426,9 @@ export default async function DashboardPage() {
         {recentProjects.length > 0 && (
           <RecentProjectsCard projects={recentProjects} />
         )}
+        {connectionRequests.length > 0 && (
+          <ConnectionRequestsCard requests={connectionRequests} />
+        )}
         {suggestions.length > 0 && (
           <CallboardCard className="p-4">
             <h2 className="font-condensed text-[21px] font-semibold leading-tight text-text-primary">
@@ -375,7 +454,10 @@ export default async function DashboardPage() {
                         ` · ${mutualCounts.get(s.id)} mutual`}
                     </p>
                   </div>
-                  <ConnectPill state={connectionStates.get(s.id) ?? "none"} />
+                  <ConnectPill
+                    targetId={s.id}
+                    initialState={connectionStates.get(s.id) ?? "none"}
+                  />
                 </li>
               ))}
             </ul>
@@ -450,32 +532,6 @@ function StatRow({ label, value }: { label: string; value: number }) {
 
 /* ── Feed ──────────────────────────────────────────────────────────────── */
 
-/** Non-functional this phase — Phase 3b wires connect/accept. Renders the
- * correct visual state only. */
-function ConnectPill({ state }: { state: ConnectionState }) {
-  const label = {
-    none: "Connect",
-    pending_outgoing: "Pending",
-    pending_incoming: "Respond",
-    connected: "Connected",
-  }[state];
-  return (
-    <button
-      type="button"
-      aria-disabled
-      tabIndex={-1}
-      className={cn(
-        "pointer-events-none shrink-0 rounded-full px-[18px] py-[7px] text-[13.5px] font-semibold",
-        state === "none"
-          ? "border-[1.5px] border-accent text-accent"
-          : "bg-accent-tint text-accent"
-      )}
-    >
-      {label}
-    </button>
-  );
-}
-
 function FeedItem({
   event,
   currentUserId,
@@ -484,6 +540,8 @@ function FeedItem({
   viewerCongratulated,
   mutualCount,
   connectionState,
+  skills,
+  endorsedSkills,
 }: {
   event: FeedEvent;
   currentUserId: string;
@@ -492,6 +550,8 @@ function FeedItem({
   viewerCongratulated: boolean;
   mutualCount: number;
   connectionState: ConnectionState;
+  skills: EndorsableSkill[];
+  endorsedSkills: string[];
 }) {
   const actorName = event.actor?.display_name || "A creator";
   const isOwnPost = event.actor_id === currentUserId;
@@ -537,7 +597,9 @@ function FeedItem({
               {subtitle}
             </p>
           </div>
-          {!isOwnPost && <ConnectPill state={connectionState} />}
+          {!isOwnPost && (
+            <ConnectPill targetId={event.actor_id} initialState={connectionState} />
+          )}
         </div>
 
         {/* Every status_update renders in the design's single text-post shape:
@@ -580,42 +642,86 @@ function FeedItem({
           <div className="pb-3.5" />
         )}
 
-        <CommentThread
-          eventId={event.id}
-          currentUserId={currentUserId}
-          actionsBefore={
-            /* Congratulate stays non-functional this phase (3b wires the
-               toggle); it renders its true state, filled when the viewer has
-               already reacted. Hidden on your own posts. */
-            !isOwnPost && (
-              <FeedAction active={viewerCongratulated}>
-                <PartyPopper className="size-[17px]" strokeWidth={1.5} />
-                {viewerCongratulated ? "Congratulated" : "Congratulate"}
-              </FeedAction>
-            )
-          }
-          actionsAfter={
-            <>
-              {/* Endorse drops on mobile per the design's three-up bar. */}
-              {!isOwnPost && (
-                <FeedAction className="max-sm:hidden">
-                  <BadgeCheck className="size-[17px]" strokeWidth={1.5} />
-                  Endorse
+        {/* EndorsePicker wraps the bar so its trigger (inside the bar) and its
+            panel (below it) share one open state; without endorsable skills it
+            is absent and EndorseAction renders nothing. */}
+        <EndorsePicker
+          subjectId={event.actor_id}
+          skills={skills}
+          endorsed={endorsedSkills}
+        >
+          <CommentThread
+            eventId={event.id}
+            currentUserId={currentUserId}
+            actionsBefore={
+              /* Congratulating your own post is hidden, matching the design. */
+              !isOwnPost && (
+                <CongratulateButton
+                  eventId={event.id}
+                  initialOn={viewerCongratulated}
+                />
+              )
+            }
+            actionsAfter={
+              <>
+                {/* Endorse drops on mobile per the design's three-up bar. */}
+                <EndorseAction className="max-sm:hidden" />
+                {/* Share stays non-interactive: there is no per-post permalink
+                    route in this app, so it would have nothing to copy. */}
+                <FeedAction>
+                  <Share2 className="size-[17px]" strokeWidth={1.5} />
+                  Share
                 </FeedAction>
-              )}
-              <FeedAction>
-                <Share2 className="size-[17px]" strokeWidth={1.5} />
-                Share
-              </FeedAction>
-            </>
-          }
-        />
+              </>
+            }
+          />
+        </EndorsePicker>
       </article>
     </CallboardCard>
   );
 }
 
 /* ── Right rail ────────────────────────────────────────────────────────── */
+
+/** Incoming pending requests. Without this card a request is only discoverable
+ * if that person happens to post. Capped at 5 with a plain count line — there
+ * is no requests route to link to. */
+function ConnectionRequestsCard({ requests }: { requests: ConnectionRequest[] }) {
+  const shown = requests.slice(0, 5);
+  const extra = requests.length - shown.length;
+  return (
+    <CallboardCard className="p-4">
+      <h2 className="font-condensed text-[21px] font-semibold leading-tight text-text-primary">
+        Connection requests
+      </h2>
+      <ul className="mt-3 flex flex-col gap-3.5">
+        {shown.map((r) => (
+          <li key={r.id} className="flex gap-3">
+            <Avatar
+              name={r.display_name}
+              className="size-11 bg-avatar-fill text-text-secondary"
+            />
+            <div className="min-w-0 flex-1">
+              <Link
+                href={`/profile/${r.id}`}
+                className="block truncate font-condensed text-[17px] font-semibold leading-tight text-text-primary transition-colors hover:text-accent"
+              >
+                {r.display_name || "Unnamed creator"}
+              </Link>
+              <p className="truncate text-[12.5px] text-text-tertiary">
+                {r.role ? titleCase(r.role) : "Pro"}
+              </p>
+              <ConnectionRequestActions requesterId={r.id} className="mt-2" />
+            </div>
+          </li>
+        ))}
+      </ul>
+      {extra > 0 && (
+        <p className="mt-3 text-[12.5px] text-text-tertiary">+{extra} more</p>
+      )}
+    </CallboardCard>
+  );
+}
 
 /** Rendered only when the user has a real enrollment. The design's session
  * progress bar is omitted rather than faked — there is no session tracking. */
