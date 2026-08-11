@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 import { destinationFor } from "@/lib/auth-dispatch";
-import { ProShell } from "@/components/ProShell";
+import { ProShellServer } from "@/components/ProShellServer";
 
 /**
  * Access gate for the Pro Explore TAB (the index at /explore), enforced in one
@@ -43,5 +43,5 @@ export default async function ExploreTabLayout({
     redirect(destinationFor(profile));
   }
 
-  return <ProShell>{children}</ProShell>;
+  return <ProShellServer>{children}</ProShellServer>;
 }

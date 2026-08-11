@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 import { destinationFor } from "@/lib/auth-dispatch";
-import { ProShell } from "@/components/ProShell";
+import { ProShellServer } from "@/components/ProShellServer";
 
 /**
  * Access gate for the Pro feed, enforced in one place (mirrors
@@ -41,5 +41,5 @@ export default async function DashboardLayout({
 
   // wide: the Feed uses the full three-column 1248px canvas; every other
   // ProShell page keeps the default narrow column.
-  return <ProShell wide>{children}</ProShell>;
+  return <ProShellServer wide>{children}</ProShellServer>;
 }

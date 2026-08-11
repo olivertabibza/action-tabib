@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
-import { ProShell } from "@/components/ProShell";
+import { ProShellServer } from "@/components/ProShellServer";
 import {
   Card,
   CardContent,
@@ -17,7 +17,7 @@ export default async function NewEventPage() {
   await requireApprovedProPage();
 
   return (
-    <ProShell>
+    <ProShellServer>
       <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-12 sm:px-6 sm:py-16">
         <Link
           href="/explore"
@@ -40,6 +40,6 @@ export default async function NewEventPage() {
           </CardContent>
         </Card>
       </main>
-    </ProShell>
+    </ProShellServer>
   );
 }

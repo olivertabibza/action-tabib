@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 import { destinationFor } from "@/lib/auth-dispatch";
-import { ProShell } from "@/components/ProShell";
+import { ProShellServer } from "@/components/ProShellServer";
 
 /**
  * Access gate for Pro messages, enforced in one place (mirrors
@@ -38,5 +38,5 @@ export default async function MessagesLayout({
     redirect(destinationFor(profile));
   }
 
-  return <ProShell>{children}</ProShell>;
+  return <ProShellServer>{children}</ProShellServer>;
 }

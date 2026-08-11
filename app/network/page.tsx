@@ -10,8 +10,18 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { titleCase } from "@/lib/marketplace";
+import { Avatar } from "@/components/Avatar";
+import { CallboardCard } from "@/components/CallboardCard";
+import { ConnectionRequestActions } from "@/components/ConnectionRequestActions";
 import { MessageButton } from "@/app/messages/message-button";
 import { FollowButton } from "./follow-button";
+
+type Requester = {
+  id: string;
+  display_name: string | null;
+  role: string | null;
+  headline: string | null;
+};
 
 export default async function NetworkPage() {
   const supabase = await createClient();
@@ -44,6 +54,34 @@ export default async function NetworkPage() {
     (myFollows ?? []).map((f) => f.following_id as string)
   );
 
+  // Incoming connection requests. The feed's right rail is hidden below 1180px,
+  // so this — not the rail card — is where a request is always reachable. The
+  // "Parties read own connections" SELECT policy covers this directly: the
+  // viewer is the addressee of every row read.
+  const { data: pending } = await supabase
+    .from("connections")
+    .select("requester_id, created_at")
+    .eq("addressee_id", user.id)
+    .eq("status", "pending")
+    .order("created_at", { ascending: false });
+
+  let requests: Requester[] = [];
+  if (pending && pending.length > 0) {
+    const { data: requesters } = await supabase
+      .from("profiles")
+      .select("id, display_name, role, headline")
+      .in(
+        "id",
+        pending.map((p) => p.requester_id)
+      );
+    const byId = new Map(
+      (requesters ?? []).map((p) => [p.id as string, p as Requester])
+    );
+    requests = pending
+      .map((p) => byId.get(p.requester_id as string))
+      .filter((p): p is Requester => p !== undefined);
+  }
+
   return (
     <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-12 sm:px-6 sm:py-16">
       <div className="mb-8">
@@ -54,6 +92,45 @@ export default async function NetworkPage() {
           Follow other professionals to see their updates in your dashboard feed.
         </p>
       </div>
+
+      {/* This section is already in the Callboard idiom while the grid below
+          is still the old shadcn one — deliberate: the rest of the page gets
+          its restyle in a later phase. */}
+      {requests.length > 0 && (
+        <section className="mb-10">
+          <h2 className="mb-3 text-xl font-semibold tracking-tight">
+            Connection requests{" "}
+            <span className="text-muted-foreground">({requests.length})</span>
+          </h2>
+          <CallboardCard className="p-4">
+            <ul className="flex flex-col gap-4">
+              {requests.map((r) => (
+                <li key={r.id} className="flex gap-3">
+                  <Avatar
+                    name={r.display_name}
+                    className="size-11 bg-avatar-fill text-text-secondary"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <Link
+                      href={`/profile/${r.id}`}
+                      className="block truncate font-condensed text-[17px] font-semibold leading-tight text-text-primary transition-colors hover:text-accent"
+                    >
+                      {r.display_name || "Unnamed creator"}
+                    </Link>
+                    <p className="truncate text-[12.5px] text-text-tertiary">
+                      {r.role ? titleCase(r.role) : "Pro"}
+                    </p>
+                    <ConnectionRequestActions
+                      requesterId={r.id}
+                      className="mt-2"
+                    />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </CallboardCard>
+        </section>
+      )}
 
       {error && (
         <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">

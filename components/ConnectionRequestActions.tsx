@@ -5,10 +5,14 @@ import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { acceptConnection, removeConnection } from "./connection-actions";
+import {
+  acceptConnection,
+  removeConnection,
+} from "@/app/dashboard/connection-actions";
 
 /**
- * Accept / Decline for one incoming request in the right-rail card. Declining
+ * Accept / Decline for one incoming request. Shared by the feed's right-rail
+ * card and the /network requests section. Declining
  * is removeConnection — the DELETE policy treats declining, withdrawing and
  * disconnecting identically. The row itself disappears on the refresh that
  * follows a successful action.

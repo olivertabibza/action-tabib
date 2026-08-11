@@ -16,12 +16,12 @@ import { cn } from "@/lib/utils";
 import { titleCase, disciplineLabel, DISCIPLINES } from "@/lib/marketplace";
 import { Avatar } from "@/components/Avatar";
 import { CallboardCard } from "@/components/CallboardCard";
+import { ConnectionRequestActions } from "@/components/ConnectionRequestActions";
 import { ComposeBox } from "./compose-box";
 import { CommentThread } from "./comment-thread";
 import { FeedAction } from "./feed-action";
 import { ConnectPill, type ConnectionState } from "./connect-pill";
 import { CongratulateButton } from "./congratulate-button";
-import { ConnectionRequestActions } from "./connection-request-actions";
 import {
   EndorseAction,
   EndorsePicker,

@@ -15,7 +15,7 @@ import {
 import { cn } from "@/lib/utils";
 import { LogoutButton } from "@/components/LogoutButton";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { getNavCounts, type NavCounts } from "@/lib/nav-counts";
+import { type NavCounts } from "@/lib/nav-counts";
 
 // Callboard top-nav order (Feed · Projects · Classes · Network · Messages).
 // Every href is a pre-existing route — Feed keeps /dashboard as its
@@ -81,16 +81,18 @@ function Wordmark() {
 
 // `wide` skips the narrow inner column so a page can use the full 1248px
 // canvas (the Feed's three-column grid). Everything else keeps the default.
+// `counts` is required and comes from ProShellServer — this is a client
+// component and cannot fetch it itself.
 export function ProShell({
   children,
+  counts,
   wide = false,
 }: {
   children: React.ReactNode;
+  counts: NavCounts;
   wide?: boolean;
 }) {
   const pathname = usePathname();
-  // Stub counts (all zeros for now) — badges only render once these are wired.
-  const counts: NavCounts = getNavCounts();
 
   return (
     <div className="flex w-full flex-1 flex-col">

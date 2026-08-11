@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { ProShell } from "@/components/ProShell";
+import { ProShellServer } from "@/components/ProShellServer";
 import { SiteNav } from "@/components/SiteNav";
 
 /**
@@ -39,7 +39,7 @@ export default async function ProfileLayout({
   }
 
   if (isApprovedPro) {
-    return <ProShell>{children}</ProShell>;
+    return <ProShellServer>{children}</ProShellServer>;
   }
   return (
     <>
