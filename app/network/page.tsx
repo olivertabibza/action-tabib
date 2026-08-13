@@ -20,7 +20,6 @@ type Requester = {
   id: string;
   display_name: string | null;
   role: string | null;
-  headline: string | null;
 };
 
 export default async function NetworkPage() {
@@ -69,7 +68,7 @@ export default async function NetworkPage() {
   if (pending && pending.length > 0) {
     const { data: requesters } = await supabase
       .from("profiles")
-      .select("id, display_name, role, headline")
+      .select("id, display_name, role")
       .in(
         "id",
         pending.map((p) => p.requester_id)

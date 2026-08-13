@@ -125,3 +125,55 @@ export async function getInbox(
   const unreadChats = chats.filter((c) => c.unread).length;
   return { chats, requests, unreadChats };
 }
+
+/**
+ * Just the unread number for the ProShell nav badge. This exists separately from
+ * getInbox — NOT as a duplicate — because the shell renders on EVERY page and
+ * getInbox runs four queries and pulls every message body in every conversation
+ * to build summaries. That's fine once on /messages, wasteful per navigation to
+ * produce one integer.
+ *
+ * The unread rule is the same as getInbox's and the two must be changed
+ * together: accepted conversations only (pending requests have their own tab),
+ * and the other party's newest message must be newer than my last_read_at.
+ * getInbox drops my own messages in JS; here it's `.neq("sender_id", userId)` in
+ * the query — equivalent, and it fetches less.
+ */
+export async function getUnreadChatCount(
+  supabase: ServerClient,
+  userId: string
+): Promise<number> {
+  const { data: myRows } = await supabase
+    .from("conversation_participants")
+    .select("conversation_id, last_read_at")
+    .eq("user_id", userId)
+    .eq("accepted", true);
+
+  const mine = myRows ?? [];
+  if (mine.length === 0) return 0;
+
+  const convIds = mine.map((r) => r.conversation_id as string);
+
+  const { data: msgs } = await supabase
+    .from("messages")
+    .select("conversation_id, created_at")
+    .in("conversation_id", convIds)
+    .neq("sender_id", userId)
+    .order("created_at", { ascending: false });
+
+  // Newest other-party message per conversation.
+  const lastByConv = new Map<string, string>();
+  for (const m of msgs ?? []) {
+    const cid = m.conversation_id as string;
+    if (!lastByConv.has(cid)) lastByConv.set(cid, m.created_at as string);
+  }
+
+  let unread = 0;
+  for (const row of mine) {
+    const last = lastByConv.get(row.conversation_id as string);
+    if (!last) continue;
+    const lastReadAt = row.last_read_at as string | null;
+    if (lastReadAt === null || last > lastReadAt) unread += 1;
+  }
+  return unread;
+}

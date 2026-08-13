@@ -20,6 +20,19 @@ function canonical(x: string, y: string): [string, string] {
   return x < y ? [x, y] : [y, x];
 }
 
+/** Fail loudly. Every write below is RLS-constrained, and a fixture that
+ *  silently no-ops turns "the badge is broken" into "the test is flaky". */
+async function must<T extends { error: { message: string } | null }>(
+  query: PromiseLike<T>,
+  what: string
+): Promise<T> {
+  const res = await query;
+  if (res.error) {
+    throw new Error(`global-setup: ${what} failed — ${res.error.message}`);
+  }
+  return res;
+}
+
 /**
  * Ensure SMOKE_USER has exactly one unread message in an accepted chat, so the
  * ProShell badge deterministically shows. All rows are "[TEST]"-tagged and
@@ -40,46 +53,70 @@ async function ensureUnreadForBadge() {
     .eq("user_b", user_b)
     .maybeSingle();
   if (!conv) {
-    const { data } = await sender
-      .from("conversations")
-      .insert({ user_a, user_b })
-      .select("id")
-      .single();
+    const { data } = await must(
+      sender
+        .from("conversations")
+        .insert({ user_a, user_b })
+        .select("id")
+        .single(),
+      "create the badge conversation"
+    );
     conv = data;
   }
   const convId = conv!.id as string;
 
-  // Seed both participant rows if missing. SMOKE_USER follows DM_SENDER, so the
-  // recipient's row is accepted (free pass) — the badge only counts accepted.
-  await sender.from("conversation_participants").upsert(
-    [
+  // Seed each participant row with THAT user's own client. RLS lets either party
+  // INSERT both rows, but an upsert is an ON CONFLICT DO UPDATE and "Update own
+  // participant row" only ever permits your own — so a two-row upsert from one
+  // client is rejected outright. Both rows are accepted: the badge counts
+  // accepted chats only, never pending requests.
+  await must(
+    sender.from("conversation_participants").upsert(
       { conversation_id: convId, user_id: senderId, accepted: true },
+      { onConflict: "conversation_id,user_id" }
+    ),
+    "seed the sender's participant row"
+  );
+  await must(
+    recipient.from("conversation_participants").upsert(
       { conversation_id: convId, user_id: recipientId, accepted: true },
-    ],
-    { onConflict: "conversation_id,user_id" }
+      { onConflict: "conversation_id,user_id" }
+    ),
+    "seed the recipient's participant row"
   );
 
-  // One probe message from the sender (guarded so it doesn't accumulate).
-  const { data: existing } = await sender
-    .from("messages")
-    .select("id")
-    .eq("conversation_id", convId)
-    .eq("sender_id", senderId)
-    .limit(1);
+  // One probe message from the sender (guarded so it doesn't accumulate). Both
+  // participant rows must exist first — the messages INSERT policy requires the
+  // other party's row.
+  const { data: existing } = await must(
+    sender
+      .from("messages")
+      .select("id")
+      .eq("conversation_id", convId)
+      .eq("sender_id", senderId)
+      .limit(1),
+    "read the probe message"
+  );
   if (!existing?.length) {
-    await sender.from("messages").insert({
-      conversation_id: convId,
-      sender_id: senderId,
-      body: "[TEST] unread probe for the badge smoke test",
-    });
+    await must(
+      sender.from("messages").insert({
+        conversation_id: convId,
+        sender_id: senderId,
+        body: "[TEST] unread probe for the badge smoke test",
+      }),
+      "insert the probe message"
+    );
   }
 
   // Re-arm: mark the recipient's side unread (last_read_at = null).
-  await recipient
-    .from("conversation_participants")
-    .update({ last_read_at: null })
-    .eq("conversation_id", convId)
-    .eq("user_id", recipientId);
+  await must(
+    recipient
+      .from("conversation_participants")
+      .update({ last_read_at: null })
+      .eq("conversation_id", convId)
+      .eq("user_id", recipientId),
+    "re-arm the unread"
+  );
 }
 
 async function globalSetup() {

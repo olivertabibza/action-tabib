@@ -21,19 +21,27 @@ import { type NavCounts } from "@/lib/nav-counts";
 // Every href is a pre-existing route — Feed keeps /dashboard as its
 // destination. Profile lives on the avatar in the right cluster (desktop) and
 // as the fifth mobile tab; Explore is reachable through the search pill.
+// `countNoun` is what a screen reader hears after the number — the badge itself
+// renders a bare digit with no context, so the count goes into the link's
+// accessible name too ("Messages, 1 unread").
 const navItems = [
-  { href: "/dashboard", label: "Feed", icon: AlignLeft, countKey: null },
-  { href: "/projects", label: "Projects", icon: Briefcase, countKey: "projects" },
-  { href: "/classes", label: "Classes", icon: GraduationCap, countKey: "classes" },
-  { href: "/network", label: "Network", icon: Users, countKey: "network" },
-  { href: "/messages", label: "Messages", icon: Mail, countKey: "messages" },
+  { href: "/dashboard", label: "Feed", icon: AlignLeft, countKey: null, countNoun: null },
+  { href: "/projects", label: "Projects", icon: Briefcase, countKey: "projects", countNoun: "new" },
+  { href: "/classes", label: "Classes", icon: GraduationCap, countKey: "classes", countNoun: "new" },
+  { href: "/network", label: "Network", icon: Users, countKey: "network", countNoun: "pending" },
+  { href: "/messages", label: "Messages", icon: Mail, countKey: "messages", countNoun: "unread" },
 ] as const;
 
 // Mobile swaps Messages (moved to the app bar) for Profile, per the design.
 const mobileTabs = [
   ...navItems.slice(0, 4),
-  { href: "/profile", label: "Profile", icon: User, countKey: null },
+  { href: "/profile", label: "Profile", icon: User, countKey: null, countNoun: null },
 ] as const;
+
+// undefined leaves the link's name as its visible text (the default).
+function navAriaLabel(label: string, count: number, noun: string | null) {
+  return count > 0 && noun ? `${label}, ${count} ${noun}` : undefined;
+}
 
 // None of these routes is an index-of-the-others (unlike "/fan"), so a simple
 // prefix match is correct for each tab.
@@ -121,13 +129,18 @@ export function ProShell({
 
           {/* Desktop horizontal nav; the bottom tab bar takes over ≤640px. */}
           <nav className="flex h-[68px] items-stretch max-sm:hidden">
-            {navItems.map(({ href, label, icon: Icon, countKey }) => {
+            {navItems.map(({ href, label, icon: Icon, countKey, countNoun }) => {
               const active = isActive(pathname, href);
               return (
                 <Link
                   key={href}
                   href={href}
                   aria-current={active ? "page" : undefined}
+                  aria-label={navAriaLabel(
+                    label,
+                    countKey ? counts[countKey] : 0,
+                    countNoun
+                  )}
                   className={cn(
                     "focus-ring relative flex min-w-[86px] flex-col items-center justify-center gap-1 border-b-[2.5px] max-lg:min-w-16",
                     active ? "border-accent" : "border-transparent"
@@ -166,7 +179,9 @@ export function ProShell({
             {/* Messages lives here on mobile, where the top nav is hidden. */}
             <Link
               href="/messages"
-              aria-label="Messages"
+              aria-label={
+                navAriaLabel("Messages", counts.messages, "unread") ?? "Messages"
+              }
               className="focus-ring relative flex size-9 items-center justify-center rounded-full text-text-tertiary sm:hidden"
             >
               <Mail className="size-[22px]" strokeWidth={1.5} />
@@ -214,13 +229,18 @@ export function ProShell({
       {/* Mobile bottom tab bar: 60px + home-indicator inset, 44px targets. */}
       <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-surface pb-[max(10px,env(safe-area-inset-bottom))] sm:hidden">
         <div className="flex items-stretch">
-          {mobileTabs.map(({ href, label, icon: Icon, countKey }) => {
+          {mobileTabs.map(({ href, label, icon: Icon, countKey, countNoun }) => {
             const active = isActive(pathname, href);
             return (
               <Link
                 key={href}
                 href={href}
                 aria-current={active ? "page" : undefined}
+                aria-label={navAriaLabel(
+                  label,
+                  countKey ? counts[countKey] : 0,
+                  countNoun
+                )}
                 className={cn(
                   "focus-ring relative flex h-[60px] min-w-11 flex-1 flex-col items-center justify-center gap-1",
                   active ? "text-accent" : "text-text-tertiary"

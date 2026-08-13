@@ -41,9 +41,12 @@ test("/messages renders the Chats and Requests tabs", async ({ page }) => {
   await expect(page.getByRole("link", { name: /Requests/ })).toBeVisible();
 });
 
-test("the ProShell messages button shows an unread badge", async ({ page }) => {
+test("the ProShell messages nav item shows an unread badge", async ({ page }) => {
   await page.goto("/dashboard");
-  // global-setup armed one unread accepted chat, so the button's aria-label
-  // reflects the count (MessagesNavButton: "Messages, N unread").
-  await expect(page.getByRole("link", { name: /unread/ })).toBeVisible();
+  // global-setup arms exactly ONE unread accepted chat each run, so the count is
+  // 1. ProShell renders it as a CountBadge inside the Messages nav link and
+  // mirrors it into that link's accessible name ("Messages, 1 unread").
+  const messages = page.getByRole("link", { name: "Messages, 1 unread" });
+  await expect(messages).toBeVisible();
+  await expect(messages.getByText("1", { exact: true })).toBeVisible();
 });

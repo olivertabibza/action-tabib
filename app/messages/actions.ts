@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { createClient } from "@/lib/supabase/server";
 import { messageSchema } from "./schema";
-import { getInbox } from "./data";
+import { getUnreadChatCount } from "./data";
 
 type ServerClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -211,13 +211,13 @@ export async function markRead(conversationId: string) {
   return { success: true };
 }
 
-/** Unread-conversation count for the ProShell badge (accepted threads only). */
+/** Unread-conversation count for the ProShell badge (accepted threads only).
+ *  Delegates to getUnreadChatCount so there is ONE unread rule in the codebase. */
 export async function getUnreadCount(): Promise<number> {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return 0;
-  const { unreadChats } = await getInbox(supabase, user.id);
-  return unreadChats;
+  return getUnreadChatCount(supabase, user.id);
 }
