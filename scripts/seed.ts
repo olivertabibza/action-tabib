@@ -1,6 +1,6 @@
 /**
- * Database seed — demo Industry Professionals, projects, applications, events,
- * articles, follows, and feed activity.
+ * Database seed — demo Industry Professionals, projects, project roles,
+ * applications, events, articles, follows, connections, and feed activity.
  *
  * SERVER-ONLY. Run with `npm run seed` (which loads .env.local via tsx's
  * --env-file). It uses the Supabase SECRET (service-role) key, which bypasses
@@ -10,11 +10,11 @@
  * Safe to re-run: seed accounts are identified by the @actionseed.test email
  * pattern. Existing seed auth users are reused (password reset to the shared
  * one); seed-owned projects, events, and articles are deleted first (projects
- * cascade their applications) before everything is re-inserted. Seed-authored
- * activity_events and follow edges between two seed accounts are cleared and
- * re-inserted too — but a follow where a REAL user is on either side (e.g.
- * Oliver's fan account following a seed pro) is left untouched. Real, non-seed
- * data is never touched.
+ * cascade their roles AND applications) before everything is re-inserted.
+ * Seed-authored activity_events and the follow / connection edges between two
+ * seed accounts are cleared and re-inserted too — but an edge where a REAL user
+ * is on either side (e.g. Oliver's fan account following a seed pro) is left
+ * untouched. Real, non-seed data is never touched.
  */
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
@@ -170,16 +170,34 @@ const PROS: ProAccount[] = [
   },
 ];
 
+type ProjectType =
+  | "short_film"
+  | "feature_film"
+  | "web_series"
+  | "music_video"
+  | "commercial"
+  | "documentary"
+  | "crew_call"
+  | "other";
+
 type ProjectSpec = {
   title: string;
   ownerKey: string; // must be an approved pro
   // Roles the project needs. The legacy single `discipline` column is written
   // as the FIRST entry; 'any' stands alone (never mixed with specific roles).
   disciplines: (Discipline | "any")[];
+  project_type: ProjectType; // the category chip on the Projects screen
   description: string;
   location: string;
   compensation: "paid" | "unpaid" | "deferred";
+  // Pay range. Both bounds are omitted on unpaid and deferred projects — the
+  // card renders no pay line at all for those.
+  pay_min?: number;
+  pay_max?: number;
+  pay_unit?: "hour" | "day" | "week" | "project";
+  tags: string[];
   status: "open" | "closed";
+  staff_pick?: boolean; // exactly one fixture sets this
 };
 
 const PROJECTS: ProjectSpec[] = [
@@ -187,127 +205,486 @@ const PROJECTS: ProjectSpec[] = [
     title: "Last Train to Lisbon",
     ownerKey: "director-1",
     disciplines: ["actor"],
+    project_type: "short_film",
     description:
       "Casting a lead (30s, any background) for a contained drama set over one night in a near-empty train station. Three shoot days, scripted, SAG-friendly.",
     location: "Brooklyn, NY",
     compensation: "paid",
+    pay_min: 450,
+    pay_max: 900,
+    pay_unit: "day",
+    tags: ["Drama", "Night shoot", "SAG-friendly", "Single location"],
     status: "open",
+    staff_pick: true,
   },
   {
     title: "The Quiet Hours",
     ownerKey: "director-1",
     disciplines: ["cinematographer", "sound_operator", "actor"],
+    project_type: "short_film",
     description:
       "Need a DP for a slow-cinema short shot mostly in available light. Vintage glass a plus. Two weekends, deferred + meals + festival credit.",
     location: "Hudson Valley, NY",
     compensation: "deferred",
+    tags: ["Slow cinema", "Available light", "Weekends", "Festival credit"],
     status: "open",
   },
   {
     title: "Neon Saints",
     ownerKey: "producer-1",
     disciplines: ["editor", "sound_designer", "composer"],
+    project_type: "short_film",
     description:
       "Looking for an editor to cut a 12-minute neo-noir short. ~6 hours of footage, Resolve preferred. Paid flat rate, remote OK.",
     location: "Remote",
     compensation: "paid",
+    pay_min: 1200,
+    pay_max: 2000,
+    pay_unit: "project",
+    tags: ["Neo-noir", "Post-production", "Resolve", "Remote"],
     status: "open",
   },
   {
     title: "Coastline",
     ownerKey: "producer-1",
     disciplines: ["composer", "sound_designer"],
+    project_type: "documentary",
     description:
       "Feature documentary about a fishing town needs an original score — restrained, textural, ~25 min of music. Paid, generous timeline.",
     location: "Remote",
     compensation: "paid",
+    pay_min: 3000,
+    pay_max: 5000,
+    pay_unit: "project",
+    tags: ["Feature doc", "Original score", "Remote", "Long timeline"],
     status: "open",
   },
   {
     title: "Staged",
     ownerKey: "writer-1",
     disciplines: ["director"],
+    project_type: "web_series",
     description:
       "Six-episode comedy web series about a failing community theatre. Scripts done. Seeking a director who loves ensemble work. Unpaid, profit-share if it sells.",
     location: "Chicago, IL",
     compensation: "unpaid",
+    tags: ["Comedy", "Ensemble", "Six episodes", "Profit share"],
     status: "open",
   },
   {
     title: "Macro",
     ownerKey: "cinematographer-1",
     disciplines: ["actor"],
+    project_type: "other",
     description:
       "Experimental one-shot short, single performer, lots of close work. Looking for an actor comfortable with stillness and improvisation. Unpaid, one day.",
     location: "Los Angeles, CA",
     compensation: "unpaid",
+    tags: ["Experimental", "One-shot", "Improvisation", "One day"],
     status: "open",
   },
   {
     title: "Cut to Black",
     ownerKey: "editor-1",
     disciplines: ["writer"],
+    project_type: "short_film",
     description:
       "I have footage and an idea but no script — looking for a writer to shape a found-footage short in the edit. Deferred, collaborative credit.",
     location: "Remote",
     compensation: "deferred",
+    tags: ["Found footage", "Writing in the edit", "Remote"],
     status: "open",
   },
   {
     title: "Resonance",
     ownerKey: "composer-1",
     disciplines: ["producer", "sound_operator", "videographer"],
+    project_type: "music_video",
     description:
       "Concept short built around a live score. Need a producer to lock a venue, schedule, and a tiny crew. Unpaid, strong reel piece.",
     location: "Austin, TX",
     compensation: "unpaid",
+    tags: ["Live score", "Concept piece", "Small crew", "Reel piece"],
     status: "open",
   },
   {
     title: "Two-Hander",
     ownerKey: "actor-1",
     disciplines: ["actor"],
+    project_type: "feature_film",
     description:
       "Self-produced two-person dialogue piece — seeking a second actor to develop and perform it with me. Deferred, equal creative footing.",
     location: "Brooklyn, NY",
     compensation: "deferred",
+    tags: ["Dialogue-led", "Two-hander", "Self-produced", "Devised"],
     status: "open",
   },
   {
     title: "Open Mic",
     ownerKey: "actor-2",
     disciplines: ["writer"],
+    project_type: "short_film",
     description:
       "Stand-up-adjacent short set at an open mic night. Looking for a writer to punch up a loose outline into a tight 8 pages. Unpaid, fast and fun.",
     location: "Los Angeles, CA",
     compensation: "unpaid",
+    tags: ["Comedy", "Fast turnaround", "Eight pages"],
     status: "open",
   },
   {
     title: "Midnight Diner",
     ownerKey: "director-1",
     disciplines: ["any"],
+    project_type: "crew_call",
     description:
       "Anthology short set in a 24-hour diner. Building a full crew — reach out with your role and reel. Paid day rates, three nights.",
     location: "Newark, NJ",
     compensation: "paid",
+    pay_min: 250,
+    pay_max: 400,
+    pay_unit: "day",
+    tags: ["Anthology", "Night shoot", "Full crew", "Three nights"],
     status: "open",
   },
   {
     title: "Archive (wrapped)",
     ownerKey: "producer-1",
     disciplines: ["editor"],
+    project_type: "documentary",
     description:
       "Short doc assembled from family archive footage. Picture is locked — posting closed, kept up for reference.",
     location: "Remote",
     compensation: "paid",
+    pay_min: 40,
+    pay_max: 60,
+    pay_unit: "hour",
+    tags: ["Archival", "Short doc", "Wrapped"],
     status: "closed",
   },
 ];
 
+// Open roles per project — the design's right-hand "ROLES OPEN · N" rail, where
+// each role carries its own Apply pill and a "Lead · Female · 22–30" qualifier
+// composed from billing + gender + the age range. Crew roles carry no age
+// range at all. Order within a project becomes sort_order.
+//
+// "Midnight Diner" deliberately has SIX roles so the "+ 3 more roles →"
+// affordance has something to expand.
+type RoleSpec = {
+  projectTitle: string;
+  name: string;
+  billing: "lead" | "supporting" | "background" | "crew";
+  gender: "any" | "female" | "male" | "non-binary";
+  age_min?: number;
+  age_max?: number;
+  description: string;
+  status?: "open" | "filled"; // defaults to 'open'
+};
+
+const ROLES: RoleSpec[] = [
+  // Last Train to Lisbon
+  {
+    projectTitle: "Last Train to Lisbon",
+    name: "Nadia",
+    billing: "lead",
+    gender: "female",
+    age_min: 30,
+    age_max: 40,
+    description:
+      "Carries the film. Missed the last train and has nowhere to be until morning. Watchful, dry, unsentimental.",
+  },
+  {
+    projectTitle: "Last Train to Lisbon",
+    name: "The Stationmaster",
+    billing: "supporting",
+    gender: "male",
+    age_min: 55,
+    age_max: 70,
+    description:
+      "Thirty years on the platform. Two long scenes, mostly listening.",
+  },
+  {
+    projectTitle: "Last Train to Lisbon",
+    name: "Night Cleaner",
+    billing: "background",
+    gender: "any",
+    age_min: 20,
+    age_max: 65,
+    description: "Non-speaking, crosses the concourse twice. One night's work.",
+  },
+
+  // The Quiet Hours
+  {
+    projectTitle: "The Quiet Hours",
+    name: "Director of Photography",
+    billing: "crew",
+    gender: "any",
+    description:
+      "Available light, long takes, minimal grip. Vintage glass a plus. Two weekends.",
+  },
+  {
+    projectTitle: "The Quiet Hours",
+    name: "Boom Operator",
+    billing: "crew",
+    gender: "any",
+    description: "Quiet locations, sparse dialogue, lots of room tone.",
+  },
+  {
+    projectTitle: "The Quiet Hours",
+    name: "Mirren",
+    billing: "lead",
+    gender: "female",
+    age_min: 28,
+    age_max: 38,
+    description: "Almost no dialogue. The film lives on her face.",
+  },
+
+  // Neon Saints
+  {
+    projectTitle: "Neon Saints",
+    name: "Editor",
+    billing: "crew",
+    gender: "any",
+    description:
+      "Cut a 12-minute neo-noir from ~6 hours of footage. Resolve preferred, remote fine.",
+  },
+  {
+    projectTitle: "Neon Saints",
+    name: "Sound Designer",
+    billing: "crew",
+    gender: "any",
+    description: "Rain, neon hum, city at 3am. Starts once picture is locked.",
+  },
+  {
+    projectTitle: "Neon Saints",
+    name: "Composer",
+    billing: "crew",
+    gender: "any",
+    description: "Sparse, motif-driven. Roughly 8 minutes of score.",
+  },
+
+  // Coastline
+  {
+    projectTitle: "Coastline",
+    name: "Composer",
+    billing: "crew",
+    gender: "any",
+    description:
+      "~25 minutes of restrained, textural score for a feature doc. Generous timeline.",
+  },
+  {
+    projectTitle: "Coastline",
+    name: "Sound Designer",
+    billing: "crew",
+    gender: "any",
+    description: "Location audio cleanup and a full atmos pass. Remote.",
+  },
+
+  // Staged
+  {
+    projectTitle: "Staged",
+    name: "Director",
+    billing: "crew",
+    gender: "any",
+    description:
+      "Six episodes, one theatre, a large ensemble. Scripts are locked.",
+  },
+  {
+    projectTitle: "Staged",
+    name: "Bev, artistic director",
+    billing: "supporting",
+    gender: "female",
+    age_min: 50,
+    age_max: 65,
+    description: "Runs the failing theatre and refuses to admit it. Recurring.",
+  },
+  {
+    projectTitle: "Staged",
+    name: "Danny, stage manager",
+    billing: "supporting",
+    gender: "male",
+    age_min: 22,
+    age_max: 30,
+    description: "Keeps the whole thing upright. Recurring, comic timing needed.",
+  },
+
+  // Macro
+  {
+    projectTitle: "Macro",
+    name: "The Performer",
+    billing: "lead",
+    gender: "non-binary",
+    age_min: 25,
+    age_max: 45,
+    description:
+      "Single performer, one continuous take. Stillness and improvisation.",
+  },
+  {
+    projectTitle: "Macro",
+    name: "Insert Double",
+    billing: "background",
+    gender: "any",
+    description: "Hands only, for the macro cutaways. Half a day.",
+  },
+
+  // Cut to Black
+  {
+    projectTitle: "Cut to Black",
+    name: "Writer",
+    billing: "crew",
+    gender: "any",
+    description:
+      "Shape a found-footage short out of existing material. Writing in the edit.",
+  },
+  {
+    projectTitle: "Cut to Black",
+    name: "Story Consultant",
+    billing: "crew",
+    gender: "any",
+    description: "Two passes on structure once there's an assembly.",
+  },
+
+  // Resonance
+  {
+    projectTitle: "Resonance",
+    name: "Producer",
+    billing: "crew",
+    gender: "any",
+    description: "Lock a venue, a schedule and a five-person crew.",
+  },
+  {
+    projectTitle: "Resonance",
+    name: "Sound Operator",
+    billing: "crew",
+    gender: "any",
+    description: "Multitrack a live score performed to picture. One night.",
+  },
+  {
+    projectTitle: "Resonance",
+    name: "Videographer",
+    billing: "crew",
+    gender: "any",
+    description: "Second camera on the performance. Handheld, no lighting kit.",
+  },
+
+  // Two-Hander
+  {
+    projectTitle: "Two-Hander",
+    name: "Iris",
+    billing: "lead",
+    gender: "female",
+    age_min: 28,
+    age_max: 38,
+    description: "Half the film. Developed with the other lead in rehearsal.",
+  },
+  {
+    projectTitle: "Two-Hander",
+    name: "Sam",
+    billing: "lead",
+    gender: "male",
+    age_min: 30,
+    age_max: 42,
+    description: "The other half. Equal creative footing, devised together.",
+  },
+
+  // Open Mic
+  {
+    projectTitle: "Open Mic",
+    name: "Writer",
+    billing: "crew",
+    gender: "any",
+    description: "Punch a loose outline into a tight 8 pages. Fast turnaround.",
+  },
+  {
+    projectTitle: "Open Mic",
+    name: "The Host",
+    billing: "supporting",
+    gender: "any",
+    age_min: 25,
+    age_max: 45,
+    description: "Runs the room badly. Two scenes, heavy on timing.",
+  },
+
+  // Midnight Diner — six roles, so the "+ 3 more roles" affordance has content.
+  {
+    projectTitle: "Midnight Diner",
+    name: "Ruth, night waitress",
+    billing: "lead",
+    gender: "female",
+    age_min: 45,
+    age_max: 60,
+    description: "Anchors all three segments. Nights only, three shoots.",
+  },
+  {
+    projectTitle: "Midnight Diner",
+    name: "Ellis, line cook",
+    billing: "supporting",
+    gender: "male",
+    age_min: 30,
+    age_max: 45,
+    description: "Two segments. Comfortable working a real griddle on camera.",
+  },
+  {
+    projectTitle: "Midnight Diner",
+    name: "The Regular",
+    billing: "supporting",
+    gender: "non-binary",
+    age_min: 55,
+    age_max: 75,
+    description: "Same booth, every night, one segment each.",
+  },
+  {
+    projectTitle: "Midnight Diner",
+    name: "Late-night Diners",
+    billing: "background",
+    gender: "any",
+    age_min: 18,
+    age_max: 70,
+    description: "Six to eight background, non-speaking. One night each.",
+  },
+  {
+    projectTitle: "Midnight Diner",
+    name: "1st AC",
+    billing: "crew",
+    gender: "any",
+    description: "Tight interior, low light, lots of pulls. Three nights.",
+  },
+  {
+    projectTitle: "Midnight Diner",
+    name: "Gaffer",
+    billing: "crew",
+    gender: "any",
+    description: "Practical-led diner interior. Small kit, small truck.",
+    status: "filled",
+  },
+
+  // Archive (wrapped) — the closed project, so both roles are filled.
+  {
+    projectTitle: "Archive (wrapped)",
+    name: "Assembly Editor",
+    billing: "crew",
+    gender: "any",
+    description: "Assembled the doc from family archive footage.",
+    status: "filled",
+  },
+  {
+    projectTitle: "Archive (wrapped)",
+    name: "Archival Researcher",
+    billing: "crew",
+    gender: "any",
+    description: "Cleared and catalogued the source reels.",
+    status: "filled",
+  },
+];
+
+// roleName omitted = a WHOLE-PROJECT application (role_id null), which is still
+// valid and still the shape a crew call gets. Named = a role-level application,
+// unique per (role, applicant) rather than per (project, applicant) — so
+// actor-1 below applies for TWO different roles on "Midnight Diner".
 type ApplicationSpec = {
   projectTitle: string;
   applicantKey: string; // must be an approved pro, must not own the project
+  roleName?: string; // must be a ROLES entry on that project
   note: string;
 };
 
@@ -315,36 +692,43 @@ const APPLICATIONS: ApplicationSpec[] = [
   {
     projectTitle: "Last Train to Lisbon",
     applicantKey: "actor-1",
+    roleName: "Nadia",
     note: "This is exactly my lane — quiet, contained, night work. Reel and availability ready.",
   },
   {
     projectTitle: "Last Train to Lisbon",
     applicantKey: "actor-2",
+    roleName: "The Stationmaster",
     note: "Love a one-location piece. Free those weekends and based nearby.",
   },
   {
     projectTitle: "The Quiet Hours",
     applicantKey: "cinematographer-1",
+    roleName: "Director of Photography",
     note: "Available-light slow cinema is my favorite thing to shoot. I have vintage glass we could use.",
   },
   {
     projectTitle: "Neon Saints",
     applicantKey: "editor-1",
+    roleName: "Editor",
     note: "Neo-noir is right up my alley and I cut in Resolve daily. Can start this week.",
   },
   {
     projectTitle: "Coastline",
     applicantKey: "composer-1",
+    roleName: "Composer",
     note: "Textural and restrained is exactly how I write. Would love to see a rough cut.",
   },
   {
     projectTitle: "Staged",
     applicantKey: "director-1",
+    roleName: "Director",
     note: "Ensemble comedy is a nice change of pace for me. Happy to shoot a test scene first.",
   },
   {
     projectTitle: "Macro",
     applicantKey: "actor-1",
+    roleName: "The Performer",
     note: "Stillness and improv — yes. One day works perfectly with my schedule.",
   },
   {
@@ -355,38 +739,77 @@ const APPLICATIONS: ApplicationSpec[] = [
   {
     projectTitle: "Cut to Black",
     applicantKey: "writer-1",
+    roleName: "Writer",
     note: "Writing in the edit is a fun constraint. Send me the footage and I'll pitch a shape.",
   },
   {
     projectTitle: "Resonance",
     applicantKey: "producer-1",
+    roleName: "Producer",
     note: "I can lock a venue and a small crew fast. Done a couple of live-score events before.",
   },
   {
     projectTitle: "Two-Hander",
     applicantKey: "actor-2",
+    roleName: "Sam",
     note: "A true two-hander is rare — I'd love to build it with you from the ground up.",
   },
   {
     projectTitle: "Open Mic",
     applicantKey: "writer-1",
+    roleName: "Writer",
     note: "I can turn a loose outline into tight 8 pages quickly. Comedy timing is my thing.",
+  },
+  // The two-roles-on-one-production case the new partial unique index exists
+  // for: same applicant, same project, two different roles.
+  {
+    projectTitle: "Midnight Diner",
+    applicantKey: "actor-1",
+    roleName: "Ruth, night waitress",
+    note: "Putting myself forward for Ruth — night shoots are no problem and I can carry all three segments.",
   },
   {
     projectTitle: "Midnight Diner",
     applicantKey: "actor-1",
-    note: "Putting myself forward for one of the diner roles — night shoots are no problem.",
+    roleName: "The Regular",
+    note: "Happy to be considered for the Regular too if Ruth goes elsewhere. One segment is easy to schedule.",
   },
   {
     projectTitle: "Midnight Diner",
     applicantKey: "cinematographer-1",
-    note: "Available to DP or operate. I have a small lighting kit that suits a diner interior.",
+    roleName: "1st AC",
+    note: "Available to pull focus. I have a small lighting kit that suits a diner interior too.",
   },
   {
     projectTitle: "Neon Saints",
     applicantKey: "composer-1",
     note: "Not the posted role, but if you need a score for the cut I'd love to be considered.",
   },
+];
+
+// Accepted connections among the seed pros — the "circle" that
+// circle_applied_count() / circle_enrolled_count() count. Without these every
+// project and class card renders "0 in your circle applied", which is the one
+// number the Callboard design leans on hardest.
+//
+// director-1 is the demo login, so they are wired to SEVEN counterparts, every
+// one of whom has applied to at least one project.
+type ConnectionEdge = [requesterKey: string, addresseeKey: string];
+
+const CONNECTIONS: ConnectionEdge[] = [
+  ["director-1", "actor-1"],
+  ["director-1", "cinematographer-1"],
+  ["director-1", "editor-1"],
+  ["director-1", "composer-1"],
+  ["actor-2", "director-1"],
+  ["writer-1", "director-1"],
+  ["producer-1", "director-1"],
+  ["producer-1", "cinematographer-1"],
+  ["producer-1", "editor-1"],
+  ["cinematographer-1", "editor-1"],
+  ["editor-1", "composer-1"],
+  ["actor-1", "actor-2"],
+  ["writer-1", "producer-1"],
 ];
 
 type EventSpec = {
@@ -901,6 +1324,66 @@ async function main() {
     );
   }
   const projectByTitle = new Map(PROJECTS.map((p) => [p.title, p]));
+  assertExpr(
+    PROJECTS.filter((p) => p.staff_pick).length === 1,
+    `Exactly one project must be staff_pick`
+  );
+  for (const p of PROJECTS) {
+    const bounded = p.pay_min !== undefined && p.pay_max !== undefined;
+    assertExpr(
+      bounded || (p.pay_min === undefined && p.pay_max === undefined),
+      `Project "${p.title}" has only one of pay_min/pay_max`
+    );
+    assertExpr(
+      !bounded || p.pay_min! <= p.pay_max!,
+      `Project "${p.title}" has pay_min > pay_max`
+    );
+    assertExpr(
+      bounded === (p.pay_unit !== undefined),
+      `Project "${p.title}" must set pay_unit exactly when it has a pay range`
+    );
+  }
+
+  // Role names are the join key for APPLICATIONS below, so they must be unique
+  // within a project.
+  const roleNamesByProject = new Map<string, Set<string>>();
+  for (const role of ROLES) {
+    assertExpr(
+      projectByTitle.has(role.projectTitle),
+      `Role "${role.name}" references unknown project "${role.projectTitle}"`
+    );
+    assertExpr(
+      role.age_min === undefined ||
+        role.age_max === undefined ||
+        role.age_min <= role.age_max,
+      `Role "${role.name}" on "${role.projectTitle}" has age_min > age_max`
+    );
+    let names = roleNamesByProject.get(role.projectTitle);
+    if (!names) {
+      names = new Set<string>();
+      roleNamesByProject.set(role.projectTitle, names);
+    }
+    assertExpr(
+      !names.has(role.name),
+      `Duplicate role "${role.name}" on "${role.projectTitle}"`
+    );
+    names.add(role.name);
+  }
+  for (const proj of PROJECTS) {
+    const count = roleNamesByProject.get(proj.title)?.size ?? 0;
+    assertExpr(
+      count >= 2 && count <= 6,
+      `Project "${proj.title}" needs 2–6 roles (has ${count})`
+    );
+  }
+  assertExpr(
+    [...roleNamesByProject.values()].some((names) => names.size > 5),
+    `At least one project needs more than five roles (the "+ N more roles" affordance)`
+  );
+
+  // Uniqueness now mirrors the two partial unique indexes in
+  // supabase/project-roles.sql: one WHOLE-PROJECT application per (project,
+  // applicant), and one per (role, applicant).
   const seenPairs = new Set<string>();
   for (const app of APPLICATIONS) {
     const proj = projectByTitle.get(app.projectTitle);
@@ -913,10 +1396,46 @@ async function main() {
       proj!.ownerKey !== app.applicantKey,
       `Self-application: "${app.applicantKey}" on their own "${app.projectTitle}"`
     );
-    const pair = `${app.projectTitle}::${app.applicantKey}`;
+    assertExpr(
+      app.roleName === undefined ||
+        (roleNamesByProject.get(app.projectTitle)?.has(app.roleName) ?? false),
+      `Application for unknown role "${app.roleName}" on "${app.projectTitle}"`
+    );
+    const pair = `${app.projectTitle}::${app.roleName ?? "<whole>"}::${app.applicantKey}`;
     assertExpr(!seenPairs.has(pair), `Duplicate application: ${pair}`);
     seenPairs.add(pair);
   }
+
+  // Connections are pro-to-pro and symmetric once accepted, so the duplicate
+  // check is over the CANONICAL pair — matching connections_pair_uniq.
+  const connectionPairs = new Set<string>();
+  for (const [requesterKey, addresseeKey] of CONNECTIONS) {
+    assertExpr(
+      approvedKeys.has(requesterKey),
+      `Connection from non-approved key "${requesterKey}"`
+    );
+    assertExpr(
+      approvedKeys.has(addresseeKey),
+      `Connection to non-approved key "${addresseeKey}"`
+    );
+    assertExpr(
+      requesterKey !== addresseeKey,
+      `Self-connection: "${requesterKey}"`
+    );
+    const pair = [requesterKey, addresseeKey].sort().join("::");
+    assertExpr(!connectionPairs.has(pair), `Duplicate connection: ${pair}`);
+    connectionPairs.add(pair);
+  }
+  // The design's "N in your circle applied" is only meaningful if the demo
+  // login actually has connections who applied to something.
+  const applicantKeys = new Set(APPLICATIONS.map((a) => a.applicantKey));
+  const directorCircle = CONNECTIONS.filter(
+    ([r, a]) => r === "director-1" || a === "director-1"
+  ).map(([r, a]) => (r === "director-1" ? a : r));
+  assertExpr(
+    directorCircle.filter((key) => applicantKeys.has(key)).length >= 3,
+    `director-1 needs at least three connections who have applied to a project`
+  );
   for (const ev of EVENTS) {
     assertExpr(
       approvedKeys.has(ev.ownerKey),
@@ -1061,15 +1580,26 @@ async function main() {
     .in("created_by", seedIds);
   if (delErr) throw delErr;
 
+  //    Every optional column is spelled out (null where absent) because
+  //    PostgREST unifies the column list across a batch insert — see the note
+  //    on activity_events below. staff_pick rides through because the
+  //    projects_guard_staff_pick trigger lets a caller with no end user
+  //    attached (auth.uid() null — the service role here) set it.
   const projectRows = PROJECTS.map((p) => ({
     created_by: idByKey.get(p.ownerKey)!,
     title: p.title,
     disciplines: p.disciplines,
     discipline: p.disciplines[0], // legacy single-value column
+    project_type: p.project_type,
     description: p.description,
     location: p.location,
     compensation: p.compensation,
+    pay_min: p.pay_min ?? null,
+    pay_max: p.pay_max ?? null,
+    pay_unit: p.pay_unit ?? null,
+    tags: p.tags,
     status: p.status,
+    staff_pick: p.staff_pick ?? false,
   }));
   const { data: insertedProjects, error: projErr } = await admin
     .from("projects")
@@ -1085,19 +1615,68 @@ async function main() {
   );
   console.log(`  projects: ${insertedProjects?.length ?? 0} created`);
 
+  // 2b. Project roles. Prior seed roles went with the project delete above
+  //     (project_roles cascades on project_id), so a plain insert stays
+  //     duplicate-free. sort_order is the position within the project.
+  const sortOrderByProject = new Map<string, number>();
+  const roleRows = ROLES.map((r) => {
+    const next = sortOrderByProject.get(r.projectTitle) ?? 0;
+    sortOrderByProject.set(r.projectTitle, next + 1);
+    return {
+      project_id: projectIdByTitle.get(r.projectTitle)!,
+      name: r.name,
+      billing: r.billing,
+      gender: r.gender,
+      age_min: r.age_min ?? null,
+      age_max: r.age_max ?? null,
+      description: r.description,
+      status: r.status ?? "open",
+      sort_order: next,
+    };
+  });
+  const { data: insertedRoles, error: roleErr } = await admin
+    .from("project_roles")
+    .insert(roleRows)
+    .select("id, project_id, name");
+  if (roleErr) throw roleErr;
+
+  //     Keyed by project title + role name, which the validation above proved
+  //     unique — no reliance on insert order.
+  const roleIdByProjectAndName = new Map(
+    (insertedRoles ?? []).map(
+      (r: { id: string; project_id: string; name: string }) => [
+        `${r.project_id}::${r.name}`,
+        r.id,
+      ]
+    )
+  );
+  console.log(`  project roles: ${insertedRoles?.length ?? 0} created`);
+
   // 3. Applications. Prior seed applications were already removed by the
-  //    project cascade above, so a plain insert stays duplicate-free.
-  const applicationRows = APPLICATIONS.map((a) => ({
-    project_id: projectIdByTitle.get(a.projectTitle)!,
-    applicant_id: idByKey.get(a.applicantKey)!,
-    note: a.note,
-  }));
+  //    project cascade above, so a plain insert stays duplicate-free. A null
+  //    role_id is a whole-project application; a set one is per-role, and the
+  //    same applicant may hold several on one project.
+  const applicationRows = APPLICATIONS.map((a) => {
+    const projectId = projectIdByTitle.get(a.projectTitle)!;
+    return {
+      project_id: projectId,
+      applicant_id: idByKey.get(a.applicantKey)!,
+      role_id:
+        a.roleName === undefined
+          ? null
+          : roleIdByProjectAndName.get(`${projectId}::${a.roleName}`)!,
+      note: a.note,
+    };
+  });
   const { data: insertedApps, error: appErr } = await admin
     .from("applications")
     .insert(applicationRows)
     .select("id");
   if (appErr) throw appErr;
-  console.log(`  applications: ${insertedApps?.length ?? 0} created`);
+  console.log(
+    `  applications: ${insertedApps?.length ?? 0} created ` +
+      `(${APPLICATIONS.filter((a) => a.roleName).length} role-level)`
+  );
 
   // 4. Events. Delete seed-owned events first, then re-insert (published, so
   //    the Explore screens show real cards). Same delete-then-insert shape as
@@ -1243,6 +1822,31 @@ async function main() {
     .select("follower_id");
   if (folErr) throw folErr;
   console.log(`  follows: ${insertedFollows?.length ?? 0} created`);
+
+  // 6b. Connections (accepted). Same two-sided delete as follows — chaining two
+  //     .in() filters is an AND — so a connection between a seed pro and a REAL
+  //     user survives a re-run. These are what circle_applied_count() and
+  //     circle_enrolled_count() count; without them the design's "N in your
+  //     circle applied/enrolled" line reads 0 for every viewer.
+  const { error: delConErr } = await admin
+    .from("connections")
+    .delete()
+    .in("requester_id", seedIds)
+    .in("addressee_id", seedIds);
+  if (delConErr) throw delConErr;
+
+  const connectionRows = CONNECTIONS.map(([requesterKey, addresseeKey]) => ({
+    requester_id: idByKey.get(requesterKey)!,
+    addressee_id: idByKey.get(addresseeKey)!,
+    status: "accepted",
+    responded_at: new Date().toISOString(),
+  }));
+  const { data: insertedConnections, error: conErr } = await admin
+    .from("connections")
+    .insert(connectionRows)
+    .select("requester_id");
+  if (conErr) throw conErr;
+  console.log(`  connections: ${insertedConnections?.length ?? 0} accepted`);
 
   // 7. Activity events (the feed). Delete seed-authored activity first, then
   //    insert staggered status updates plus a few follow announcements. Column

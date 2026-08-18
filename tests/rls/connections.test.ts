@@ -7,8 +7,10 @@ import { signInAs, getProfileId } from "../helpers/auth";
  * Connections / reactions / endorsements RLS — asserted at the DB level
  * against supabase/connections.sql.
  *
- * FIXTURE: everything is built here from seed accounts (connections start
- * empty — nothing is seeded). The reaction tests hang off a SEEDED director-1
+ * FIXTURE: every connection between the four test accounts is built here, but
+ * the seed DOES wire these accounts to OTHER seed pros, so the mutual-count
+ * test is asserted relative to a baseline captured in beforeAll rather than
+ * against an absolute number. The reaction tests hang off a SEEDED director-1
  * status update, exactly like comments.test.ts: per the seeded FOLLOWS web,
  * actor-1 follows director-1 and so can_view_event() passes. The endorsement
  * tests lean on seeded actor-2: role 'actor' (primary discipline) with
@@ -32,6 +34,8 @@ let nonApproved: SupabaseClient;
 let aId: string, bId: string, cId: string, nonApprovedId: string;
 let subjectId: string;
 let eventId: string;
+/** A–B mutuals from the SEED graph alone, before this file adds any edge. */
+let baselineMutuals = 0;
 
 /** Each party deletes every connection between test accounts it is part of. */
 async function clearTestConnections() {
@@ -88,6 +92,11 @@ beforeAll(async () => {
 
   await clearTestConnections();
   await clearTestReactionsAndEndorsements();
+
+  const { data: baseline } = await a.rpc("mutual_connection_count", {
+    target: bId,
+  });
+  baselineMutuals = (baseline as number | null) ?? 0;
 });
 
 afterAll(async () => {
@@ -238,7 +247,8 @@ describe("connections RLS", () => {
   // undercount trap.
   test("i) mutual_connection_count is symmetric and immune to RLS undercount", async () => {
     // A is connected to C and B is connected to C (accepted in f); A and B are
-    // only PENDING with each other, so C is their one mutual.
+    // only PENDING with each other, so C is exactly one NEW mutual on top of
+    // whatever the seed graph already gives them.
     const { data: bcRowForA, error: bcSelectErr } = await a
       .from("connections")
       .select("status")
@@ -251,13 +261,13 @@ describe("connections RLS", () => {
       target: bId,
     });
     expect(aErr).toBeNull();
-    expect(fromA).toBe(1);
+    expect(fromA).toBe(baselineMutuals + 1);
 
     const { data: fromB, error: bErr } = await b.rpc("mutual_connection_count", {
       target: aId,
     });
     expect(bErr).toBeNull();
-    expect(fromB).toBe(1);
+    expect(fromB).toBe(baselineMutuals + 1);
   });
 });
 
