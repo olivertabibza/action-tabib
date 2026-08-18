@@ -59,6 +59,12 @@ create policy "Users read own saves"
 -- 'article'. Each EXISTS runs under the caller's RLS on those tables, where
 -- published rows are readable, so this holds for any authenticated user — no
 -- service-role needed.
+--
+-- (Superseded by projects-saved.sql — the single source of truth. Phase 4b
+-- added a third arm for item_type='project', gated on can_view_project(); the
+-- version below has only the 'event' and 'article' arms and would REJECT a
+-- project save. Redefining it here as well would let the two files diverge on
+-- the live DB, so change the policy THERE, not here.)
 drop policy if exists "Users save published items" on public.saved_items;
 create policy "Users save published items"
   on public.saved_items for insert

@@ -357,6 +357,14 @@ $$;
 grant execute on function public.circle_enrolled_count(uuid) to anon, authenticated;
 
 -- Same shape against applications ("4 in your circle applied").
+--
+-- (Superseded by projects-saved.sql — the single source of truth. Phase 4b
+-- changed the count below to count(distinct a.applicant_id): project-roles.sql
+-- §4 dropped applications' unique (project_id, applicant_id), so one applicant
+-- can hold one application PER ROLE on a project and the count(*) here counts
+-- them twice. That file fixes this function and defines the batched
+-- circle_applied_counts(uuid[]) beside it so the two cannot disagree — change
+-- the function THERE, not here.)
 create or replace function public.circle_applied_count(p_project_id uuid)
 returns bigint
 language sql
