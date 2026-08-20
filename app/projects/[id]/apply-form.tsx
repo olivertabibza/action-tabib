@@ -12,7 +12,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { applicationSchema, type ApplicationFormValues } from "../schema";
 import { applyToProject } from "../actions";
 
-export function ApplyForm({ projectId }: { projectId: string }) {
+export function ApplyForm({
+  projectId,
+  roleId,
+}: {
+  projectId: string;
+  roleId?: string;
+}) {
   const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -29,7 +35,7 @@ export function ApplyForm({ projectId }: { projectId: string }) {
   function onSubmit(values: ApplicationFormValues) {
     setServerError(null);
     startTransition(async () => {
-      const result = await applyToProject(projectId, values);
+      const result = await applyToProject(projectId, values, roleId);
       if (result?.error) {
         setServerError(result.error);
         return;

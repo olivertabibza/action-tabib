@@ -56,7 +56,10 @@ export default async function ProjectsLayout({
     );
   }
 
-  return <ProShellServer>{children}</ProShellServer>;
+  // `wide` gives the marketplace the full Callboard canvas the Projects screen
+  // is drawn on (design/handoff/README.md §2 — a single centred column, not the
+  // feed's narrow inner column). Each page under here sets its own max-width.
+  return <ProShellServer wide>{children}</ProShellServer>;
 }
 
 function Gate({

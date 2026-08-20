@@ -16,6 +16,10 @@ export type ProjectCardData = {
 /**
  * Summary card linking to a project's detail page. `meta` renders an optional
  * footer line (used on the "mine" page for applicant counts / status).
+ *
+ * Sole consumer is /projects/mine: the browse screen moved to the Callboard
+ * split card (app/projects/project-row.tsx) in Phase 4b, and /mine keeps this
+ * one rather than being half-restyled in the same pass.
  */
 export function ProjectCard({
   project,

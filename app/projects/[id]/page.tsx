@@ -21,11 +21,23 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { disciplineLabel, titleCase } from "@/lib/marketplace";
+import { Button } from "@/components/ui/button";
+import { disciplineLabel, roleQualifier, titleCase } from "@/lib/marketplace";
 import { ApplyForm } from "./apply-form";
 import { OwnerControls } from "./owner-controls";
 
 type Person = { display_name: string | null; role: string | null };
+type ProjectRole = {
+  id: string;
+  name: string;
+  billing: string;
+  gender: string;
+  age_min: number | null;
+  age_max: number | null;
+  description: string;
+  status: string;
+};
+type MyApplication = { id: string; status: string; role_id: string | null };
 type Applicant = Person & {
   id: string;
   email: string | null;
@@ -34,10 +46,13 @@ type Applicant = Person & {
 
 export default async function ProjectDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ role?: string }>;
 }) {
   const { id } = await params;
+  const { role: roleParam } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -61,6 +76,40 @@ export default async function ProjectDetailPage({
   const isOwner = project.created_by === user.id;
   // Supabase types embedded relations as arrays; this FK is to-one at runtime.
   const poster = project.poster as unknown as Person | null;
+
+  // The production's open roles. RLS scopes project_roles to exactly the
+  // audience of the parent project, so a plain select is the right read.
+  const { data: roleRows } = await supabase
+    .from("project_roles")
+    .select("id, name, billing, gender, age_min, age_max, description, status")
+    .eq("project_id", id)
+    .order("sort_order", { ascending: true });
+  const roles = (roleRows ?? []) as ProjectRole[];
+
+  // ?role=<id> scopes the apply form to one role. Resolved against the roles we
+  // already loaded, so an id belonging to another production simply doesn't
+  // match and the page falls back to the whole-project apply path.
+  const selectedRole = roleParam
+    ? (roles.find((r) => r.id === roleParam) ?? null)
+    : null;
+
+  // The caller's own applications here, in ONE query serving both the
+  // whole-project state and every role row's Applied pill — the applications
+  // SELECT policy already returns the caller's own rows.
+  let myApplications: MyApplication[] = [];
+  if (!isOwner) {
+    const { data } = await supabase
+      .from("applications")
+      .select("id, status, role_id")
+      .eq("project_id", id)
+      .eq("applicant_id", user.id);
+    myApplications = (data ?? []) as MyApplication[];
+  }
+  const wholeApplication =
+    myApplications.find((a) => a.role_id === null) ?? null;
+  const appliedRoleIds = new Set(
+    myApplications.filter((a) => a.role_id).map((a) => a.role_id as string)
+  );
 
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-12 sm:px-6 sm:py-16">
@@ -130,6 +179,17 @@ export default async function ProjectDetailPage({
         </CardContent>
       </Card>
 
+      {roles.length > 0 && (
+        <RolesCard
+          projectId={project.id}
+          roles={roles}
+          isOwner={isOwner}
+          isOpen={project.status === "open"}
+          appliedRoleIds={appliedRoleIds}
+          selectedRoleId={selectedRole?.id ?? null}
+        />
+      )}
+
       <div className="mt-8">
         {isOwner ? (
           <ApplicantsList projectId={project.id} />
@@ -137,7 +197,8 @@ export default async function ProjectDetailPage({
           <ApplicantView
             projectId={project.id}
             isOpen={project.status === "open"}
-            userId={user.id}
+            role={selectedRole}
+            wholeApplication={wholeApplication}
           />
         )}
       </div>
@@ -152,7 +213,7 @@ async function ApplicantsList({ projectId }: { projectId: string }) {
   const { data: applications } = await supabase
     .from("applications")
     .select(
-      "id, note, status, created_at, applicant:profiles!applications_applicant_id_fkey(id, display_name, role, email, portfolio_files)"
+      "id, note, status, created_at, role:project_roles(name), applicant:profiles!applications_applicant_id_fkey(id, display_name, role, email, portfolio_files)"
     )
     .eq("project_id", projectId)
     .order("created_at", { ascending: true });
@@ -187,6 +248,7 @@ async function ApplicantsList({ projectId }: { projectId: string }) {
           <ul className="flex flex-col gap-4">
             {applications!.map((app) => {
               const applicant = app.applicant as unknown as Applicant | null;
+              const appliedRole = app.role as unknown as { name: string } | null;
               const files = filesByApp.get(app.id) ?? [];
               return (
                 <li
@@ -221,6 +283,11 @@ async function ApplicantsList({ projectId }: { projectId: string }) {
                       {applicant.email}
                     </a>
                   )}
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {appliedRole?.name
+                      ? `Applied for: ${appliedRole.name}`
+                      : "Applied to the whole production"}
+                  </p>
                   {app.note && (
                     <p className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground">
                       {app.note}
@@ -263,33 +330,162 @@ async function ApplicantsList({ projectId }: { projectId: string }) {
   );
 }
 
+/* ── Roles on this production ──────────────────────────────────────────── */
+
+/**
+ * The roles rail's full list — where "+ N more roles →" on /projects lands.
+ * Each open role links to ?role=<id>, which scopes the apply form below.
+ */
+function RolesCard({
+  projectId,
+  roles,
+  isOwner,
+  isOpen,
+  appliedRoleIds,
+  selectedRoleId,
+}: {
+  projectId: string;
+  roles: ProjectRole[];
+  isOwner: boolean;
+  isOpen: boolean;
+  appliedRoleIds: Set<string>;
+  selectedRoleId: string | null;
+}) {
+  const open = roles.filter((r) => r.status === "open");
+
+  return (
+    <Card className="mt-8 p-2">
+      <CardHeader>
+        <CardTitle className="text-xl">Roles open ({open.length})</CardTitle>
+        <CardDescription>
+          Apply for a specific role, or use the form below to apply to the
+          production as a whole.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <ul className="flex flex-col gap-3">
+          {roles.map((role) => {
+            const qualifier = roleQualifier(role);
+            const applied = appliedRoleIds.has(role.id);
+            return (
+              <li
+                key={role.id}
+                className={`rounded-lg border p-4 ${
+                  role.id === selectedRoleId ? "border-brand" : "border-border"
+                }`}
+              >
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-medium">{role.name}</p>
+                    {qualifier && (
+                      <p className="text-sm text-muted-foreground">{qualifier}</p>
+                    )}
+                  </div>
+                  {role.status !== "open" ? (
+                    <span className="shrink-0 rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+                      Filled
+                    </span>
+                  ) : applied ? (
+                    <span className="shrink-0 rounded-full bg-brand/10 px-2.5 py-0.5 text-xs font-medium text-brand">
+                      Applied
+                    </span>
+                  ) : (
+                    !isOwner &&
+                    isOpen && (
+                      <Button asChild size="sm" variant="outline">
+                        <Link href={`/projects/${projectId}?role=${role.id}`}>
+                          Apply
+                        </Link>
+                      </Button>
+                    )
+                  )}
+                </div>
+                {role.description && (
+                  <p className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground">
+                    {role.description}
+                  </p>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      </CardContent>
+    </Card>
+  );
+}
+
 /* ── Non-owner: apply / already applied / closed ───────────────────────── */
 
 async function ApplicantView({
   projectId,
   isOpen,
-  userId,
+  role,
+  wholeApplication,
 }: {
   projectId: string;
   isOpen: boolean;
-  userId: string;
+  role: ProjectRole | null;
+  wholeApplication: MyApplication | null;
 }) {
-  const supabase = await createClient();
-  const { data: existing } = await supabase
-    .from("applications")
-    .select("id, status")
-    .eq("project_id", projectId)
-    .eq("applicant_id", userId)
-    .maybeSingle();
+  // Role-scoped apply (?role=…). has_applied_to_role() is the security-definer
+  // check the schema provides for exactly this state — one role, one call.
+  if (role) {
+    const supabase = await createClient();
+    const { data: alreadyApplied } = await supabase.rpc("has_applied_to_role", {
+      p_role_id: role.id,
+    });
 
-  if (existing) {
+    if (alreadyApplied) {
+      return (
+        <div className="flex items-start gap-3 rounded-xl border border-border bg-muted/40 p-4">
+          <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-brand" />
+          <div>
+            <p className="font-medium">
+              You&rsquo;ve applied for {role.name}
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              The poster will be in touch.
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    if (!isOpen || role.status !== "open") {
+      return (
+        <p className="rounded-xl border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
+          This role is no longer accepting applications.
+        </p>
+      );
+    }
+
+    return (
+      <Card className="p-2">
+        <CardHeader>
+          <CardTitle className="text-xl">Apply for {role.name}</CardTitle>
+          <CardDescription>
+            {roleQualifier(role) ||
+              "Send the poster a note to express your interest."}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ApplyForm projectId={projectId} roleId={role.id} />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Whole-project apply — unchanged behaviour, and deliberately kept: role_id
+  // is nullable so crew calls can go on using it.
+  if (wholeApplication) {
     return (
       <div className="flex items-start gap-3 rounded-xl border border-border bg-muted/40 p-4">
         <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-brand" />
         <div>
           <p className="font-medium">You&rsquo;ve applied to this project</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            Status: {titleCase(existing.status)}. The poster will be in touch.
+            Status: {titleCase(wholeApplication.status)}. The poster will be in
+            touch.
           </p>
         </div>
       </div>
