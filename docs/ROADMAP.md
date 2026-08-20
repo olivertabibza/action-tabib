@@ -14,14 +14,18 @@ The minimum needed to onboard creators and run a working marketplace.
 
 ### Current status
 
+**Phase 1 is complete**, and most of Phase 2 has shipped alongside it.
+
 **Done**
-- Landing page, with stub routes for the creator/fan splits and auth (`/for-creators`, `/for-fans`, `/login`, `/signup`).
+- Landing page, authentication, Pro/Fan account-type routing and app shells.
+- Pro profiles, onboarding and the approval gate; admin dashboard for applications, content and projects.
+- Project marketplace: browse with filters, per-role applications, and posting with roles, pay ranges, types and tags.
+- Messaging, social feed with connections and endorsements, classes with enrolments and reviews, events, articles, and saved items.
 
 **Next**
-- Wire up authentication.
-- Build creator profiles and the application flow.
-- Build the project marketplace.
-- Build the admin dashboard.
+- Finish restyling the remaining surfaces to the Callboard design (`/projects/mine`, `/network` below the fold).
+- Make project creation atomic (see docs/DECISIONS.md).
+- Live nav counts beyond Network, and notifications.
 
 ## Phase 2 — Engagement
 
