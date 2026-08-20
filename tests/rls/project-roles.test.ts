@@ -23,13 +23,16 @@ import { signInAs, getProfileId } from "../helpers/auth";
  *
  * (k) shares NONE of that. It builds its own project, roles, connection and
  * applications between composer-1 and cinematographer-1 — see the fixture note
- * in beforeAll for why it cannot borrow any of them.
+ * in beforeAll for why it cannot borrow any of them. That project is created
+ * fresh and deleted again, which needs supabase/projects-delete.sql.
  *
  * SAFETY / CLEANUP: acts only as seed accounts, anon key only. beforeAll clears
- * residue from a crashed run and afterAll removes everything this file created;
- * deleting a role cascades any application against it, so the roles delete is
- * the whole teardown. Fixture inserts are ASSERTED (error null) before any
- * denial test.
+ * residue from a crashed run and afterAll removes everything this file created.
+ * On the seeded projects, deleting a role cascades any application against it,
+ * so the roles delete is the whole teardown; (k) owns its project outright and
+ * deletes THAT, which cascades to both its roles and its applications. Fixture
+ * inserts are ASSERTED (error null) before any denial test, and (k)'s sweep is
+ * asserted too — see beforeAll.
  */
 
 const OWNER = "producer-1"; // owns all three fixture projects
@@ -67,15 +70,23 @@ async function clearTestRoles() {
 }
 
 /**
- * (k)'s teardown: its two roles (which cascade to its two applications) and its
- * connection. The project row itself survives — see the fixture note below.
+ * (k)'s teardown, and its pre-run sweep: the PROJECT row plus the connection.
+ * Deleting the project is the whole story for its children — applications and
+ * project_roles both reference projects ON DELETE CASCADE — so its two roles
+ * and two applications go with it.
+ *
+ * Matched by (created_by, title) rather than by id so this also works BEFORE
+ * the project exists, clearing residue from a crashed run.
+ *
+ * Requires the "Owners delete own projects" policy (supabase/projects-delete.sql).
+ * beforeAll asserts the sweep actually emptied — see the note there.
  */
 async function clearCircleFixture() {
   await viewer
-    .from("project_roles")
+    .from("projects")
     .delete()
-    .eq("project_id", circleProjectId)
-    .like("name", "[TEST]%");
+    .eq("created_by", viewerId)
+    .eq("title", CIRCLE_PROJECT);
   await viewer
     .from("connections")
     .delete()
@@ -186,46 +197,47 @@ beforeAll(async () => {
   // (composer-1 and cinematographer-1 own seeded projects and applications
   // elsewhere, which no other file mutates and which this fixture ignores.)
   //
-  // The project is get-or-created and never deleted: projects have no DELETE
-  // policy (marketplace.sql), so the "[TEST]" row is reused across runs —
-  // bounded, tagged residue, and `npm run seed` clears it anyway along with
-  // every other seed-owned project. Its ROLES are deletable and cascade to the
-  // applications, so afterAll still removes everything that moves a count.
-  const { data: existingProject } = await viewer
+  // The project is created FRESH every run and deleted in afterAll. The sweep
+  // comes first so a crashed run leaves nothing behind, and the assertion
+  // after it is the point: this project is 'open', so while it exists it is
+  // visible to every approved pro on the live /projects browse screen. It
+  // previously leaked there for exactly one reason — projects had no DELETE
+  // policy, and under RLS a delete with no policy matches no rows and reports
+  // SUCCESS. Nothing failed; the row simply stayed. So the sweep is verified
+  // rather than trusted, and this file fails loudly if
+  // supabase/projects-delete.sql has not been run.
+  await clearCircleFixture();
+  const { data: residue, error: residueErr } = await viewer
     .from("projects")
     .select("id")
     .eq("created_by", viewerId)
-    .eq("title", CIRCLE_PROJECT)
-    .maybeSingle();
-  if (existingProject) {
-    circleProjectId = existingProject.id as string;
-  } else {
-    const { data, error } = await viewer
-      .from("projects")
-      .insert({
-        created_by: viewerId,
-        title: CIRCLE_PROJECT,
-        // projects_disciplines_check (multi-discipline.sql) requires a
-        // NON-EMPTY array drawn from its vocabulary, so the column default of
-        // {} is not insertable. 'any' stands alone, and the legacy single
-        // column keeps being written as disciplines[0] — same as createProject.
-        disciplines: ["any"],
-        discipline: "any",
-        // Set outright rather than left to the 'other' default: this project
-        // exists to exercise the Phase 4a columns.
-        project_type: "short_film",
-        description: "[TEST] circle-applied count fixture",
-        location: "[TEST]",
-        // status omitted — the column default keeps it 'open', which the
-        // applications INSERT policy requires.
-      })
-      .select("id")
-      .single();
-    expect(error).toBeNull();
-    circleProjectId = data!.id as string;
-  }
+    .eq("title", CIRCLE_PROJECT);
+  expect(residueErr).toBeNull();
+  expect(residue ?? []).toHaveLength(0);
 
-  await clearCircleFixture();
+  const { data: createdProject, error: createErr } = await viewer
+    .from("projects")
+    .insert({
+      created_by: viewerId,
+      title: CIRCLE_PROJECT,
+      // projects_disciplines_check (multi-discipline.sql) requires a
+      // NON-EMPTY array drawn from its vocabulary, so the column default of
+      // {} is not insertable. 'any' stands alone, and the legacy single
+      // column keeps being written as disciplines[0] — same as createProject.
+      disciplines: ["any"],
+      discipline: "any",
+      // Set outright rather than left to the 'other' default: this project
+      // exists to exercise the Phase 4a columns.
+      project_type: "short_film",
+      description: "[TEST] circle-applied count fixture",
+      location: "[TEST]",
+      // status omitted — the column default keeps it 'open', which the
+      // applications INSERT policy requires.
+    })
+    .select("id")
+    .single();
+  expect(createErr).toBeNull();
+  circleProjectId = createdProject!.id as string;
 
   const { data: circleRoles, error: circleRoleErr } = await viewer
     .from("project_roles")
