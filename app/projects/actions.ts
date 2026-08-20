@@ -55,11 +55,20 @@ export async function createProject(values: ProjectFormValues) {
   return { id: data.id as string };
 }
 
-/** Apply to a project. The unique (project_id, applicant_id) index stops
- *  double applications; we translate that into a friendly message. */
+/**
+ * Apply to a project, either for a specific ROLE (roleId) or to the production
+ * as a whole (roleId omitted — the shape crew calls keep using; role_id is
+ * nullable precisely so that path survives).
+ *
+ * Two database guards get translated into friendly messages here rather than
+ * leaked raw: the partial unique indexes that stop a double application
+ * (23505), and the applications_check_role_project BEFORE trigger, which
+ * raises if the role belongs to a different production.
+ */
 export async function applyToProject(
   projectId: string,
-  values: ApplicationFormValues
+  values: ApplicationFormValues,
+  roleId?: string
 ) {
   const parsed = applicationSchema.safeParse(values);
   if (!parsed.success) {
@@ -78,16 +87,25 @@ export async function applyToProject(
     project_id: projectId,
     applicant_id: user.id,
     note: parsed.data.note,
+    role_id: roleId ?? null,
   });
 
   if (error) {
     if (error.code === "23505") {
-      return { error: "You've already applied to this project." };
+      return {
+        error: roleId
+          ? "You've already applied for this role."
+          : "You've already applied to this project.",
+      };
+    }
+    if (error.message.includes("does not belong to project")) {
+      return { error: "That role isn't part of this project." };
     }
     return { error: error.message };
   }
 
   revalidatePath(`/projects/${projectId}`);
+  revalidatePath("/projects");
   return { success: true };
 }
 

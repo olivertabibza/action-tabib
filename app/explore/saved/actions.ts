@@ -6,15 +6,15 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
 /**
- * Toggle the caller's save (bookmark) for an event or article. Logged-out
- * visitors are sent to /login. Otherwise we delete an existing save or insert a
- * new one, then revalidate the item's detail page and the Fan Profile so both
- * reflect the new state. RLS also enforces user_id = auth.uid() and that the
- * item is published, so this never trusts the client. Shared by both detail
- * pages, so it lives in one place.
+ * Toggle the caller's save (bookmark) for an event, article or project.
+ * Logged-out visitors are sent to /login. Otherwise we delete an existing save
+ * or insert a new one, then revalidate the surfaces that render the new state.
+ * RLS also enforces user_id = auth.uid() and that the item is visible (for a
+ * project, can_view_project() — supabase/projects-saved.sql §1), so this never
+ * trusts the client. Shared by every save affordance, so it lives in one place.
  */
 export async function toggleSave(
-  itemType: "event" | "article",
+  itemType: "event" | "article" | "project",
   itemId: string
 ) {
   const supabase = await createClient();
@@ -52,5 +52,8 @@ export async function toggleSave(
 
   revalidatePath(`/explore/${itemType}s/${itemId}`);
   revalidatePath("/fan/profile");
+  // The Callboard browse screen renders a bookmark on every card and a
+  // "★ Saved (N)" count in its header, both of which this changes.
+  revalidatePath("/projects");
   return { success: true };
 }
