@@ -32,6 +32,8 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           SEED_PASSWORD: ${{ secrets.SEED_PASSWORD }}
+          # Optional: without it the admin tests (and the INSERT guard test) skip.
+          SEED_ADMIN_PASSWORD: ${{ secrets.SEED_ADMIN_PASSWORD }}
 
       # NOTE: the Playwright E2E suite (npm run test:e2e) is intentionally NOT run
       # in CI. It needs a live Next server, seeded data, and browser binaries —

@@ -17,6 +17,14 @@ const ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const PASSWORD = process.env.SEED_PASSWORD!;
 const SEED_DOMAIN = "actionseed.test";
 
+/**
+ * seed-admin-1's own password (never the shared one — see scripts/seed.ts).
+ * Optional: undefined when unset, and tests that need the admin skip visibly.
+ */
+export const ADMIN_KEY = "admin-1";
+export const ADMIN_PASSWORD =
+  process.env.SEED_ADMIN_PASSWORD?.trim() || undefined;
+
 const clientCache = new Map<string, SupabaseClient>();
 const idCache = new Map<string, string>();
 
@@ -39,7 +47,7 @@ export async function signInAs(key: string): Promise<SupabaseClient> {
   });
   const { data, error } = await client.auth.signInWithPassword({
     email: seedEmail(key),
-    password: PASSWORD,
+    password: key === ADMIN_KEY ? (ADMIN_PASSWORD ?? "") : PASSWORD,
   });
   if (error || !data.user) {
     throw new Error(

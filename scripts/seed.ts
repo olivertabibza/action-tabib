@@ -168,7 +168,24 @@ const PROS: ProAccount[] = [
     headline: "Camera operator stepping up to DP",
     bio: "Five years as a 1st AC on commercials. Ready to shoot narrative and building a reel.",
   },
+  // ── Test fixture: tests/rls/status-guards.test.ts tries to self-approve this
+  //    account, so it must stay 'pending' and must not be used by other tests.
+  {
+    key: "pending-1",
+    discipline: "editor",
+    status: "pending",
+    display_name: "Pending Fixture",
+    headline: "[TEST] Status-guard fixture",
+    bio: "[TEST] Seeded pending applicant for the status-guard RLS tests.",
+  },
 ];
+
+// The seed admin (seed-admin-1@actionseed.test) signs in with its OWN password
+// from SEED_ADMIN_PASSWORD — never SHARED_PASSWORD. Seed accounts live in the
+// same Supabase project as real users, so a committed admin password would be a
+// real admin login. Unset → the admin is skipped (and its tests skip too).
+const ADMIN_KEY = "admin-1";
+const ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD?.trim() || undefined;
 
 type ProjectType =
   | "short_film"
@@ -1280,13 +1297,14 @@ async function fetchSeedAuthUsers(): Promise<Map<string, string>> {
 /** Ensure an auth user exists for `email`; returns its id. Re-runnable. */
 async function ensureAuthUser(
   email: string,
-  existing: Map<string, string>
+  existing: Map<string, string>,
+  password: string = SHARED_PASSWORD
 ): Promise<string> {
   const id = existing.get(email);
   if (id) {
-    // Reset to the known shared password so logins are predictable on re-run.
+    // Reset to the known password so logins are predictable on re-run.
     const { error } = await admin.auth.admin.updateUserById(id, {
-      password: SHARED_PASSWORD,
+      password,
       email_confirm: true,
     });
     if (error) throw error;
@@ -1294,7 +1312,7 @@ async function ensureAuthUser(
   }
   const { data, error } = await admin.auth.admin.createUser({
     email,
-    password: SHARED_PASSWORD,
+    password,
     email_confirm: true,
   });
   if (error) throw error;
@@ -1556,6 +1574,8 @@ async function main() {
         email,
         account_type: "professional",
         application_status: pro.status,
+        // Explicit, so a re-seed also undoes any escalation a test left behind.
+        is_admin: false,
         role: pro.discipline,
         skills: pro.skills ?? [],
         display_name: pro.display_name,
@@ -1570,6 +1590,35 @@ async function main() {
     `  profiles: ${PROS.length} professionals ` +
       `(${approvedKeys.size} approved, ${PROS.length - approvedKeys.size} pending)`
   );
+
+  // 1b. The seed admin. Not in idByKey: it owns no seed content, so the
+  //     seed-owned deletes below never need to see it.
+  if (ADMIN_PASSWORD) {
+    const email = emailFor(ADMIN_KEY);
+    const id = await ensureAuthUser(email, existing, ADMIN_PASSWORD);
+    const { error } = await admin.from("profiles").upsert(
+      {
+        id,
+        email,
+        account_type: "professional",
+        application_status: "approved",
+        is_admin: true,
+        // Approved pros surface in the directory, search and suggestions, so
+        // the name must read as staff test data. It authors nothing: not in
+        // PROS/idByKey, so no posts, follows, connections or content.
+        display_name: "[TEST] Staff Admin — not a member",
+        headline: "Staff test account for automated checks. Please ignore.",
+      },
+      { onConflict: "id" }
+    );
+    if (error) throw error;
+    console.log(`  admin: ${email} (is_admin = true)`);
+  } else {
+    console.warn(
+      `  ⚠ SEED_ADMIN_PASSWORD is not set — skipping ${emailFor(ADMIN_KEY)}. ` +
+        `The admin RLS tests will skip until it is set and the seed is re-run.`
+    );
+  }
 
   // 2. Projects. Delete seed-owned projects first (cascades their
   //    applications), then re-insert — keeps re-runs duplicate-free.
