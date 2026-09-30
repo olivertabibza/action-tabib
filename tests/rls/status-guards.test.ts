@@ -103,7 +103,7 @@ const insertedIds: Record<Kind, string[]> = { classes: [], events: [], articles:
 async function readProfile(client: SupabaseClient, id: string) {
   const { data, error } = await client
     .from("profiles")
-    .select("is_admin, application_status, display_name")
+    .select("is_admin, application_status, account_type, display_name")
     .eq("id", id)
     .single();
   expect(error).toBeNull();
@@ -143,6 +143,7 @@ beforeAll(async () => {
 
   // Preconditions: nothing left over from an earlier, interrupted run.
   expect((await readProfile(pro, proId)).is_admin).toBe(false);
+  expect((await readProfile(pro, proId)).account_type).toBe("professional");
   expect((await readProfile(pending, pendingId)).application_status).toBe("pending");
 
   for (const kind of KINDS) {
@@ -173,7 +174,7 @@ afterAll(async () => {
   const owner = [pro, admin];
 
   // Put everything back (updates only).
-  await restore(owner, "profiles", { is_admin: false }, proId);
+  await restore(owner, "profiles", { is_admin: false, account_type: "professional" }, proId);
   await restore([pending, admin], "profiles", { application_status: "pending" }, pendingId);
   await pro.from("profiles").update({ display_name: originalDisplayName }).eq("id", proId);
   for (const kind of KINDS) {
@@ -188,6 +189,8 @@ afterAll(async () => {
   const leftovers: string[] = [];
   const proRow = await readProfile(pro, proId);
   if (proRow.is_admin) leftovers.push(`${PRO} still has is_admin = true`);
+  if (proRow.account_type !== "professional")
+    leftovers.push(`${PRO} is account_type '${proRow.account_type}', not 'professional'`);
   if (proRow.display_name !== originalDisplayName)
     leftovers.push(`${PRO} display_name not restored`);
   const pendingRow = await readProfile(pending, pendingId);
@@ -234,6 +237,17 @@ describe("status & privilege guards", () => {
       expect((await readProfile(pending, pendingId)).application_status).toBe("pending");
     } finally {
       await restore([pending, admin], "profiles", { application_status: "pending" }, pendingId);
+    }
+  });
+
+  // (2b) account_type is fixed after signup. The trigger doesn't care about
+  // direction, so pro → consumer proves the lock without a consumer account.
+  test("2b) a pro cannot change its own account_type", async () => {
+    try {
+      await pro.from("profiles").update({ account_type: "consumer" }).eq("id", proId);
+      expect((await readProfile(pro, proId)).account_type).toBe("professional");
+    } finally {
+      await restore([pro, admin], "profiles", { account_type: "professional" }, proId);
     }
   });
 

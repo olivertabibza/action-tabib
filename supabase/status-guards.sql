@@ -31,11 +31,16 @@
 -- ============================================================================
 
 
--- ── 1. profiles: is_admin and application_status are admin-only ─────────────
+-- ── 1. profiles: is_admin, application_status, account_type ─────────────────
 -- A new profile always starts as a non-admin, pending applicant — the same
 -- values onboarding already sends, so the signup flow is unaffected. On UPDATE
--- both columns are put back to their stored values; every other column
+-- all three columns are put back to their stored values; every other column
 -- (display_name, headline, bio, …) stays editable by its owner.
+--
+-- account_type is locked on UPDATE only. Onboarding legitimately chooses
+-- 'professional' or 'consumer' at INSERT, but switching afterwards would let a
+-- consumer join the applications queue without applying (and be swept up by a
+-- bulk approve), so only an admin may change it once the row exists.
 create or replace function public.profiles_guard_privileged()
 returns trigger
 language plpgsql
@@ -51,6 +56,7 @@ begin
   else
     new.is_admin := old.is_admin;
     new.application_status := old.application_status;
+    new.account_type := old.account_type;
   end if;
   return new;
 end;
