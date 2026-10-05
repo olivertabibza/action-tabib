@@ -5,9 +5,11 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import {
   applicationDecisionSchema,
+  autoApproveKindSchema,
   contentDecisionSchema,
   contentKindSchema,
   type ApplicationDecision,
+  type AutoApproveKind,
   type ContentDecision,
   type ContentKind,
 } from "./schema";
@@ -136,4 +138,77 @@ export async function closeProject(projectId: string) {
 
   revalidatePath("/admin/projects");
   return { success: true };
+}
+
+/**
+ * Turn one auto-approve switch on or off. RLS limits platform_settings updates
+ * to admins; requireAdmin() is the in-app second layer. Turning a switch off
+ * only affects future submissions — nothing already approved is reverted.
+ */
+export async function setAutoApprove(kind: AutoApproveKind, enabled: boolean) {
+  const parsed = autoApproveKindSchema.safeParse(kind);
+  if (!parsed.success || typeof enabled !== "boolean") {
+    return { error: "Unknown setting." };
+  }
+
+  const gate = await requireAdmin();
+  if ("error" in gate) return { error: gate.error };
+
+  const { error } = await gate.supabase
+    .from("platform_settings")
+    .update({ [`auto_approve_${parsed.data}`]: enabled })
+    .eq("id", true);
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath("/admin/settings");
+  return { success: true };
+}
+
+/**
+ * Approve everything currently pending of one kind, as the admin through RLS.
+ * Pro applications are limited to professional rows: consumers also sit at
+ * application_status = 'pending' and must never be approved.
+ */
+export async function approveAllPending(kind: AutoApproveKind) {
+  const parsed = autoApproveKindSchema.safeParse(kind);
+  if (!parsed.success) {
+    return { error: "Unknown queue." };
+  }
+
+  const gate = await requireAdmin();
+  if ("error" in gate) return { error: gate.error };
+
+  const { error, count } =
+    parsed.data === "pro_applications"
+      ? await gate.supabase
+          .from("profiles")
+          .update({ application_status: "approved" }, { count: "exact" })
+          .eq("account_type", "professional")
+          .eq("application_status", "pending")
+      : await gate.supabase
+          .from(parsed.data)
+          .update({ status: "published" }, { count: "exact" })
+          .eq("status", "pending");
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath("/admin/settings");
+  if (parsed.data === "pro_applications") {
+    revalidatePath("/admin");
+  } else {
+    revalidatePath("/admin/content");
+    if (parsed.data === "classes") {
+      revalidatePath("/classes");
+    } else {
+      revalidatePath("/explore");
+      revalidatePath("/fan/explore");
+      revalidatePath("/fan/events");
+    }
+  }
+  return { success: true, count: count ?? 0 };
 }

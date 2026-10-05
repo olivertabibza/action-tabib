@@ -6,12 +6,13 @@ import { cn } from "@/lib/utils";
 export function AdminNav({
   active,
 }: {
-  active: "applications" | "projects" | "content";
+  active: "applications" | "projects" | "content" | "settings";
 }) {
   const tabs = [
     { href: "/admin", label: "Applications", key: "applications" },
     { href: "/admin/projects", label: "Listings", key: "projects" },
     { href: "/admin/content", label: "Content", key: "content" },
+    { href: "/admin/settings", label: "Settings", key: "settings" },
   ] as const;
 
   return (

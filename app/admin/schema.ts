@@ -29,3 +29,17 @@ export type ContentDecision = z.infer<typeof contentDecisionSchema>;
 export const contentKindSchema = z.enum(["event", "article", "class"]);
 
 export type ContentKind = z.infer<typeof contentKindSchema>;
+
+/**
+ * The four review steps an admin can switch to auto-approve. Each maps to an
+ * auto_approve_<kind> column in public.platform_settings
+ * (supabase/platform-settings.sql).
+ */
+export const autoApproveKindSchema = z.enum([
+  "pro_applications",
+  "classes",
+  "events",
+  "articles",
+]);
+
+export type AutoApproveKind = z.infer<typeof autoApproveKindSchema>;
