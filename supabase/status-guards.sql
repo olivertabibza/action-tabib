@@ -1,12 +1,14 @@
 -- ============================================================================
--- Status & privilege guards (Phase 1a)
+-- Status & privilege guards (Phase 1a; auto-approve added in Phase 1b)
 -- ----------------------------------------------------------------------------
 -- Safe to run more than once (create or replace / drop-then-create). Additive:
 -- no tables, columns or policies change.
 --
--- Run this ONCE in the Supabase SQL editor, AFTER marketplace.sql
+-- Run this in the Supabase SQL editor, AFTER marketplace.sql
 -- (profiles.application_status), admin.sql (is_admin, profiles.is_admin),
--- content.sql + content-review.sql (events, articles) and classes.sql.
+-- content.sql + content-review.sql (events, articles), classes.sql AND
+-- platform-settings.sql (auto_approve_enabled). Re-run it after
+-- platform-settings.sql if you ran it before Phase 1b.
 --
 -- Why: RLS decides WHICH ROWS a caller may write, never WHICH COLUMNS. So
 --   * "Users can insert / update their own profile" let any signed-in user set
@@ -28,12 +30,19 @@
 -- INSERT/UPDATE policy on these four tables requires id = auth.uid(),
 -- created_by = auth.uid() or is_admin(), so an anon caller can never get a row
 -- as far as these triggers.
+--
+-- Auto-approve (Phase 1b): when an admin turns on the matching switch in
+-- public.platform_settings, a NEW row skips review — a professional's profile
+-- lands 'approved', a class/event/article lands 'published'. Consumers are
+-- never auto-approved. Edits are unaffected: an author can still never move
+-- the status of an existing row, switch or no switch.
 -- ============================================================================
 
 
 -- ── 1. profiles: is_admin, application_status, account_type ─────────────────
 -- A new profile always starts as a non-admin, pending applicant — the same
--- values onboarding already sends, so the signup flow is unaffected. On UPDATE
+-- values onboarding already sends, so the signup flow is unaffected — unless it
+-- is a professional and the pro-applications switch is on. On UPDATE
 -- all three columns are put back to their stored values; every other column
 -- (display_name, headline, bio, …) stays editable by its owner.
 --
@@ -52,7 +61,12 @@ begin
   end if;
   if tg_op = 'INSERT' then
     new.is_admin := false;
-    new.application_status := 'pending';
+    if new.account_type = 'professional'
+       and public.auto_approve_enabled('pro_applications') then
+      new.application_status := 'approved';
+    else
+      new.application_status := 'pending';
+    end if;
   else
     new.is_admin := old.is_admin;
     new.application_status := old.application_status;
@@ -71,7 +85,8 @@ create trigger profiles_guard_privileged
 -- ── 2. classes / events / articles: status is admin-only ────────────────────
 -- One function for all three tables: each has the same status column with the
 -- same meaning ('pending' → admin review → 'published' / 'rejected'). A new
--- row always enters the review queue; an author's edit never moves it.
+-- row enters the review queue unless that table's switch is on (tg_table_name
+-- is the switch kind); an author's edit never moves it.
 create or replace function public.content_guard_status()
 returns trigger
 language plpgsql
@@ -82,7 +97,11 @@ begin
     return new;
   end if;
   if tg_op = 'INSERT' then
-    new.status := 'pending';
+    if public.auto_approve_enabled(tg_table_name) then
+      new.status := 'published';
+    else
+      new.status := 'pending';
+    end if;
   else
     new.status := old.status;
   end if;
