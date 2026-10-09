@@ -1,9 +1,7 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ExternalLink, FileText, Users } from "lucide-react";
+import { ExternalLink, FileText } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -13,6 +11,7 @@ import {
 } from "@/components/ui/card";
 import { ProfileForm } from "./profile-form";
 import { WorkSamplesManager, type WorkSample } from "./work-samples-manager";
+import { ProfileTabs } from "./profile-tabs";
 
 function accountLabel(accountType: string | null | undefined) {
   if (accountType === "professional") return "Industry Professional";
@@ -56,6 +55,8 @@ export default async function ProfilePage() {
   }
 
   const isProfessional = profile?.account_type === "professional";
+  const isApprovedPro =
+    isProfessional && profile?.application_status === "approved";
 
   // Work samples (public bucket — plain URLs, minted client-side in the
   // manager). Only professionals have these.
@@ -79,6 +80,7 @@ export default async function ProfilePage() {
 
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-12 sm:px-6 sm:py-16">
+      {isApprovedPro && <ProfileTabs active="profile" />}
       <div className="mb-8 flex flex-wrap items-center gap-3">
         <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
           Your profile
@@ -97,24 +99,6 @@ export default async function ProfilePage() {
           </CardHeader>
           <CardContent>
             <ProfileForm initial={initial} showSkills={isProfessional} />
-          </CardContent>
-        </Card>
-
-        {/* Network — moved here from the bottom bar. */}
-        <Card className="p-2">
-          <CardHeader>
-            <CardTitle className="text-xl">Your network</CardTitle>
-            <CardDescription>
-              See who you follow and the people following you.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button asChild variant="outline">
-              <Link href="/network">
-                <Users className="size-4" />
-                View your network
-              </Link>
-            </Button>
           </CardContent>
         </Card>
 

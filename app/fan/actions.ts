@@ -41,7 +41,7 @@ async function requireMember(supabase: ServerClient) {
 /**
  * Follow a pro from the Fan app. Inserts the follow edge (RLS also requires
  * follower_id = auth.uid() and is_member()). Unlike the Pro action in
- * app/network/actions.ts this writes NO 'started_following' activity event — the
+ * app/explore/(tab)/people/actions.ts this writes NO 'started_following' activity event — the
  * fan feed is simply the people they follow, and the activity_events INSERT
  * policy stays pros-only. Kept separate so the Pro path (which records activity)
  * is untouched.

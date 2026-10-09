@@ -23,7 +23,7 @@ The minimum needed to onboard creators and run a working marketplace.
 - Messaging, social feed with connections and endorsements, classes with enrolments and reviews, events, articles, and saved items.
 
 **Next**
-- Finish restyling the remaining surfaces to the Callboard design (`/projects/mine`, `/network` below the fold).
+- Finish restyling the remaining surfaces to the Callboard design (`/projects/mine`, `/explore/people`).
 - Make project creation atomic (see docs/DECISIONS.md).
 - Live nav counts beyond Network, and notifications.
 

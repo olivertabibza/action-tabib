@@ -72,7 +72,7 @@ export default async function MessagesPage({
         <EmptyState
           icon={<Inbox className="size-7 text-muted-foreground" />}
           title="No messages yet"
-          body="Start a conversation from someone's profile or the Network tab."
+          body="Start a conversation from someone's profile or the Explore tab."
         />
       )}
     </main>

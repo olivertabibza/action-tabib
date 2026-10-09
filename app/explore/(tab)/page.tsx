@@ -3,10 +3,13 @@ import { CalendarDays, Newspaper, PenLine, Plus } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
 import { eventTypeLabel, articleCategoryLabel } from "@/lib/content";
+import { titleCase } from "@/lib/marketplace";
 import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/Avatar";
 import { GlobalSearch } from "@/components/GlobalSearch";
 import { Button } from "@/components/ui/button";
+import { MessageButton } from "@/app/messages/message-button";
+import { FollowButton } from "./people/follow-button";
 
 // Access (auth + approved pro) is gated in the (tab) route group's layout, which
 // also renders the ProShell around this page. The article/event DETAIL pages
@@ -19,6 +22,12 @@ type EventRow = {
   venue: string;
   event_type: string;
   starts_at: string;
+};
+
+type PersonRow = {
+  id: string;
+  display_name: string | null;
+  role: string | null;
 };
 
 type ArticleRow = {
@@ -77,7 +86,26 @@ export default async function ExplorePage({
   // The viewer's own not-yet-published submissions. RLS lets authors read their
   // own pending/rejected rows, so a plain query scoped to created_by works.
   const submissions: Submission[] = [];
+  let people: PersonRow[] = [];
   if (user) {
+    // Up to 6 approved pros the viewer doesn't follow yet (same shape as the
+    // full list at /explore/people). The follow ids are excluded in the query
+    // so the limit applies to people who can actually be followed.
+    const { data: myFollows } = await supabase
+      .from("follows")
+      .select("following_id")
+      .eq("follower_id", user.id);
+    const excluded = [user.id, ...(myFollows ?? []).map((f) => f.following_id)];
+    const { data: peopleData } = await supabase
+      .from("profiles")
+      .select("id, display_name, role")
+      .eq("account_type", "professional")
+      .eq("application_status", "approved")
+      .not("id", "in", `(${excluded.join(",")})`)
+      .order("display_name", { nullsFirst: false })
+      .limit(6);
+    people = (peopleData ?? []) as PersonRow[];
+
     const [{ data: myEvents }, { data: myArticles }] = await Promise.all([
       supabase
         .from("events")
@@ -162,6 +190,44 @@ export default async function ExplorePage({
             ))}
           </ul>
         </>
+      )}
+
+      {/* People */}
+      <div className="mt-8 flex items-center justify-between gap-3">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          People
+        </h2>
+        <Button asChild size="sm" variant="outline">
+          <Link href="/explore/people">See all people</Link>
+        </Button>
+      </div>
+      {people.length > 0 ? (
+        <ul className="mt-3 flex flex-col gap-2">
+          {people.map((p) => (
+            <li
+              key={p.id}
+              className="flex items-center gap-3 rounded-lg border border-border bg-card px-3 py-2.5"
+            >
+              <div className="min-w-0 flex-1">
+                <Link
+                  href={`/profile/${p.id}`}
+                  className="block truncate text-sm font-medium transition-colors hover:text-brand"
+                >
+                  {p.display_name || "Unnamed creator"}
+                </Link>
+                <p className="truncate text-xs text-muted-foreground">
+                  {p.role ? titleCase(p.role) : "Pro"}
+                </p>
+              </div>
+              <FollowButton targetId={p.id} initialFollowing={false} />
+              <MessageButton otherId={p.id} />
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-3 text-sm text-muted-foreground">
+          You&rsquo;re already following everyone on Action.
+        </p>
       )}
 
       {/* Upcoming events */}

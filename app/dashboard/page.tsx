@@ -196,7 +196,7 @@ export default async function DashboardPage() {
   );
 
   // Connect suggestions (LIVE) — approved professionals the user doesn't already
-  // follow and isn't themselves. Same query shape as app/network/page.tsx.
+  // follow and isn't themselves. Same query shape as app/explore/(tab)/people/page.tsx.
   const { data: candidates } = await supabase
     .from("profiles")
     .select("id, display_name, role")
@@ -410,7 +410,7 @@ export default async function DashboardPage() {
               </p>
               <p className="max-w-sm text-sm text-text-secondary">
                 Post an update above, or{" "}
-                <Link href="/network" className="text-accent hover:underline">
+                <Link href="/explore/people" className="text-accent hover:underline">
                   find creators to follow
                 </Link>{" "}
                 to fill your feed.

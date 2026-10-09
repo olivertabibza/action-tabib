@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { openConversation } from "./actions";
 
 /**
- * "Message" entry point used from a pro's profile and the Network cards. Opens
+ * "Message" entry point used from a pro's profile and the Explore people lists. Opens
  * (or starts) the thread with `otherId` and navigates into it. Only render this
  * for an approved pro viewing ANOTHER approved pro — never on your own profile.
  */
