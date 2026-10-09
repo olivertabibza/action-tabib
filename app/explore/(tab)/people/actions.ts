@@ -61,7 +61,9 @@ export async function followCreator(targetId: string) {
     // Already following — treat as success so the toggle is idempotent. Don't
     // record a second activity event.
     if (error.code === "23505") {
-      revalidatePath("/network");
+      revalidatePath("/explore");
+      revalidatePath("/explore/people");
+      revalidatePath("/profile/network");
       revalidatePath("/dashboard");
       return { success: true };
     }
@@ -81,7 +83,9 @@ export async function followCreator(targetId: string) {
     metadata: { target_name: target?.display_name ?? null },
   });
 
-  revalidatePath("/network");
+  revalidatePath("/explore");
+  revalidatePath("/explore/people");
+  revalidatePath("/profile/network");
   revalidatePath("/dashboard");
   return { success: true };
 }
@@ -101,7 +105,9 @@ export async function unfollowCreator(targetId: string) {
 
   if (error) return { error: error.message };
 
-  revalidatePath("/network");
+  revalidatePath("/explore");
+  revalidatePath("/explore/people");
+  revalidatePath("/profile/network");
   revalidatePath("/dashboard");
   return { success: true };
 }

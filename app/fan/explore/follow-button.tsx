@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { followPro, unfollowPro } from "../actions";
 
 /**
- * Fan follow / Following toggle. Mirrors app/network/follow-button.tsx but calls
+ * Fan follow / Following toggle. Mirrors app/explore/(tab)/people/follow-button.tsx but calls
  * the fan-side actions (no activity_events write). Initial state comes from the
  * server; we flip it optimistically on success and refresh so the fan feed picks
  * up the change.

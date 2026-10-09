@@ -8,14 +8,15 @@ import { test, expect } from "@playwright/test";
 
 const PRO_TABS = [
   "/dashboard",
-  "/network",
   "/projects",
   "/classes",
   "/explore",
+  "/explore/people",
   "/profile",
+  "/profile/network",
 ];
 
-test("all six Pro tabs load and none says 'Coming soon'", async ({ page }) => {
+test("all seven Pro pages load and none says 'Coming soon'", async ({ page }) => {
   for (const path of PRO_TABS) {
     const res = await page.goto(path);
     expect(res?.ok(), `${path} should return ok`).toBeTruthy();

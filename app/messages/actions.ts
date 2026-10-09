@@ -11,7 +11,7 @@ type ServerClient = Awaited<ReturnType<typeof createClient>>;
 /**
  * Re-read the session and confirm the caller is an approved professional. RLS
  * enforces this too; we re-check server-side so actions fail with a friendly
- * message rather than a raw policy error (mirrors app/network/actions.ts).
+ * message rather than a raw policy error (mirrors app/explore/(tab)/people/actions.ts).
  */
 async function requireApprovedPro(supabase: ServerClient) {
   const {

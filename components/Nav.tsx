@@ -68,7 +68,7 @@ export function Nav({
   }, []);
 
   // Projects (the marketplace) is Pro-only — never shown to consumers (fans).
-  // Dashboard + Network are only for approved professionals; Admin only for
+  // Dashboard + Explore are only for approved professionals; Admin only for
   // admins. All are appended to the base Home/Profile links.
   const links = [
     { href: "/home", label: "Home" },
@@ -77,7 +77,7 @@ export function Nav({
     ...(isApprovedPro
       ? [
           { href: "/dashboard", label: "Dashboard" },
-          { href: "/network", label: "Network" },
+          { href: "/explore", label: "Explore" },
         ]
       : []),
     ...(isAdmin ? [{ href: "/admin", label: "Admin" }] : []),
@@ -96,7 +96,7 @@ export function Nav({
 
   // The Fan and Pro apps each have their own shell (sidebar + bottom tab bar)
   // and no global top nav, so hide this nav there.
-  const shellRoutes = ["/fan", "/dashboard", "/network", "/projects", "/messages"];
+  const shellRoutes = ["/fan", "/dashboard", "/projects", "/messages"];
   if (shellRoutes.some((prefix) => pathname.startsWith(prefix))) {
     return null;
   }

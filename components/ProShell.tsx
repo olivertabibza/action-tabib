@@ -5,11 +5,11 @@ import { usePathname } from "next/navigation";
 import {
   AlignLeft,
   Briefcase,
+  Compass,
   GraduationCap,
   Mail,
   Search,
   User,
-  Users,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -17,10 +17,12 @@ import { LogoutButton } from "@/components/LogoutButton";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { type NavCounts } from "@/lib/nav-counts";
 
-// Callboard top-nav order (Feed · Projects · Classes · Network · Messages).
+// Callboard top-nav order (Feed · Projects · Classes · Explore · Messages).
 // Every href is a pre-existing route — Feed keeps /dashboard as its
 // destination. Profile lives on the avatar in the right cluster (desktop) and
-// as the fifth mobile tab; Explore is reachable through the search pill.
+// as the fifth mobile tab, and carries the pending-connection-request badge:
+// requests live on Profile's Network sub-tab (/profile/network). The search
+// pill also points at /explore.
 // `countNoun` is what a screen reader hears after the number — the badge itself
 // renders a bare digit with no context, so the count goes into the link's
 // accessible name too ("Messages, 1 unread").
@@ -28,14 +30,14 @@ const navItems = [
   { href: "/dashboard", label: "Feed", icon: AlignLeft, countKey: null, countNoun: null },
   { href: "/projects", label: "Projects", icon: Briefcase, countKey: "projects", countNoun: "new" },
   { href: "/classes", label: "Classes", icon: GraduationCap, countKey: "classes", countNoun: "new" },
-  { href: "/network", label: "Network", icon: Users, countKey: "network", countNoun: "pending" },
+  { href: "/explore", label: "Explore", icon: Compass, countKey: null, countNoun: null },
   { href: "/messages", label: "Messages", icon: Mail, countKey: "messages", countNoun: "unread" },
 ] as const;
 
 // Mobile swaps Messages (moved to the app bar) for Profile, per the design.
 const mobileTabs = [
   ...navItems.slice(0, 4),
-  { href: "/profile", label: "Profile", icon: User, countKey: null, countNoun: null },
+  { href: "/profile", label: "Profile", icon: User, countKey: "network", countNoun: "pending" },
 ] as const;
 
 // undefined leaves the link's name as its visible text (the default).
@@ -198,10 +200,16 @@ export function ProShell({
             />
             <Link
               href="/profile"
-              aria-label="Profile"
-              className="focus-ring flex size-9 items-center justify-center rounded-full bg-avatar-fill text-text-secondary"
+              aria-label={
+                navAriaLabel("Profile", counts.network, "pending") ?? "Profile"
+              }
+              className="focus-ring relative flex size-9 items-center justify-center rounded-full bg-avatar-fill text-text-secondary"
             >
               <User className="size-[18px]" strokeWidth={1.5} />
+              <CountBadge
+                count={counts.network}
+                className="absolute -right-0.5 -top-0.5 h-[17px] min-w-[17px] text-[9.5px]"
+              />
             </Link>
           </div>
         </div>

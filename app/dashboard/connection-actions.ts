@@ -11,7 +11,7 @@ type ServerClient = Awaited<ReturnType<typeof createClient>>;
  * RLS enforces this too, but we re-check server-side so the actions fail with a
  * friendly message rather than a raw policy error, and never trust the client.
  *
- * Deliberately a local copy of app/network/actions.ts's helper: neither file
+ * Deliberately a local copy of app/explore/(tab)/people/actions.ts's helper: neither file
  * should become a dependency of the other over five lines of session check.
  */
 async function requireApprovedPro(supabase: ServerClient) {
@@ -68,7 +68,7 @@ export async function requestConnection(targetId: string) {
   }
 
   revalidatePath("/dashboard");
-  revalidatePath("/network");
+  revalidatePath("/profile/network");
   return { success: true };
 }
 
@@ -98,7 +98,7 @@ export async function acceptConnection(requesterId: string) {
   if (!count) return { error: "That request is no longer available." };
 
   revalidatePath("/dashboard");
-  revalidatePath("/network");
+  revalidatePath("/profile/network");
   return { success: true };
 }
 
@@ -125,6 +125,6 @@ export async function removeConnection(otherId: string) {
   if (error) return { error: error.message };
 
   revalidatePath("/dashboard");
-  revalidatePath("/network");
+  revalidatePath("/profile/network");
   return { success: true };
 }

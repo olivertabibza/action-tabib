@@ -6,7 +6,7 @@ import { ProShellServer } from "@/components/ProShellServer";
 
 /**
  * Access gate for Pro messages, enforced in one place (mirrors
- * app/dashboard/layout.tsx and app/network/layout.tsx):
+ * app/dashboard/layout.tsx and app/explore/(tab)/layout.tsx):
  *   - logged-out                   → /login (the proxy also guards this)
  *   - not an approved professional → their own app (destinationFor)
  *   - approved pro                 → render inside the Pro shell

@@ -165,7 +165,9 @@ links don't break.
   manage their own posts (`/projects/mine`).
 - **Social feed** (`/dashboard`) — follow-based activity feed with a compose box
   for status updates.
-- **Network** (`/network`) — follow/unfollow other members.
+- **People** (`/explore/people`) — follow/unfollow other members. Your own
+  connections, following and followers live on Profile's Network sub-tab
+  (`/profile/network`); `/network` redirects there.
 - **Admin** (`/admin`) — review applications and moderate project listings.
 - **Stubs** for the next product phase: Pro `Classes` and `Explore`, Fan
   `Events` and `Explore` content, and Messages.

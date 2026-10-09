@@ -12,7 +12,7 @@ import {
 
 /**
  * Accept / Decline for one incoming request. Shared by the feed's right-rail
- * card and the /network requests section. Declining
+ * card and the /profile/network requests section. Declining
  * is removeConnection — the DELETE policy treats declining, withdrawing and
  * disconnecting identically. The row itself disappears on the refresh that
  * follows a successful action.

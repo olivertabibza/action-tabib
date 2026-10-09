@@ -1900,7 +1900,7 @@ async function main() {
   // 7. Activity events (the feed). Delete seed-authored activity first, then
   //    insert staggered status updates plus a few follow announcements. Column
   //    shapes mirror the app exactly — app/dashboard/actions.ts for
-  //    'status_update', app/network/actions.ts for 'started_following' (subject_id
+  //    'status_update', app/explore/(tab)/people/actions.ts for 'started_following' (subject_id
   //    + denormalized target_name) — so the feed renders these like real posts.
   const { error: delActErr } = await admin
     .from("activity_events")
