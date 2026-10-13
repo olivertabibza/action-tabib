@@ -32,6 +32,29 @@ type Submission = {
   status: "pending" | "rejected";
 };
 
+// A published class in the viewer's "teaching" or "enrolled" list.
+type MyClass = {
+  id: string;
+  title: string;
+  capacity: number;
+  starts_at: string;
+};
+
+function hasEnded(c: MyClass, nowIso: string): boolean {
+  return Date.parse(c.starts_at) < Date.parse(nowIso);
+}
+
+/** Upcoming classes first (soonest first), then past ones (most recent first). */
+function upcomingThenPast(rows: MyClass[], nowIso: string): MyClass[] {
+  const byStart = (a: MyClass, b: MyClass) =>
+    Date.parse(a.starts_at) - Date.parse(b.starts_at);
+  const upcoming = rows.filter((c) => !hasEnded(c, nowIso)).sort(byStart);
+  const past = rows
+    .filter((c) => hasEnded(c, nowIso))
+    .sort((a, b) => byStart(b, a));
+  return [...upcoming, ...past];
+}
+
 export default async function ClassesPage({
   searchParams,
 }: {
@@ -106,6 +129,35 @@ export default async function ClassesPage({
       });
   }
 
+  // Published classes the viewer teaches, past ones included.
+  let teaching: MyClass[] = [];
+  // Published classes the viewer is enrolled in (own rows only, via RLS). The
+  // embedded class is null if it was later unpublished, so those drop out.
+  let enrolledIn: MyClass[] = [];
+  if (user) {
+    const [{ data: taught }, { data: myEnrollments }] = await Promise.all([
+      supabase
+        .from("classes")
+        .select("id, title, capacity, starts_at")
+        .eq("created_by", user.id)
+        .eq("status", "published"),
+      supabase
+        .from("class_enrollments")
+        .select("class:classes(id, title, capacity, starts_at, status)")
+        .eq("user_id", user.id),
+    ]);
+    teaching = upcomingThenPast(taught ?? [], nowIso);
+    enrolledIn = upcomingThenPast(
+      (myEnrollments ?? [])
+        .map(
+          (e) =>
+            e.class as unknown as (MyClass & { status: string }) | null
+        )
+        .filter((c): c is MyClass & { status: string } => c?.status === "published"),
+      nowIso
+    );
+  }
+
   return (
     <main className="flex flex-1 flex-col px-4 py-6">
       <div className="flex items-center justify-between gap-3">
@@ -162,6 +214,28 @@ export default async function ClassesPage({
         </>
       )}
 
+      {teaching.length > 0 && (
+        <>
+          <h2 className="mt-8 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            You&rsquo;re teaching
+          </h2>
+          <MyClassList
+            classes={teaching}
+            nowIso={nowIso}
+            enrolledByClass={enrolledByClass}
+          />
+        </>
+      )}
+
+      {enrolledIn.length > 0 && (
+        <>
+          <h2 className="mt-8 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            You&rsquo;re enrolled in
+          </h2>
+          <MyClassList classes={enrolledIn} nowIso={nowIso} />
+        </>
+      )}
+
       {/* Upcoming classes */}
       <h2 className="mt-8 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
         Upcoming classes
@@ -194,6 +268,47 @@ export default async function ClassesPage({
         </div>
       )}
     </main>
+  );
+}
+
+/**
+ * Compact rows for "You're teaching" / "You're enrolled in", in the same style
+ * as "Your submissions". Pass `enrolledByClass` to show the head-count.
+ */
+function MyClassList({
+  classes,
+  nowIso,
+  enrolledByClass,
+}: {
+  classes: MyClass[];
+  nowIso: string;
+  enrolledByClass?: Map<string, number>;
+}) {
+  return (
+    <ul className="mt-3 flex flex-col gap-2">
+      {classes.map((c) => (
+        <li key={c.id}>
+          <Link
+            href={`/classes/${c.id}`}
+            className="flex items-center gap-3 rounded-lg border border-border bg-card px-3 py-2.5 transition-colors hover:border-brand"
+          >
+            <span className="min-w-0 flex-1 truncate text-sm font-medium">
+              {c.title}
+            </span>
+            {enrolledByClass && (
+              <span className="shrink-0 text-xs text-muted-foreground">
+                {enrolledByClass.get(c.id) ?? 0} of {c.capacity} enrolled
+              </span>
+            )}
+            {hasEnded(c, nowIso) && (
+              <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                Ended
+              </span>
+            )}
+          </Link>
+        </li>
+      ))}
+    </ul>
   );
 }
 

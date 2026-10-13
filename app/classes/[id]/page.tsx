@@ -15,6 +15,7 @@ import { disciplineLabel } from "@/lib/marketplace";
 import { classLevelLabel, classFormatLabel, formatPrice } from "@/lib/content";
 import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/Avatar";
+import { MessageButton } from "@/app/messages/message-button";
 import { EnrollButton } from "../enroll-button";
 import { ReviewComposer } from "../review-composer";
 
@@ -31,6 +32,12 @@ type Review = {
   created_at: string;
   reviewer_id: string;
   reviewer: Person | null;
+};
+
+type Enrollee = {
+  user_id: string;
+  created_at: string;
+  enrollee: Person | null;
 };
 
 /** Read-only 1–5 star row, filled up to `rating`. */
@@ -111,6 +118,24 @@ export default async function ClassDetailPage({
       .eq("user_id", user.id)
       .maybeSingle();
     isEnrolled = !!mine;
+  }
+
+  // The instructor's roster, oldest enrollment first. RLS ("Instructors read
+  // enrollments in their classes") returns every row only to the class's
+  // creator, so this is only queried for them.
+  let roster: Enrollee[] = [];
+  if (isInstructor) {
+    const { data: rosterData } = await supabase
+      .from("class_enrollments")
+      .select(
+        "user_id, created_at, enrollee:profiles!class_enrollments_user_id_fkey(display_name, role)"
+      )
+      .eq("class_id", id)
+      .order("created_at", { ascending: true });
+    roster = (rosterData ?? []).map((e) => ({
+      ...e,
+      enrollee: e.enrollee as unknown as Person | null,
+    }));
   }
 
   // Reviews, newest first, with each reviewer's profile embedded via the FK —
@@ -256,19 +281,71 @@ export default async function ClassDetailPage({
         </p>
       )}
 
-      <div className="mt-8 flex items-center gap-3">
-        <EnrollButton
-          classId={klass.id}
-          initialEnrolled={isEnrolled}
-          spotsLeft={spotsLeft}
-          size="lg"
-        />
-        <span className="text-sm text-muted-foreground">
-          {spotsLeft > 0
-            ? `${spotsLeft} of ${klass.capacity} spots left`
-            : "Class full"}
-        </span>
-      </div>
+      {/* The instructor can't enroll in their own class (RLS enforces it), so
+          they see who has enrolled in place of the Enroll button. */}
+      {isInstructor ? (
+        <section className="mt-8">
+          <h2 className="text-lg font-semibold">Roster</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {roster.length} of {klass.capacity} enrolled
+          </p>
+          {roster.length > 0 ? (
+            <ul className="mt-4 flex flex-col gap-4">
+              {roster.map((e) => {
+                const name = e.enrollee?.display_name || "A member";
+                return (
+                  <li key={e.user_id} className="flex items-center gap-3">
+                    <Avatar name={name} className="size-9" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm">
+                        <Link
+                          href={`/profile/${e.user_id}`}
+                          className="font-medium hover:underline"
+                        >
+                          {name}
+                        </Link>
+                        {e.enrollee?.role ? (
+                          <span className="text-muted-foreground">
+                            {" "}
+                            · {disciplineLabel(e.enrollee.role)}
+                          </span>
+                        ) : null}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Enrolled{" "}
+                        {new Date(e.created_at).toLocaleDateString(undefined, {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })}
+                      </p>
+                    </div>
+                    <MessageButton otherId={e.user_id} />
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <p className="mt-4 text-sm text-muted-foreground">
+              No one has enrolled yet.
+            </p>
+          )}
+        </section>
+      ) : (
+        <div className="mt-8 flex items-center gap-3">
+          <EnrollButton
+            classId={klass.id}
+            initialEnrolled={isEnrolled}
+            spotsLeft={spotsLeft}
+            size="lg"
+          />
+          <span className="text-sm text-muted-foreground">
+            {spotsLeft > 0
+              ? `${spotsLeft} of ${klass.capacity} spots left`
+              : "Class full"}
+          </span>
+        </div>
+      )}
 
       {/* Reviews. Section only exists when there's something to show: a list,
           or the composer (enrolled viewers only — RLS backs that gate up). */}
