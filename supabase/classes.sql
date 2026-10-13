@@ -145,6 +145,26 @@ create policy "Users read own enrollments"
   to authenticated
   using (user_id = auth.uid());
 
+-- The instructor reads every enrollment in a class they created (the roster on
+-- the class page). Enrollees still see only their own row via the policy above;
+-- policies are OR'd, so this only widens reads for the class's creator.
+--
+-- The inline subquery over public.classes can't recurse: no policy on
+-- public.classes (§3, the only place they're defined) reads class_enrollments.
+-- It runs under the caller's classes RLS, which is fine here — an instructor
+-- can always read their own class ("Authors read own classes").
+drop policy if exists "Instructors read enrollments in their classes" on public.class_enrollments;
+create policy "Instructors read enrollments in their classes"
+  on public.class_enrollments for select
+  to authenticated
+  using (
+    exists (
+      select 1 from public.classes c
+      where c.id = class_id
+        and c.created_by = auth.uid()
+    )
+  );
+
 -- The TRUE head-count for a class, for the capacity check below.
 --
 -- security definer is REQUIRED, and this is the whole reason the function
@@ -172,12 +192,15 @@ $$;
 
 grant execute on function public.class_seats_taken(uuid) to anon, authenticated;
 
--- Enroll as yourself, only into a PUBLISHED class, only as an APPROVED PRO, and
--- only while there's room. The capacity check lives HERE, not just in the action,
--- because the database is the only place a check-then-insert race can't slip
--- through: two concurrent enrolls both counting the last free seat can both pass
--- an app-level check, but the policy is evaluated per-row against the committed
--- table state.
+-- Enroll as yourself, only into a PUBLISHED class, only as an APPROVED PRO, only
+-- into a class you DIDN'T create, and only while there's room. Instructors can't
+-- enroll in their own class — and since enrollment is all class-reviews.sql
+-- requires to review, that's also what stops an instructor reviewing themselves.
+--
+-- The capacity check lives HERE, not just in the action, because the database
+-- is the only place a check-then-insert race can't slip through: two concurrent
+-- enrolls both counting the last free seat can both pass an app-level check,
+-- but the policy is evaluated per-row against the committed table state.
 --
 -- The class checks hang off ONE correlated subquery over public.classes (aliased
 -- c), deliberately. `class_id` here is the class_id of the row being inserted —
@@ -196,6 +219,7 @@ create policy "Approved pros enroll in published classes"
       select 1 from public.classes c
       where c.id = class_id
         and c.status = 'published'
+        and c.created_by <> auth.uid()
         and public.class_seats_taken(c.id) < c.capacity
     )
   );

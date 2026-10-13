@@ -21,6 +21,7 @@ import { signInAs, getProfileId } from "../helpers/auth";
 const FIXTURE_TITLE = "[TEST] Scene Study Fixture";
 const FIXTURE_CAPACITY = 2;
 const HIDDEN_TITLE = "[TEST] Hidden Pending Class";
+const DEMO_TITLE = "Scene Study Intensive"; // seeded, owned by OWNER, has enrollees
 
 const OWNER = "director-1"; // owns the published fixture (approved)
 const E1 = "actor-1"; // approved enrollees (non-owner)
@@ -32,34 +33,44 @@ const NON_APPROVED = "director-2"; // seed PENDING pro → is_approved_pro() is 
 
 let e1: SupabaseClient, e2: SupabaseClient, e3: SupabaseClient;
 let author: SupabaseClient, other: SupabaseClient, nonApproved: SupabaseClient;
+let owner: SupabaseClient;
 let e1Id: string, e2Id: string, e3Id: string, pendingAuthorId: string;
+let ownerId: string;
 
 let fixtureId: string;
 let hiddenClassId: string;
+let demoClassId: string;
 
-/** Each enrollee clears its own enrollment in the fixture (room + idempotency). */
+/**
+ * Each enrollee clears its own enrollment in the fixture (room + idempotency).
+ * The owner clears theirs too, in case (g) ever managed to self-enroll — the
+ * fixture must stay empty or the capacity test breaks.
+ */
 async function clearFixtureEnrollments() {
   await Promise.all([
     e1.from("class_enrollments").delete().eq("class_id", fixtureId).eq("user_id", e1Id),
     e2.from("class_enrollments").delete().eq("class_id", fixtureId).eq("user_id", e2Id),
     e3.from("class_enrollments").delete().eq("class_id", fixtureId).eq("user_id", e3Id),
+    owner.from("class_enrollments").delete().eq("class_id", fixtureId).eq("user_id", ownerId),
   ]);
 }
 
 beforeAll(async () => {
-  [e1, e2, e3, author, other, nonApproved] = await Promise.all([
+  [e1, e2, e3, author, other, nonApproved, owner] = await Promise.all([
     signInAs(E1),
     signInAs(E2),
     signInAs(E3),
     signInAs(PENDING_AUTHOR),
     signInAs(OTHER_PRO),
     signInAs(NON_APPROVED),
+    signInAs(OWNER),
   ]);
-  [e1Id, e2Id, e3Id, pendingAuthorId] = await Promise.all([
+  [e1Id, e2Id, e3Id, pendingAuthorId, ownerId] = await Promise.all([
     getProfileId(E1),
     getProfileId(E2),
     getProfileId(E3),
     getProfileId(PENDING_AUTHOR),
+    getProfileId(OWNER),
   ]);
 
   // The published fixture (visible to any approved pro because it's published).
@@ -77,6 +88,20 @@ beforeAll(async () => {
   }
   fixtureId = fixture.id as string;
   expect(fixture.capacity).toBe(FIXTURE_CAPACITY);
+
+  // The seeded demo class OWNER teaches, which has seeded enrollees (E1, E2, E3
+  // among them — see CLASS_ENROLLMENTS in scripts/seed.ts).
+  const { data: demo } = await owner
+    .from("classes")
+    .select("id")
+    .eq("title", DEMO_TITLE)
+    .eq("created_by", ownerId)
+    .eq("status", "published")
+    .maybeSingle();
+  if (!demo) {
+    throw new Error(`Missing seeded class "${DEMO_TITLE}". Run \`npm run seed\`.`);
+  }
+  demoClassId = demo.id as string;
 
   // Get-or-create the pending [TEST] class (append-only, so reuse across runs).
   const { data: existingHidden } = await author
@@ -183,5 +208,45 @@ describe("classes RLS", () => {
       .eq("id", hiddenClassId)
       .single();
     expect(after?.status).toBe("pending");
+  });
+
+  // (e) The instructor sees WHO enrolled in their class — every row, not only
+  // their own (they have none). Compared against the public head-count so the
+  // test holds even if real users have enrolled alongside the seed.
+  test("e) the instructor reads every enrollment on their class", async () => {
+    const { data: rows } = await owner
+      .from("class_enrollments")
+      .select("user_id")
+      .eq("class_id", demoClassId);
+    const { data: countRow } = await owner
+      .from("class_enrollment_counts")
+      .select("enrolled_count")
+      .eq("class_id", demoClassId)
+      .single();
+
+    const ids = (rows ?? []).map((r) => r.user_id as string);
+    expect(ids.length).toBe(Number(countRow?.enrolled_count));
+    expect(ids).toEqual(expect.arrayContaining([e1Id, e2Id, e3Id]));
+  });
+
+  // (f) An enrollee still sees only their own row on that class.
+  test("f) an enrollee reads only their own enrollment", async () => {
+    const { data: rows } = await e1
+      .from("class_enrollments")
+      .select("user_id")
+      .eq("class_id", demoClassId);
+    expect((rows ?? []).map((r) => r.user_id)).toEqual([e1Id]);
+  });
+
+  // (g) An instructor can't enroll in their own class (and so can't review it).
+  // Cleared first so the fixture has room — otherwise capacity, not ownership,
+  // would be what rejects the insert. A successful insert is removed by
+  // clearFixtureEnrollments() in afterAll.
+  test("g) the instructor cannot enroll in their own class", async () => {
+    await clearFixtureEnrollments();
+    const { error } = await owner
+      .from("class_enrollments")
+      .insert({ class_id: fixtureId, user_id: ownerId });
+    expect(error).not.toBeNull();
   });
 });
