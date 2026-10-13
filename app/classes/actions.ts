@@ -82,6 +82,17 @@ export async function toggleEnrollment(classId: string) {
       .eq("user_id", user.id);
     if (error) return { error: error.message };
   } else {
+    // RLS also rejects an instructor enrolling in their own class; checking
+    // first gives them the real reason instead of "This class is full."
+    const { data: klass } = await supabase
+      .from("classes")
+      .select("created_by")
+      .eq("id", classId)
+      .maybeSingle();
+    if (klass?.created_by === user.id) {
+      return { error: "You can't enroll in your own class." };
+    }
+
     const { error } = await supabase
       .from("class_enrollments")
       .insert({ class_id: classId, user_id: user.id });
