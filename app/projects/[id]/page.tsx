@@ -40,7 +40,6 @@ type ProjectRole = {
 type MyApplication = { id: string; status: string; role_id: string | null };
 type Applicant = Person & {
   id: string;
-  email: string | null;
   portfolio_files: string[] | null;
 };
 
@@ -213,10 +212,21 @@ async function ApplicantsList({ projectId }: { projectId: string }) {
   const { data: applications } = await supabase
     .from("applications")
     .select(
-      "id, note, status, created_at, role:project_roles(name), applicant:profiles!applications_applicant_id_fkey(id, display_name, role, email, portfolio_files)"
+      "id, note, status, created_at, role:project_roles(name), applicant:profiles!applications_applicant_id_fkey(id, display_name, role, portfolio_files)"
     )
     .eq("project_id", projectId)
     .order("created_at", { ascending: true });
+
+  // profiles.email isn't readable; the owner gets applicants' login emails
+  // from project_applicant_emails (supabase/profile-privacy.sql).
+  const { data: emailRows } = await supabase.rpc("project_applicant_emails", {
+    p_project_id: projectId,
+  });
+  const emailById = new Map<string, string>(
+    ((emailRows ?? []) as { applicant_id: string; email: string }[]).map(
+      (r) => [r.applicant_id, r.email]
+    )
+  );
 
   // Owner-only view: the "portfolios" bucket is PRIVATE, so mint short-lived
   // signed URLs for each applicant's files. Email + portfolios stay in here.
@@ -250,6 +260,7 @@ async function ApplicantsList({ projectId }: { projectId: string }) {
               const applicant = app.applicant as unknown as Applicant | null;
               const appliedRole = app.role as unknown as { name: string } | null;
               const files = filesByApp.get(app.id) ?? [];
+              const email = applicant?.id ? emailById.get(applicant.id) : undefined;
               return (
                 <li
                   key={app.id}
@@ -275,12 +286,12 @@ async function ApplicantsList({ projectId }: { projectId: string }) {
                       </span>
                     )}
                   </div>
-                  {applicant?.email && (
+                  {email && (
                     <a
-                      href={`mailto:${applicant.email}`}
+                      href={`mailto:${email}`}
                       className="mt-1 inline-block text-sm text-brand hover:underline"
                     >
-                      {applicant.email}
+                      {email}
                     </a>
                   )}
                   <p className="mt-1 text-sm text-muted-foreground">

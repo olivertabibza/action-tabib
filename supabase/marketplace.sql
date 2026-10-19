@@ -93,13 +93,8 @@ as $$
   );
 $$;
 
--- profiles: approved members may read other members' profiles. This is what
--- lets the cards/applicant lists show display_name + role. (The existing
--- "read your own profile" policy stays in place; policies are OR'd together.)
-drop policy if exists "Approved members can view profiles" on public.profiles;
-create policy "Approved members can view profiles"
-  on public.profiles for select
-  using (public.is_approved_pro());
+-- profiles: the "Approved members can view profiles" policy now lives in
+-- supabase/profile-privacy.sql (audit ENG F04).
 
 -- projects: approved members read OPEN projects; owners always read their own.
 drop policy if exists "Approved members read open projects" on public.projects;
