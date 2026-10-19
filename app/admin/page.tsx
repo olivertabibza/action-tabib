@@ -26,10 +26,22 @@ export default async function AdminApplicationsPage({
 
   const { data: applicants, error } = await supabase
     .from("profiles")
-    .select("id, display_name, role, headline, bio, email, portfolio_files")
+    .select("id, display_name, role, headline, bio, portfolio_files")
     .eq("account_type", "professional")
     .eq("application_status", status)
     .order("display_name");
+
+  // profiles.email isn't readable; admins get login emails from
+  // admin_profile_emails (supabase/profile-privacy.sql).
+  const { data: emailRows } = await supabase.rpc("admin_profile_emails", {
+    p_ids: (applicants ?? []).map((a) => a.id),
+  });
+  const emailById = new Map<string, string>(
+    ((emailRows ?? []) as { id: string; email: string }[]).map((r) => [
+      r.id,
+      r.email,
+    ])
+  );
 
   // Portfolio files live in a PRIVATE bucket; mint short-lived signed URLs.
   const filesByProfile = new Map<string, PortfolioFile[]>();
@@ -76,6 +88,7 @@ export default async function AdminApplicationsPage({
         <div className="flex flex-col gap-4">
           {applicants.map((a) => {
             const files = filesByProfile.get(a.id) ?? [];
+            const email = emailById.get(a.id);
             return (
               <Card key={a.id} className="p-2">
                 <CardContent className="flex flex-col gap-4 pt-6">
@@ -95,12 +108,12 @@ export default async function AdminApplicationsPage({
                     )}
                   </div>
 
-                  {a.email && (
+                  {email && (
                     <a
-                      href={`mailto:${a.email}`}
+                      href={`mailto:${email}`}
                       className="text-sm text-brand hover:underline"
                     >
-                      {a.email}
+                      {email}
                     </a>
                   )}
 

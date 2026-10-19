@@ -31,10 +31,12 @@ export default async function ProfilePage() {
     redirect("/login");
   }
 
-  // `select("*")` so the page keeps working even before the new columns exist.
+  // Explicit columns: profiles.email isn't readable (supabase/profile-privacy.sql).
   const { data: profile } = await supabase
     .from("profiles")
-    .select("*")
+    .select(
+      "account_type, application_status, portfolio_files, display_name, role, headline, bio, skills"
+    )
     .eq("id", user.id)
     .maybeSingle();
 
