@@ -16,6 +16,14 @@ A running log of significant decisions. Newest entries go at the top.
 
 ---
 
+## 2026-10-19 — The seed password comes only from SEED_PASSWORD, and has been rotated
+
+**Decision:** `scripts/seed.ts` no longer contains the seed accounts' shared password. It reads `SEED_PASSWORD` from the env (`.env.local` locally, the `SEED_PASSWORD` repo secret in CI), the same variable the tests already read, so it is the single source. The seed exits before any writes if it is missing or shorter than 20 characters. A new script, `npm run seed:rotate-passwords` (`scripts/rotate-seed-passwords.ts`), sets every `@actionseed.test` account except `seed-admin-1` to `SEED_PASSWORD` and then signs in as each one with the anon key and signs out globally, revoking every existing session. It inserts, updates and deletes no table data. `seed-admin-1` is skipped because it already has its own private `SEED_ADMIN_PASSWORD`.
+
+**Reasoning:** The repo is public and the shared password was committed in `scripts/seed.ts`, while the seed accounts are approved pros in the shared production Supabase project. Anyone reading GitHub could log in as one and act as an approved pro on the live site. The old value is still in git history, so removing it from the code is not enough: it had to be rotated, and existing sessions revoked, so the leaked value stops working.
+
+**Alternatives considered:** Rewriting git history to remove the value, rejected because the value has already been public and forks or clones may hold it; rotation is what actually closes the hole. Separating the seed accounts from production (a separate project or a disposable DB) is the real fix and is still open (audit ENG F02, F05).
+
 ## 2026-10-19 — Instructors can edit their own classes; edits to a published class go live without re-review
 
 **Decision:** Instructors can edit their own class while it is pending or published, from an "Edit class" button on the class page or an "Edit" link on `/classes`, at `/classes/<id>/edit`. The `updateClass` action sends only the form's columns, never `status` or `created_by`. **Edits to a published class go live right away, with no re-review:** the status guard (`content_guard_status()`) keeps the status unchanged on update, and an admin can still reject the class later. **Capacity can't drop below current enrollment:** `updateClass` reads `class_enrollment_counts` and refuses a lower capacity. This is an app check only; RLS does not enforce it. **Rejected classes can't be edited:** a rejected class can't be resubmitted, so the edit page redirects back to the class and the Edit button is hidden. **Enrolled students aren't notified of changes yet,** because no notifications exist. No SQL changed: "Authors update own classes" already allows the update. `tests/rls/classes.test.ts` (h) checks a non-author's update matches zero rows.

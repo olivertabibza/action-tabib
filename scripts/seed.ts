@@ -8,8 +8,8 @@
  * imported from anything under app/ or any client code.
  *
  * Safe to re-run: seed accounts are identified by the @actionseed.test email
- * pattern. Existing seed auth users are reused (password reset to the shared
- * one); seed-owned projects, events, and articles are deleted first (projects
+ * pattern. Existing seed auth users are reused (password reset to SEED_PASSWORD
+ * from the env); seed-owned projects, events, and articles are deleted first (projects
  * cascade their roles AND applications) before everything is re-inserted.
  * Seed-authored activity_events and the follow / connection edges between two
  * seed accounts are cleared and re-inserted too — but an edge where a REAL user
@@ -21,7 +21,6 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 // ── Config ──────────────────────────────────────────────────────────────────
 
 const SEED_DOMAIN = "actionseed.test";
-const SHARED_PASSWORD = "ActionSeed!2026";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SECRET_KEY =
@@ -39,6 +38,28 @@ if (!SUPABASE_URL || !SECRET_KEY) {
       "  SUPABASE_SECRET_KEY=sb_secret_...   (Dashboard → Project Settings → API keys)",
       "",
       "Use the secret/service-role key — NOT the publishable/anon key.",
+    ].join("\n")
+  );
+  process.exit(1);
+}
+
+// Every seed account except the admin signs in with SEED_PASSWORD — the same
+// variable the tests read, so it is the single source. Never committed: the repo
+// is public and the seed accounts are approved pros on the live site.
+const SEED_PASSWORD = process.env.SEED_PASSWORD?.trim() ?? "";
+const MIN_SEED_PASSWORD_LENGTH = 20;
+
+if (SEED_PASSWORD.length < MIN_SEED_PASSWORD_LENGTH) {
+  console.error(
+    [
+      SEED_PASSWORD
+        ? `SEED_PASSWORD is too short (needs at least ${MIN_SEED_PASSWORD_LENGTH} characters).`
+        : "Missing required env var SEED_PASSWORD.",
+      "",
+      "Set it in .env.local to a long random value, e.g. from:",
+      "  openssl rand -hex 20",
+      "",
+      "The seed script, npm run seed:rotate-passwords and the tests all read it.",
     ].join("\n")
   );
   process.exit(1);
@@ -181,7 +202,7 @@ const PROS: ProAccount[] = [
 ];
 
 // The seed admin (seed-admin-1@actionseed.test) signs in with its OWN password
-// from SEED_ADMIN_PASSWORD — never SHARED_PASSWORD. Seed accounts live in the
+// from SEED_ADMIN_PASSWORD — never SEED_PASSWORD. Seed accounts live in the
 // same Supabase project as real users, so a committed admin password would be a
 // real admin login. Unset → the admin is skipped (and its tests skip too).
 const ADMIN_KEY = "admin-1";
@@ -1298,7 +1319,7 @@ async function fetchSeedAuthUsers(): Promise<Map<string, string>> {
 async function ensureAuthUser(
   email: string,
   existing: Map<string, string>,
-  password: string = SHARED_PASSWORD
+  password: string = SEED_PASSWORD
 ): Promise<string> {
   const id = existing.get(email);
   if (id) {
@@ -1996,7 +2017,7 @@ async function main() {
 
   console.log("\nDone. ✅");
   console.log(`\n  Login email pattern:  seed-<role>-<n>@${SEED_DOMAIN}`);
-  console.log(`  Shared password:      ${SHARED_PASSWORD}`);
+  console.log(`  Shared password:      SEED_PASSWORD from .env.local`);
   console.log(`  Re-run any time:      npm run seed\n`);
 }
 

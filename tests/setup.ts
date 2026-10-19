@@ -61,7 +61,8 @@ if (missing.length > 0 || malformed.length > 0) {
       `Locally: add them to .env.local (see .env.local.example). ` +
       `In CI: set them as Repository secrets, referenced by the npm test step's ` +
       `env: block in .github/workflows/test.yml. ` +
-      `SEED_PASSWORD must match the shared seed password in scripts/seed.ts.`
+      `SEED_PASSWORD is the single source of the seed accounts' password ` +
+        `(scripts/seed.ts reads it too).`
   );
 }
 
