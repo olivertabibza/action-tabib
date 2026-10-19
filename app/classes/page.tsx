@@ -189,10 +189,10 @@ export default async function ClassesPage({
           </h2>
           <ul className="mt-3 flex flex-col gap-2">
             {submissions.map((s) => (
-              <li key={s.id}>
+              <li key={s.id} className="flex items-center gap-2">
                 <Link
                   href={`/classes/${s.id}`}
-                  className="flex items-center gap-3 rounded-lg border border-border bg-card px-3 py-2.5 transition-colors hover:border-brand"
+                  className="flex min-w-0 flex-1 items-center gap-3 rounded-lg border border-border bg-card px-3 py-2.5 transition-colors hover:border-brand"
                 >
                   <span className="min-w-0 flex-1 truncate text-sm font-medium">
                     {s.title}
@@ -208,6 +208,7 @@ export default async function ClassesPage({
                     {s.status}
                   </span>
                 </Link>
+                {s.status === "pending" && <EditLink classId={s.id} />}
               </li>
             ))}
           </ul>
@@ -223,6 +224,7 @@ export default async function ClassesPage({
             classes={teaching}
             nowIso={nowIso}
             enrolledByClass={enrolledByClass}
+            editable
           />
         </>
       )}
@@ -271,26 +273,39 @@ export default async function ClassesPage({
   );
 }
 
+/** "Edit" beside one of the viewer's own class rows (kept outside the row's
+ *  link, since links can't nest). */
+function EditLink({ classId }: { classId: string }) {
+  return (
+    <Button asChild size="sm" variant="ghost">
+      <Link href={`/classes/${classId}/edit`}>Edit</Link>
+    </Button>
+  );
+}
+
 /**
  * Compact rows for "You're teaching" / "You're enrolled in", in the same style
- * as "Your submissions". Pass `enrolledByClass` to show the head-count.
+ * as "Your submissions". Pass `enrolledByClass` to show the head-count, and
+ * `editable` to add an Edit link (the viewer's own classes only).
  */
 function MyClassList({
   classes,
   nowIso,
   enrolledByClass,
+  editable = false,
 }: {
   classes: MyClass[];
   nowIso: string;
   enrolledByClass?: Map<string, number>;
+  editable?: boolean;
 }) {
   return (
     <ul className="mt-3 flex flex-col gap-2">
       {classes.map((c) => (
-        <li key={c.id}>
+        <li key={c.id} className="flex items-center gap-2">
           <Link
             href={`/classes/${c.id}`}
-            className="flex items-center gap-3 rounded-lg border border-border bg-card px-3 py-2.5 transition-colors hover:border-brand"
+            className="flex min-w-0 flex-1 items-center gap-3 rounded-lg border border-border bg-card px-3 py-2.5 transition-colors hover:border-brand"
           >
             <span className="min-w-0 flex-1 truncate text-sm font-medium">
               {c.title}
@@ -306,6 +321,7 @@ function MyClassList({
               </span>
             )}
           </Link>
+          {editable && <EditLink classId={c.id} />}
         </li>
       ))}
     </ul>

@@ -50,6 +50,74 @@ export async function createClass(values: ClassFormValues) {
 }
 
 /**
+ * Edit a class the caller teaches. Only the form's columns are sent — never
+ * status or created_by — and the status guard keeps the status as it was, so a
+ * published class stays live. Date, time and price are converted exactly as in
+ * createClass. RLS ("Authors update own classes") silently matches zero rows
+ * for anyone but the author, so the update selects its id to detect that.
+ */
+export async function updateClass(classId: string, values: ClassFormValues) {
+  const parsed = classSchema.safeParse(values);
+  if (!parsed.success) {
+    return { error: "Please check the form and try again." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { error: "Your session has expired. Please log in again." };
+  }
+
+  const { date, time, price, ...rest } = parsed.data;
+  const starts = new Date(`${date}T${time}`);
+  if (Number.isNaN(starts.getTime())) {
+    return { error: "That date and time don't look right." };
+  }
+
+  // App-level check only: capacity can't drop below who's already enrolled.
+  const { data: countRow } = await supabase
+    .from("class_enrollment_counts")
+    .select("enrolled_count")
+    .eq("class_id", classId)
+    .maybeSingle();
+  const enrolled = Number(countRow?.enrolled_count ?? 0);
+  if (rest.capacity < enrolled) {
+    return {
+      error: `${enrolled} ${enrolled === 1 ? "person is" : "people are"} already enrolled, so capacity can't be lower than ${enrolled}.`,
+    };
+  }
+
+  const { data: updated, error } = await supabase
+    .from("classes")
+    .update({
+      title: rest.title,
+      description: rest.description,
+      discipline: rest.discipline,
+      format: rest.format,
+      level: rest.level,
+      venue: rest.venue,
+      price_cents: Math.round(price * 100),
+      capacity: rest.capacity,
+      starts_at: starts.toISOString(),
+    })
+    .eq("id", classId)
+    .select("id");
+
+  if (error) {
+    return { error: error.message };
+  }
+  if (!updated || updated.length === 0) {
+    return { error: "You can only edit your own classes." };
+  }
+
+  revalidatePath("/classes");
+  revalidatePath(`/classes/${classId}`);
+  redirect(`/classes/${classId}`);
+}
+
+/**
  * Toggle the caller's enrollment in a class. Logged-out visitors are sent to
  * /login. Otherwise we delete an existing enrollment or insert a new one, then
  * revalidate the detail page and the Classes tab. RLS enforces user_id =

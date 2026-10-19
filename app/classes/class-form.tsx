@@ -19,9 +19,17 @@ import {
   classFormatLabel,
 } from "@/lib/content";
 import { classSchema, type ClassFormValues } from "./schema";
-import { createClass } from "./actions";
+import { createClass, updateClass } from "./actions";
 
-export function ClassForm() {
+/**
+ * Create a class, or — when `edit` is passed — edit an existing one. Edit mode
+ * pre-fills the fields, saves through updateClass and cancels back to the class.
+ */
+export function ClassForm({
+  edit,
+}: {
+  edit?: { classId: string; initialValues: ClassFormValues };
+} = {}) {
   const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -32,7 +40,7 @@ export function ClassForm() {
     formState: { errors },
   } = useForm<ClassFormValues>({
     resolver: zodResolver(classSchema),
-    defaultValues: {
+    defaultValues: edit?.initialValues ?? {
       title: "",
       discipline: "any",
       format: "in_person",
@@ -49,9 +57,11 @@ export function ClassForm() {
   function onSubmit(values: ClassFormValues) {
     setServerError(null);
     startTransition(async () => {
-      // On success the action redirects to /classes, so control returns here
-      // only when something went wrong.
-      const result = await createClass(values);
+      // On success the action redirects (to /classes, or back to the class when
+      // editing), so control returns here only when something went wrong.
+      const result = edit
+        ? await updateClass(edit.classId, values)
+        : await createClass(values);
       if (result?.error) {
         setServerError(result.error);
       }
@@ -234,12 +244,20 @@ export function ClassForm() {
       <div className="flex items-center gap-3">
         <Button type="submit" disabled={pending}>
           {pending && <Loader2 className="size-4 animate-spin" />}
-          {pending ? "Submitting…" : "Submit for review"}
+          {edit
+            ? pending
+              ? "Saving…"
+              : "Save changes"
+            : pending
+              ? "Submitting…"
+              : "Submit for review"}
         </Button>
         <Button
           type="button"
           variant="ghost"
-          onClick={() => router.push("/classes")}
+          onClick={() =>
+            router.push(edit ? `/classes/${edit.classId}` : "/classes")
+          }
           disabled={pending}
         >
           Cancel

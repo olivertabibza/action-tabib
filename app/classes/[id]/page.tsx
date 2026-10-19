@@ -5,6 +5,7 @@ import {
   CalendarDays,
   Clock,
   MapPin,
+  Pencil,
   Signal,
   Star,
   Users,
@@ -15,6 +16,7 @@ import { disciplineLabel } from "@/lib/marketplace";
 import { classLevelLabel, classFormatLabel, formatPrice } from "@/lib/content";
 import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/Avatar";
+import { Button } from "@/components/ui/button";
 import { MessageButton } from "@/app/messages/message-button";
 import { EnrollButton } from "../enroll-button";
 import { ReviewComposer } from "../review-composer";
@@ -285,7 +287,18 @@ export default async function ClassDetailPage({
           they see who has enrolled in place of the Enroll button. */}
       {isInstructor ? (
         <section className="mt-8">
-          <h2 className="text-lg font-semibold">Roster</h2>
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-lg font-semibold">Roster</h2>
+            {/* A rejected class can't be resubmitted, so it can't be edited. */}
+            {klass.status !== "rejected" && (
+              <Button asChild size="sm" variant="outline">
+                <Link href={`/classes/${klass.id}/edit`}>
+                  <Pencil className="size-4" />
+                  Edit class
+                </Link>
+              </Button>
+            )}
+          </div>
           <p className="mt-1 text-sm text-muted-foreground">
             {roster.length} of {klass.capacity} enrolled
           </p>

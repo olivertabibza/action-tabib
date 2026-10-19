@@ -138,6 +138,12 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await clearFixtureEnrollments();
+  // If (h) ever managed to rename the demo class, put its title back.
+  await owner
+    .from("classes")
+    .update({ title: DEMO_TITLE })
+    .eq("id", demoClassId)
+    .neq("title", DEMO_TITLE);
 });
 
 describe("classes RLS", () => {
@@ -248,5 +254,24 @@ describe("classes RLS", () => {
       .from("class_enrollments")
       .insert({ class_id: fixtureId, user_id: ownerId });
     expect(error).not.toBeNull();
+  });
+
+  // (h) Only the author can edit a class: another approved pro's update matches
+  // zero rows under "Authors update own classes", and the title is unchanged.
+  test("h) a non-author cannot edit a class", async () => {
+    const { data: updated, error } = await e2
+      .from("classes")
+      .update({ title: "[TEST] Hijacked title" })
+      .eq("id", demoClassId)
+      .select("id");
+    expect(error).toBeNull();
+    expect(updated ?? []).toHaveLength(0);
+
+    const { data: after } = await owner
+      .from("classes")
+      .select("title")
+      .eq("id", demoClassId)
+      .single();
+    expect(after?.title).toBe(DEMO_TITLE);
   });
 });
