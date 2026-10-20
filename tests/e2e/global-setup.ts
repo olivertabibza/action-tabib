@@ -16,10 +16,6 @@ const DM_SENDER = "director-1";
 const STATE_DIR = "tests/e2e/.auth";
 const STATE_PATH = `${STATE_DIR}/state.json`;
 
-function canonical(x: string, y: string): [string, string] {
-  return x < y ? [x, y] : [y, x];
-}
-
 /** Fail loudly. Every write below is RLS-constrained, and a fixture that
  *  silently no-ops turns "the badge is broken" into "the test is flaky". */
 async function must<T extends { error: { message: string } | null }>(
@@ -44,45 +40,19 @@ async function ensureUnreadForBadge() {
   const recipient = await signInAs(SMOKE_USER);
   const senderId = await getProfileId(DM_SENDER);
   const recipientId = await getProfileId(SMOKE_USER);
-  const [user_a, user_b] = canonical(senderId, recipientId);
 
-  let { data: conv } = await sender
-    .from("conversations")
-    .select("id")
-    .eq("user_a", user_a)
-    .eq("user_b", user_b)
-    .maybeSingle();
-  if (!conv) {
-    const { data } = await must(
-      sender
-        .from("conversations")
-        .insert({ user_a, user_b })
-        .select("id")
-        .single(),
-      "create the badge conversation"
-    );
-    conv = data;
-  }
-  const convId = conv!.id as string;
-
-  // Seed each participant row with THAT user's own client. RLS lets either party
-  // INSERT both rows, but an upsert is an ON CONFLICT DO UPDATE and "Update own
-  // participant row" only ever permits your own — so a two-row upsert from one
-  // client is rejected outright. Both rows are accepted: the badge counts
-  // accepted chats only, never pending requests.
-  await must(
-    sender.from("conversation_participants").upsert(
-      { conversation_id: convId, user_id: senderId, accepted: true },
-      { onConflict: "conversation_id,user_id" }
-    ),
-    "seed the sender's participant row"
+  // Clients can't insert conversations or participant rows; open_conversation()
+  // (supabase/messages.sql) is the only way in. Calling it from EACH side makes
+  // both rows accepted however the thread started — it only ever sets the
+  // caller's own row — and the badge counts accepted chats only, never pending
+  // requests. The conversation is reused across runs (unique per pair).
+  const { data: convId } = await must(
+    sender.rpc("open_conversation", { p_other: recipientId }),
+    "open the badge conversation as the sender"
   );
   await must(
-    recipient.from("conversation_participants").upsert(
-      { conversation_id: convId, user_id: recipientId, accepted: true },
-      { onConflict: "conversation_id,user_id" }
-    ),
-    "seed the recipient's participant row"
+    recipient.rpc("open_conversation", { p_other: senderId }),
+    "open the badge conversation as the recipient"
   );
 
   // One probe message from the sender (guarded so it doesn't accumulate). Both

@@ -3,8 +3,9 @@
 -- ----------------------------------------------------------------------------
 -- Safe to run more than once (everything uses IF NOT EXISTS / drop-then-create).
 --
--- Run this ONCE in the Supabase SQL editor, AFTER social-feed.sql (it reuses
--- public.is_following() and public.is_approved_pro(), so those must exist).
+-- Run this in the Supabase SQL editor, AFTER social-feed.sql and connections.sql
+-- (it reuses public.is_approved_pro() and public.profile_is_approved_pro(), so
+-- those must exist).
 --
 -- Messages are PROFESSIONAL-ONLY and NEVER public: no anon grant anywhere.
 --
@@ -14,7 +15,12 @@
 -- accepted = false). The recipient Accepts (flip their row to true) or Ignores
 -- (DELETE their row). FREE PASS: if the recipient already FOLLOWS the sender,
 -- their row starts accepted = true and the thread opens straight in Chats — the
--- follow graph IS the spam filter (public.is_following()).
+-- follow graph IS the spam filter.
+--
+-- THREADS ARE CREATED BY ONE FUNCTION. Clients can't insert conversations or
+-- participant rows at all; public.open_conversation() (§6) does both, atomically,
+-- and computes the recipient's `accepted` itself. Clients can update only
+-- `accepted` and `last_read_at` on their own participant row (audit ENG F03/F07).
 --
 -- As everywhere else, elevated access comes from RLS + security-definer helpers,
 -- NOT the service-role / secret key. No code under app/ uses the secret key.
@@ -26,8 +32,8 @@
 -- user_a is ALWAYS the lexicographically smaller uuid (check user_a < user_b),
 -- so a pair maps to exactly ONE row and (A,B) / (B,A) can't both exist (unique).
 -- EVERY caller MUST normalise the pair to (min, max) before insert OR lookup —
--- the app does this in openConversation() (app/messages/actions.ts). Get this
--- wrong and you'll silently create duplicate threads for the same two people.
+-- open_conversation() (§6) does this with least()/greatest(), and it is the only
+-- thing that inserts here.
 create table if not exists public.conversations (
   id         uuid primary key default gen_random_uuid(),
   user_a     uuid not null references public.profiles (id) on delete cascade,
@@ -40,9 +46,10 @@ create table if not exists public.conversations (
 
 
 -- ── 2. conversation_participants ────────────────────────────────────────────
--- Two rows per conversation, one per side. `accepted` is PER PARTICIPANT: the
--- sender's row is true from the start; the recipient's is false (cold DM →
--- Requests) UNLESS they already follow the sender (free pass → true → Chats).
+-- Two rows per conversation, one per side, both inserted by open_conversation()
+-- (§6). `accepted` is PER PARTICIPANT: the sender's row is true from the start;
+-- the recipient's is false (cold DM → Requests) UNLESS they already follow the
+-- sender (free pass → true → Chats).
 -- `last_read_at` (null = never read) drives the unread badge. "Ignore" DELETES
 -- the recipient's own row here (see the messages insert policy for how that then
 -- blocks the sender).
@@ -102,8 +109,18 @@ alter table public.messages                  enable row level security;
 
 -- Authenticated ONLY on every table — messages are never public, so anon gets
 -- no grant and no policy anywhere.
-grant select, insert on public.conversations to authenticated;
-grant select, insert, update, delete on public.conversation_participants to authenticated;
+--
+-- NO client INSERT on conversations or conversation_participants: only
+-- open_conversation() (§6) creates them. The revokes are explicit because
+-- Supabase's default privileges grant everything to anon/authenticated on new
+-- tables. UPDATE on participants is column-level: Accept (accepted) and
+-- read-receipts (last_read_at) only — never conversation_id or user_id, so a row
+-- can't be moved into another thread or handed to someone else.
+revoke insert on public.conversations             from anon, authenticated;
+revoke insert, update on public.conversation_participants from anon, authenticated;
+grant select on public.conversations to authenticated;
+grant select, delete on public.conversation_participants to authenticated;
+grant update (accepted, last_read_at) on public.conversation_participants to authenticated;
 grant select, insert on public.messages to authenticated;
 
 
@@ -115,17 +132,9 @@ create policy "Read own conversations"
   to authenticated
   using (user_a = auth.uid() or user_b = auth.uid());
 
--- Start a conversation you're a party to (approved pros only).
+-- (No INSERT policy: open_conversation() creates conversations. No
+-- UPDATE/DELETE: the pair row is immutable once created.)
 drop policy if exists "Approved pros create own conversations" on public.conversations;
-create policy "Approved pros create own conversations"
-  on public.conversations for insert
-  to authenticated
-  with check (
-    public.is_approved_pro()
-    and (user_a = auth.uid() or user_b = auth.uid())
-  );
-
--- (No UPDATE/DELETE: the pair row is immutable once created.)
 
 
 -- conversation_participants ──────────────────────────────────────────────────
@@ -137,28 +146,14 @@ create policy "Read participants of own conversations"
   to authenticated
   using (public.in_conversation(conversation_id));
 
--- Insert participant rows for a conversation you're a party to. Deliberately
--- keyed off CONVERSATIONS membership (user_a/user_b), NOT in_conversation():
--- when a thread is first opened the caller inserts BOTH rows (their own AND the
--- other side's), and at that instant no participant row exists yet — using
--- in_conversation() here would deadlock the very first insert. Checking the
--- conversations pair lets a party seed both sides. (This is why the SELECT
--- policy uses in_conversation but this one does not.)
+-- (No INSERT policy: open_conversation() seeds participant rows. A client
+-- insert policy let a party add a third person, insert the recipient's row
+-- already accepted, or re-create a row the recipient had deleted with Ignore.)
 drop policy if exists "Party seeds participants" on public.conversation_participants;
-create policy "Party seeds participants"
-  on public.conversation_participants for insert
-  to authenticated
-  with check (
-    public.is_approved_pro()
-    and exists (
-      select 1 from public.conversations c
-      where c.id = conversation_id
-        and (c.user_a = auth.uid() or c.user_b = auth.uid())
-    )
-  );
 
 -- Update ONLY your own row — this is how Accept (accepted = true) and
--- read-receipts (last_read_at) work. You can never flip the other side's state.
+-- read-receipts (last_read_at) work. You can never flip the other side's state,
+-- and the column grant in §5 limits it to those two columns.
 drop policy if exists "Update own participant row" on public.conversation_participants;
 create policy "Update own participant row"
   on public.conversation_participants for update
@@ -220,3 +215,107 @@ create policy "Send into own un-ignored conversations"
   );
 
 -- (No UPDATE/DELETE: messages are an immutable log, like activity_events.)
+
+
+-- ── 6. open_conversation(): the only way a thread is created ────────────────
+-- Open (or start) the thread between the caller and p_other; returns its id.
+-- Runs as the function owner so it can insert both tables (clients can't) and
+-- read the other person's follows. One function call = one transaction, so a
+-- thread is never half-created, and two people opening at once both land on the
+-- same row (the unique pair + ON CONFLICT DO NOTHING; the loser re-selects it).
+--
+-- Participant seeding has two cases, and the split is what makes Ignore stick:
+--   - NEW conversation: insert BOTH rows in one statement. Mine = accepted.
+--     Theirs = accepted ONLY if they already follow me (follower_id = them,
+--     following_id = me) — the free pass; otherwise the DM lands in Requests.
+--   - EXISTING conversation: upsert only MY OWN row (accepted = true). The other
+--     side's row is never created or changed — so a recipient re-opening a
+--     thread they'd ignored re-creates THEIR row (history intact), but an
+--     ignored SENDER re-opening can NOT resurrect the recipient's deleted row.
+create or replace function public.open_conversation(p_other uuid)
+returns uuid
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_me   uuid := auth.uid();
+  v_conv uuid;
+begin
+  if not public.is_approved_pro() then
+    raise exception 'Only approved professionals can message.';
+  end if;
+  if p_other is null then
+    raise exception 'Choose someone to message.';
+  end if;
+  if p_other = v_me then
+    raise exception 'You can''t message yourself.';
+  end if;
+  if not public.profile_is_approved_pro(p_other) then
+    raise exception 'You can only message approved professionals.';
+  end if;
+
+  insert into public.conversations (user_a, user_b)
+  values (least(v_me, p_other), greatest(v_me, p_other))
+  on conflict (user_a, user_b) do nothing
+  returning id into v_conv;
+
+  if v_conv is not null then
+    insert into public.conversation_participants (conversation_id, user_id, accepted)
+    values
+      (v_conv, v_me, true),
+      (v_conv, p_other, exists (
+        select 1 from public.follows f
+        where f.follower_id = p_other
+          and f.following_id = v_me
+      ));
+  else
+    select c.id into v_conv
+    from public.conversations c
+    where c.user_a = least(v_me, p_other)
+      and c.user_b = greatest(v_me, p_other);
+
+    insert into public.conversation_participants (conversation_id, user_id, accepted)
+    values (v_conv, v_me, true)
+    on conflict (conversation_id, user_id) do update set accepted = true;
+  end if;
+
+  return v_conv;
+end;
+$$;
+
+revoke execute on function public.open_conversation(uuid) from public, anon;
+grant execute on function public.open_conversation(uuid) to authenticated;
+
+
+-- ── 7. reset_seed_conversation(): TEST-ONLY ─────────────────────────────────
+-- Used by tests/rls/messages.test.ts to start each run from a fresh thread,
+-- since clients can no longer insert or reset participant rows themselves.
+-- TEMPORARY: goes away with the separate test database (roadmap Step 2e).
+--
+-- Why it's safe on the shared database: it deletes ONLY the one conversation
+-- between the caller and p_other (participants and messages cascade), and ONLY
+-- when BOTH people's login emails (auth.users, which users can't edit through
+-- the API) end in '@actionseed.test' — i.e. both are seed accounts. For anyone
+-- else it does nothing. It can't be called with the anon key.
+create or replace function public.reset_seed_conversation(p_other uuid)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if (
+    select count(*) from auth.users u
+    where u.id in (auth.uid(), p_other)
+      and u.email like '%@actionseed.test'
+  ) = 2 then
+    delete from public.conversations c
+    where c.user_a = least(auth.uid(), p_other)
+      and c.user_b = greatest(auth.uid(), p_other);
+  end if;
+end;
+$$;
+
+revoke execute on function public.reset_seed_conversation(uuid) from public, anon;
+grant execute on function public.reset_seed_conversation(uuid) to authenticated;

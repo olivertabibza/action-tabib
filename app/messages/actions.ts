@@ -38,85 +38,32 @@ async function requireApprovedPro(supabase: ServerClient) {
  * Open (or start) the thread between the caller and otherUserId, returning its
  * conversation id — the page then redirects to /messages/[id].
  *
- * The pair is normalised to canonical (user_a < user_b) order before any lookup
- * or insert (see supabase/messages.sql — the whole model depends on it).
- *
- * Participant seeding has two cases, and the split is what makes Ignore stick:
- *   - NEW conversation: seed BOTH rows. Mine = accepted. Theirs = accepted ONLY
- *     if they already follow me (the free pass) — otherwise the cold DM lands in
- *     their Requests. "They follow me" = a follows row (follower = them,
- *     following = me).
- *   - EXISTING conversation: only ensure MY OWN row (accepted = true). We never
- *     touch the other side — so a recipient re-opening a thread they'd ignored
- *     re-creates THEIR row (history intact), but an ignored SENDER re-opening
- *     can NOT resurrect the recipient's deleted row.
+ * All the work is one DB call: public.open_conversation() (supabase/messages.sql)
+ * normalises the pair, creates the conversation and participant rows atomically,
+ * computes the recipient's free pass from the follow graph, and never re-creates
+ * a row the other side removed with Ignore. Clients can't insert either table
+ * directly. The checks here only exist to give friendly messages; the function
+ * enforces them again, and any refusal it raises surfaces as a neutral error.
  */
 export async function openConversation(otherUserId: string) {
   const supabase = await createClient();
   const auth = await requireApprovedPro(supabase);
   if ("error" in auth) return auth;
-  const me = auth.user.id;
 
-  if (otherUserId === me) {
+  if (otherUserId === auth.user.id) {
     return { error: "You can't message yourself." };
   }
 
-  const [user_a, user_b] = me < otherUserId ? [me, otherUserId] : [otherUserId, me];
-
-  const { data: existing } = await supabase
-    .from("conversations")
-    .select("id")
-    .eq("user_a", user_a)
-    .eq("user_b", user_b)
-    .maybeSingle();
-
-  let conversationId: string;
-
-  if (existing) {
-    conversationId = existing.id as string;
-    // Ensure only my own row (re-creates it if I'd ignored this thread before).
-    const { error } = await supabase
-      .from("conversation_participants")
-      .upsert(
-        { conversation_id: conversationId, user_id: me, accepted: true },
-        { onConflict: "conversation_id,user_id" }
-      );
-    if (error) return { error: error.message };
-  } else {
-    const { data: created, error: convErr } = await supabase
-      .from("conversations")
-      .insert({ user_a, user_b })
-      .select("id")
-      .single();
-    if (convErr || !created) {
-      return { error: convErr?.message ?? "Couldn't start the conversation." };
-    }
-    conversationId = created.id as string;
-
-    // Free pass: does the OTHER person already follow ME? If so their row starts
-    // accepted (straight to Chats); otherwise it's a cold DM (their Requests).
-    const { data: theyFollowMe } = await supabase
-      .from("follows")
-      .select("follower_id")
-      .eq("follower_id", otherUserId)
-      .eq("following_id", me)
-      .maybeSingle();
-
-    const { error: partErr } = await supabase
-      .from("conversation_participants")
-      .insert([
-        { conversation_id: conversationId, user_id: me, accepted: true },
-        {
-          conversation_id: conversationId,
-          user_id: otherUserId,
-          accepted: !!theyFollowMe,
-        },
-      ]);
-    if (partErr) return { error: partErr.message };
+  const { data: conversationId, error } = await supabase.rpc(
+    "open_conversation",
+    { p_other: otherUserId }
+  );
+  if (error || !conversationId) {
+    return { error: "You can't message this person right now." };
   }
 
   revalidatePath("/messages");
-  return { conversationId };
+  return { conversationId: conversationId as string };
 }
 
 /**
