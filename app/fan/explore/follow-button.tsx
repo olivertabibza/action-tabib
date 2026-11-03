@@ -24,34 +24,55 @@ export function FanFollowButton({
   const [following, setFollowing] = useState(initialFollowing);
   const [pending, startTransition] = useTransition();
 
+  // Shown under the button when a follow/unfollow fails, so it never fails
+  // silently (the button would just snap back with no explanation).
+  const [error, setError] = useState<string | null>(null);
+
   function toggle() {
+    setError(null);
+    const failed = following
+      ? "Couldn't unfollow. Try again."
+      : "Couldn't follow. Try again.";
     startTransition(async () => {
-      const result = following
-        ? await unfollowPro(targetId)
-        : await followPro(targetId);
-      if (!result.error) {
+      try {
+        const result = following
+          ? await unfollowPro(targetId)
+          : await followPro(targetId);
+        if (result.error) {
+          setError(failed);
+          return;
+        }
         setFollowing((v) => !v);
         router.refresh();
+      } catch {
+        setError(failed);
       }
     });
   }
 
   return (
-    <Button
-      type="button"
-      size="sm"
-      variant={following ? "outline" : "default"}
-      onClick={toggle}
-      disabled={pending}
-    >
-      {pending ? (
-        <Loader2 className="size-3.5 animate-spin" />
-      ) : following ? (
-        <Check className="size-3.5" />
-      ) : (
-        <Plus className="size-3.5" />
+    <div className="flex flex-col gap-1">
+      <Button
+        type="button"
+        size="sm"
+        variant={following ? "outline" : "default"}
+        onClick={toggle}
+        disabled={pending}
+      >
+        {pending ? (
+          <Loader2 className="size-3.5 animate-spin" />
+        ) : following ? (
+          <Check className="size-3.5" />
+        ) : (
+          <Plus className="size-3.5" />
+        )}
+        {following ? "Following" : "Follow"}
+      </Button>
+      {error && (
+        <p role="alert" className="text-xs text-destructive">
+          {error}
+        </p>
       )}
-      {following ? "Following" : "Follow"}
-    </Button>
+    </div>
   );
 }
