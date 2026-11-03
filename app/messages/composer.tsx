@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, SendHorizontal } from "lucide-react";
 
@@ -13,25 +13,43 @@ import { sendMessage } from "./actions";
  * the box and refreshes so the new message (and read state) re-render. A rejected
  * send (e.g. the recipient ignored the thread) surfaces the action's neutral
  * error — it never reveals that you were ignored.
+ *
+ * Send guard: only one send at a time (a ref, because `pending` from the
+ * transition isn't true yet on a fast double Enter). The box clears as soon as a
+ * send starts, so anything typed while it's in flight is a new draft that the
+ * send never touches. If the send fails, the unsent text comes back (ahead of
+ * any new draft) so nothing is lost.
  */
 export function Composer({ conversationId }: { conversationId: string }) {
   const router = useRouter();
   const [body, setBody] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const sending = useRef(false);
 
   function submit() {
     const trimmed = body.trim();
-    if (!trimmed) return;
+    if (!trimmed || sending.current) return;
+    sending.current = true;
+    setBody("");
     setError(null);
+    const restoreUnsent = () =>
+      setBody((draft) => (draft.trim() ? `${trimmed}\n${draft}` : trimmed));
     startTransition(async () => {
-      const result = await sendMessage(conversationId, trimmed);
-      if (result?.error) {
-        setError(result.error);
-        return;
+      try {
+        const result = await sendMessage(conversationId, trimmed);
+        if (result?.error) {
+          setError(result.error);
+          restoreUnsent();
+          return;
+        }
+        router.refresh();
+      } catch {
+        setError("Couldn't send. Check your connection and try again.");
+        restoreUnsent();
+      } finally {
+        sending.current = false;
       }
-      setBody("");
-      router.refresh();
     });
   }
 
