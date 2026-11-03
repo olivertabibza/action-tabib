@@ -86,7 +86,9 @@ export default async function PeoplePage() {
                     {c.headline}
                   </p>
                 )}
-                <div className="flex items-center gap-2">
+                {/* Wraps instead of overflowing: the card clips its contents,
+                    so a row wider than the card would cut "Message" off. */}
+                <div className="flex flex-wrap items-center gap-2">
                   <FollowButton
                     targetId={c.id}
                     initialFollowing={followingSet.has(c.id)}
