@@ -71,28 +71,6 @@ const features: { icon: LucideIcon; title: string; blurb: string }[] = [
   },
 ];
 
-// Static placeholder content for the events row — NOT real data yet. (The
-// articles section fetches real published rows; see the query in Home.)
-const sampleEvents: {
-  month: string;
-  day: string;
-  title: string;
-  venue: string;
-}[] = [
-  {
-    month: "JUN",
-    day: "12",
-    title: "Indie Shorts Night + Q&A",
-    venue: "Echo Park Film Center",
-  },
-  {
-    month: "JUN",
-    day: "20",
-    title: "Filmmaker Talk: making a debut feature",
-    venue: "Virtual",
-  },
-];
-
 export default async function Home() {
   const supabase = await createClient();
   const {
@@ -125,6 +103,26 @@ export default async function Home() {
     ...a,
     author: a.author as unknown as { display_name: string | null } | null,
   }));
+
+  // Happening soon: the next 2 published events that haven't started yet. Same
+  // anon read as the articles above; the section hides when there are none.
+  const { data: eventData } = await supabase
+    .from("events")
+    .select("id, title, venue, starts_at")
+    .eq("status", "published")
+    .gte("starts_at", new Date().toISOString())
+    .order("starts_at", { ascending: true })
+    .limit(2);
+  const upcomingEvents = (eventData ?? []).map((e) => {
+    const d = new Date(e.starts_at);
+    return {
+      id: e.id,
+      title: e.title,
+      venue: e.venue,
+      month: d.toLocaleDateString(undefined, { month: "short" }).toUpperCase(),
+      day: d.toLocaleDateString(undefined, { day: "numeric" }),
+    };
+  });
 
   return (
     <main className="flex-1">
@@ -208,7 +206,7 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* A peek inside — static discovery preview (placeholder content) */}
+      {/* A peek inside — real published articles and upcoming events */}
       <section className="border-t border-border">
         <div className="mx-auto w-full max-w-6xl px-4 py-20 sm:px-6 sm:py-28">
           <div className="mx-auto max-w-3xl text-center">
@@ -257,29 +255,33 @@ export default async function Home() {
           )}
 
           {/* Happening soon */}
-          <h3 className="mt-12 text-sm font-semibold tracking-wide text-muted-foreground uppercase">
-            Happening soon
-          </h3>
-          <div className="mt-5 grid gap-6 sm:grid-cols-2">
-            {sampleEvents.map(({ month, day, title, venue }) => (
-              <Card key={title} className="h-full p-2">
-                <CardContent className="flex items-center gap-4">
-                  <span className="flex size-14 shrink-0 flex-col items-center justify-center rounded-lg bg-brand/10 text-brand">
-                    <span className="text-[0.65rem] font-semibold tracking-wide uppercase">
-                      {month}
-                    </span>
-                    <span className="text-xl leading-none font-bold">{day}</span>
-                  </span>
-                  <div>
-                    <p className="text-base font-semibold leading-snug">
-                      {title}
-                    </p>
-                    <p className="mt-1 text-sm text-muted-foreground">{venue}</p>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+          {upcomingEvents.length > 0 && (
+            <>
+              <h3 className="mt-12 text-sm font-semibold tracking-wide text-muted-foreground uppercase">
+                Happening soon
+              </h3>
+              <div className="mt-5 grid gap-6 sm:grid-cols-2">
+                {upcomingEvents.map(({ id, month, day, title, venue }) => (
+                  <Card key={id} className="h-full p-2">
+                    <CardContent className="flex items-center gap-4">
+                      <span className="flex size-14 shrink-0 flex-col items-center justify-center rounded-lg bg-brand/10 text-brand">
+                        <span className="text-[0.65rem] font-semibold tracking-wide uppercase">
+                          {month}
+                        </span>
+                        <span className="text-xl leading-none font-bold">{day}</span>
+                      </span>
+                      <div>
+                        <p className="text-base font-semibold leading-snug">
+                          {title}
+                        </p>
+                        <p className="mt-1 text-sm text-muted-foreground">{venue}</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </>
+          )}
 
           {/* Engagement hook — stands in for the future content gate */}
           <div className="mt-12 flex flex-col items-center justify-center gap-3 sm:flex-row">
