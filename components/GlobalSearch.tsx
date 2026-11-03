@@ -80,11 +80,19 @@ export function GlobalSearch({
     const timer = setTimeout(() => {
       const id = ++requestId.current;
       startTransition(async () => {
-        const { results: rows, error } = await globalSearch(term);
-        if (id !== requestId.current) return;
-        setResults(rows);
-        setSearchedTerm(term);
-        setSearchError(error ?? null);
+        try {
+          const { results: rows, error } = await globalSearch(term);
+          if (id !== requestId.current) return;
+          setResults(rows);
+          setSearchedTerm(term);
+          setSearchError(error ?? null);
+        } catch {
+          // The request itself failed (e.g. offline): say so, keep the page.
+          if (id !== requestId.current) return;
+          setResults([]);
+          setSearchedTerm(term);
+          setSearchError("Search failed. Check your connection and try again.");
+        }
       });
     }, 250);
 
