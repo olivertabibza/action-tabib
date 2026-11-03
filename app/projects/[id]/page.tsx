@@ -427,6 +427,18 @@ function RolesCard({
 
 /* ── Non-owner: apply / already applied / closed ───────────────────────── */
 
+// Shown under "You've applied…" so applicants can find all their applications.
+function MyApplicationsLink() {
+  return (
+    <Link
+      href="/projects/mine"
+      className="mt-2 inline-block text-sm font-medium text-brand hover:underline"
+    >
+      See all your applications in My projects
+    </Link>
+  );
+}
+
 async function ApplicantView({
   projectId,
   isOpen,
@@ -457,6 +469,7 @@ async function ApplicantView({
             <p className="mt-1 text-sm text-muted-foreground">
               The poster will be in touch.
             </p>
+            <MyApplicationsLink />
           </div>
         </div>
       );
@@ -498,6 +511,7 @@ async function ApplicantView({
             Status: {titleCase(wholeApplication.status)}. The poster will be in
             touch.
           </p>
+          <MyApplicationsLink />
         </div>
       </div>
     );

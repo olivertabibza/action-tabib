@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { FolderPlus, Plus, Star } from "lucide-react";
+import { FolderOpen, FolderPlus, Plus, Star } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
@@ -231,6 +231,14 @@ export default async function ProjectsPage({
               strokeWidth={1.5}
             />
             Saved ({savedIds.size})
+          </Link>
+          {/* Your applications and postings live on /projects/mine. */}
+          <Link
+            href="/projects/mine"
+            className="focus-ring flex items-center gap-1.5 rounded-pill border-[1.5px] border-accent px-[18px] py-3 text-sm font-semibold text-accent-text transition-colors hover:bg-accent-tint"
+          >
+            <FolderOpen className="size-4" strokeWidth={1.5} />
+            My projects
           </Link>
           <Link
             href="/projects/new"
