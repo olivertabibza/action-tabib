@@ -50,9 +50,9 @@ type Submission = {
 export default async function ExplorePage({
   searchParams,
 }: {
-  searchParams: Promise<{ submitted?: string }>;
+  searchParams: Promise<{ submitted?: string; search?: string }>;
 }) {
-  const { submitted } = await searchParams;
+  const { submitted, search } = await searchParams;
   const supabase = await createClient();
   const nowIso = new Date().toISOString();
   const {
@@ -150,7 +150,8 @@ export default async function ExplorePage({
 
       <GlobalSearch
         className="mt-4"
-        placeholder="Search projects, classes, people…"
+        placeholder="Search people, projects, classes…"
+        autoFocus={search === "1"}
       />
 
       {submitted && (

@@ -116,14 +116,15 @@ export function ProShell({
             <Wordmark />
           </Link>
 
-          {/* Search pill → Explore (the Pro search surface). */}
+          {/* Search pill → Explore with its search box focused, so it behaves like
+              the input it looks like. Its text matches what search covers. */}
           <Link
-            href="/explore"
+            href="/explore?search=1"
             className="focus-ring hidden w-[286px] items-center gap-[9px] rounded-full border border-border-hairline bg-surface-sunken px-[15px] py-2.5 lg:flex"
           >
             <Search className="size-[17px] text-text-tertiary" strokeWidth={1.5} />
             <span className="text-sm text-text-tertiary">
-              Search pros, projects, classes
+              Search people, projects, classes
             </span>
           </Link>
 

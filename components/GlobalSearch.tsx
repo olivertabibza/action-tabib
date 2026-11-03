@@ -40,9 +40,13 @@ const GROUPS: {
 export function GlobalSearch({
   placeholder = "Search…",
   className,
+  autoFocus = false,
 }: {
   placeholder?: string;
   className?: string;
+  /** True when arriving from the header search pill, so the box is ready to
+   *  type into instead of needing a second click. */
+  autoFocus?: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
@@ -96,6 +100,7 @@ export function GlobalSearch({
           onChange={(e) => setQuery(e.target.value)}
           placeholder={placeholder}
           aria-label={placeholder}
+          autoFocus={autoFocus}
           className="pl-9"
         />
         {pending && (

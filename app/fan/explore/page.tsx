@@ -41,7 +41,12 @@ type ArticleRow = {
   author: { display_name: string | null } | null;
 };
 
-export default async function FanExplorePage() {
+export default async function FanExplorePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ search?: string }>;
+}) {
+  const { search } = await searchParams;
   const supabase = await createClient();
   const nowIso = new Date().toISOString();
   const {
@@ -105,7 +110,11 @@ export default async function FanExplorePage() {
         Follow filmmakers and read what&rsquo;s happening in indie film.
       </p>
 
-      <GlobalSearch className="mt-4" placeholder="Search films & filmmakers…" />
+      <GlobalSearch
+        className="mt-4"
+        placeholder="Search creators, events, articles…"
+        autoFocus={search === "1"}
+      />
 
       {/* Filmmakers to follow (LIVE) */}
       <h2 className="mt-8 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
