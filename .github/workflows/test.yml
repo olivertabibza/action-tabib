@@ -19,6 +19,9 @@ jobs:
 
       - run: npm ci
 
+      # Errors fail the build; warnings don't.
+      - run: npm run lint
+
       - run: npm run build
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}

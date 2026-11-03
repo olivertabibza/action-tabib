@@ -60,15 +60,22 @@ export function GlobalSearch({
   // overwrite the results of a later one.
   const requestId = useRef(0);
 
-  useEffect(() => {
-    const term = query.trim();
-    if (term.length < 2) {
+  // Clearing below 2 characters resets here, in the change handler, rather than
+  // in the effect below (setState inside an effect is a lint error, and an extra
+  // render).
+  function handleChange(value: string) {
+    setQuery(value);
+    if (value.trim().length < 2) {
       requestId.current += 1; // invalidate anything in flight
       setResults([]);
       setSearchedTerm("");
       setSearchError(null);
-      return;
     }
+  }
+
+  useEffect(() => {
+    const term = query.trim();
+    if (term.length < 2) return;
 
     const timer = setTimeout(() => {
       const id = ++requestId.current;
@@ -97,7 +104,7 @@ export function GlobalSearch({
         <Input
           type="search"
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={(e) => handleChange(e.target.value)}
           placeholder={placeholder}
           aria-label={placeholder}
           autoFocus={autoFocus}
