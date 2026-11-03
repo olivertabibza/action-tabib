@@ -42,7 +42,7 @@ export function ArticleGateCard() {
       <div className="mx-auto mt-6 flex max-w-md flex-col gap-4">
         <div>
           <Button asChild className="w-full">
-            <Link href="/signup?type=fan">Join as a Consumer</Link>
+            <Link href="/signup?type=fan">Join as a Fan</Link>
           </Button>
           <p className="mt-1.5 text-xs text-muted-foreground">
             Open access — news, events, and rising filmmakers to follow.

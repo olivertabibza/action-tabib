@@ -150,7 +150,7 @@ export default async function Home() {
               variant="outline"
               className="h-12 w-full px-8 text-base sm:w-auto"
             >
-              <Link href="/signup?type=fan">Join as a Consumer</Link>
+              <Link href="/signup?type=fan">Join as a Fan</Link>
             </Button>
           </div>
         </div>
@@ -173,7 +173,7 @@ export default async function Home() {
 
           <Card className="p-2">
             <CardHeader>
-              <CardTitle className="text-xl">For Consumers</CardTitle>
+              <CardTitle className="text-xl">For Fans</CardTitle>
               <CardAction>
                 <Tag>Open Access</Tag>
               </CardAction>

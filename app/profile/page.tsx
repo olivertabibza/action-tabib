@@ -16,7 +16,7 @@ import { ProfileTabs } from "./profile-tabs";
 
 function accountLabel(accountType: string | null | undefined) {
   if (accountType === "professional") return "Industry Professional";
-  if (accountType === "consumer") return "Consumer";
+  if (accountType === "consumer") return "Fan";
   return "Member";
 }
 

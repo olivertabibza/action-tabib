@@ -86,7 +86,7 @@ export default function ForCreatorsPage() {
               variant="ghost"
               className="h-12 w-full px-8 text-base sm:w-auto"
             >
-              <Link href="/for-fans">Just here to watch? Join as a Consumer</Link>
+              <Link href="/for-fans">Just here to watch? Join as a Fan</Link>
             </Button>
           </div>
         </div>
@@ -156,7 +156,7 @@ export default function ForCreatorsPage() {
               variant="ghost"
               className="h-12 w-full px-8 text-base sm:w-auto"
             >
-              <Link href="/for-fans">Just here to watch? Join as a Consumer</Link>
+              <Link href="/for-fans">Just here to watch? Join as a Fan</Link>
             </Button>
           </div>
         </div>

@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 
 const loggedOutLinks = [
   { href: "/for-creators", label: "For Industry Professionals" },
-  { href: "/for-fans", label: "For Consumers" },
+  { href: "/for-fans", label: "For Fans" },
   { href: "/login", label: "Log in" },
 ];
 

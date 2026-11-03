@@ -62,7 +62,7 @@ export default function ForFansPage() {
               size="lg"
               className="h-12 w-full px-8 text-base sm:w-auto"
             >
-              <Link href="/signup?type=fan">Join as a Consumer</Link>
+              <Link href="/signup?type=fan">Join as a Fan</Link>
             </Button>
             <Button
               asChild
@@ -131,7 +131,7 @@ export default function ForFansPage() {
               size="lg"
               className="h-12 w-full px-8 text-base sm:w-auto"
             >
-              <Link href="/signup?type=fan">Join as a Consumer</Link>
+              <Link href="/signup?type=fan">Join as a Fan</Link>
             </Button>
             <Button
               asChild
