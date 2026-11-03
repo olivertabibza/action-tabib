@@ -112,28 +112,33 @@ export function GlobalSearch({
                 {label}
               </h3>
               <ul className="mt-2 flex flex-col gap-2">
-                {rows.map((r) => (
-                  <li key={`${r.kind}-${r.id}`}>
-                    <Link
-                      href={href(r.id)}
-                      className="flex items-center gap-3 rounded-lg border border-border bg-card px-3 py-2.5 transition-colors hover:border-brand"
-                    >
-                      {r.kind === "profile" && (
-                        <Avatar name={r.title} className="size-8 text-xs" />
-                      )}
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-semibold">
-                          {r.title}
-                        </span>
-                        {r.subtitle && (
-                          <span className="block truncate text-xs text-muted-foreground">
-                            {r.subtitle}
-                          </span>
+                {rows.map((r) => {
+                  // global_search() returns '' for a profile with no name yet.
+                  const title =
+                    r.title || (r.kind === "profile" ? "Unnamed creator" : "Untitled");
+                  return (
+                    <li key={`${r.kind}-${r.id}`}>
+                      <Link
+                        href={href(r.id)}
+                        className="flex items-center gap-3 rounded-lg border border-border bg-card px-3 py-2.5 transition-colors hover:border-brand"
+                      >
+                        {r.kind === "profile" && (
+                          <Avatar name={r.title} className="size-8 text-xs" />
                         )}
-                      </span>
-                    </Link>
-                  </li>
-                ))}
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm font-semibold">
+                            {title}
+                          </span>
+                          {r.subtitle && (
+                            <span className="block truncate text-xs text-muted-foreground">
+                              {r.subtitle}
+                            </span>
+                          )}
+                        </span>
+                      </Link>
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           );

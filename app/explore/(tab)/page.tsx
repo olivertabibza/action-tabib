@@ -101,6 +101,7 @@ export default async function ExplorePage({
       .select("id, display_name, role")
       .eq("account_type", "professional")
       .eq("application_status", "approved")
+      .eq("is_admin", false)
       .not("id", "in", `(${excluded.join(",")})`)
       .order("display_name", { nullsFirst: false })
       .limit(6);

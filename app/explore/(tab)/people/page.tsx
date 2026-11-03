@@ -26,12 +26,13 @@ export default async function PeoplePage() {
   }
 
   // Other approved professionals (RLS lets approved pros read all profiles).
-  // Consumers and the current user are excluded.
+  // Fans, staff admins and the current user are excluded.
   const { data: creators, error } = await supabase
     .from("profiles")
     .select("id, display_name, role, headline")
     .eq("account_type", "professional")
     .eq("application_status", "approved")
+    .eq("is_admin", false)
     .neq("id", user.id)
     .order("display_name", { nullsFirst: false });
 
