@@ -101,7 +101,7 @@
   --on-accent: #ffffff;
   --text-primary: #121821;
   --text-secondary: #4a5666;
-  --text-tertiary: #7c8797;
+  --text-tertiary: #636e7d; /* 4.57:1 on --ground, 5.18:1 on white (was #7c8797, 3.64:1) */
   --avatar-fill: #dee4ec;
   --success: #1f7a4d;
   --success-bg: #e6f3ec;
@@ -159,7 +159,7 @@
   --on-accent: #0a0d13;
   --text-primary: #e9eef6;
   --text-secondary: #aab6c6;
-  --text-tertiary: #78859a;
+  --text-tertiary: #7c889d; /* 4.52:1 on --surface-sunken (was #78859a, 4.33:1) */
   --avatar-fill: #28303c;
   --success: #5fcf97;
   --success-bg: rgba(45, 168, 110, 0.16);
