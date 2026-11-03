@@ -51,11 +51,14 @@ export default async function FanExplorePage() {
   // Approved pros to follow. Consumers can't read the profiles table directly
   // (RLS), so we read the public_profiles view, which exposes only public-safe
   // columns for approved pros.
-  const { data: creatorData } = await supabase
+  const { data: creatorData, error: creatorError } = await supabase
     .from("public_profiles")
     .select("id, display_name, role, headline")
     .order("display_name", { nullsFirst: false })
     .limit(12);
+  // Failed loads go to app/fan/error.tsx, not the empty states.
+  if (creatorError)
+    throw new Error(`Creators load failed: ${creatorError.message}`);
   const creators = (creatorData ?? []) as CreatorRow[];
 
   // Who this fan already follows, so each card shows the right state.
@@ -70,23 +73,26 @@ export default async function FanExplorePage() {
   );
 
   // A short strip of upcoming published events.
-  const { data: eventData } = await supabase
+  const { data: eventData, error: eventError } = await supabase
     .from("events")
     .select("id, title, venue, event_type, starts_at")
     .eq("status", "published")
     .gte("starts_at", nowIso)
     .order("starts_at", { ascending: true })
     .limit(3);
+  if (eventError) throw new Error(`Events load failed: ${eventError.message}`);
   const events = (eventData ?? []) as EventRow[];
 
   // Published articles, newest first, with the author's name.
-  const { data: articleData } = await supabase
+  const { data: articleData, error: articleError } = await supabase
     .from("articles")
     .select(
       "id, title, category, excerpt, created_at, author:profiles!articles_created_by_fkey(display_name)"
     )
     .eq("status", "published")
     .order("created_at", { ascending: false });
+  if (articleError)
+    throw new Error(`Articles load failed: ${articleError.message}`);
   const articles = (articleData ?? []).map((a) => ({
     ...a,
     author: a.author as unknown as { display_name: string | null } | null,

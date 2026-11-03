@@ -17,22 +17,27 @@ export default async function MyProjectsPage() {
   }
 
   // Projects I posted, with an applicant count via an embedded aggregate.
-  const { data: posted } = await supabase
+  const { data: posted, error: postedError } = await supabase
     .from("projects")
     .select(
       "id, title, disciplines, location, compensation, status, created_at, applications(count)"
     )
     .eq("created_by", user.id)
     .order("created_at", { ascending: false });
+  // Failed loads go to app/projects/error.tsx rather than reading as
+  // "You haven't posted any projects yet."
+  if (postedError) throw new Error(`My projects load failed: ${postedError.message}`);
 
   // Projects I applied to, with the project embedded.
-  const { data: applied } = await supabase
+  const { data: applied, error: appliedError } = await supabase
     .from("applications")
     .select(
       "id, status, created_at, project:projects(id, title, disciplines, location, compensation, status)"
     )
     .eq("applicant_id", user.id)
     .order("created_at", { ascending: false });
+  if (appliedError)
+    throw new Error(`My applications load failed: ${appliedError.message}`);
 
   return (
     <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-12 sm:px-6 sm:py-16">

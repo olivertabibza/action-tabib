@@ -49,6 +49,8 @@ export function GlobalSearch({
   // The term the current `results` belong to — drives the empty state so we
   // don't flash "No results" against a stale or half-typed query.
   const [searchedTerm, setSearchedTerm] = useState("");
+  // Set when the search itself failed, so we say so instead of "No results".
+  const [searchError, setSearchError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   // Monotonic request id: a slow response from an earlier keystroke must not
   // overwrite the results of a later one.
@@ -60,16 +62,18 @@ export function GlobalSearch({
       requestId.current += 1; // invalidate anything in flight
       setResults([]);
       setSearchedTerm("");
+      setSearchError(null);
       return;
     }
 
     const timer = setTimeout(() => {
       const id = ++requestId.current;
       startTransition(async () => {
-        const { results: rows } = await globalSearch(term);
+        const { results: rows, error } = await globalSearch(term);
         if (id !== requestId.current) return;
         setResults(rows);
         setSearchedTerm(term);
+        setSearchError(error ?? null);
       });
     }, 250);
 
@@ -77,7 +81,10 @@ export function GlobalSearch({
   }, [query]);
 
   const showEmpty =
-    !pending && searchedTerm.length >= 2 && results.length === 0;
+    !pending &&
+    !searchError &&
+    searchedTerm.length >= 2 &&
+    results.length === 0;
 
   return (
     <div className={cn("flex flex-col", className)}>
@@ -95,6 +102,12 @@ export function GlobalSearch({
           <Loader2 className="absolute right-3 top-1/2 size-4 -translate-y-1/2 animate-spin text-muted-foreground" />
         )}
       </div>
+
+      {!pending && searchError && (
+        <p role="alert" className="mt-3 text-sm text-destructive">
+          {searchError}
+        </p>
+      )}
 
       {showEmpty && (
         <p className="mt-3 text-sm text-muted-foreground">

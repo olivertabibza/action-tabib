@@ -61,23 +61,27 @@ export default async function ExplorePage({
 
   // Published, upcoming events — soonest first. RLS exposes published rows to
   // everyone, so a normal server query is all that's needed.
-  const { data: eventData } = await supabase
+  const { data: eventData, error: eventError } = await supabase
     .from("events")
     .select("id, title, venue, event_type, starts_at")
     .eq("status", "published")
     .gte("starts_at", nowIso)
     .order("starts_at", { ascending: true });
+  // Failed loads go to app/explore/(tab)/error.tsx, not the empty states.
+  if (eventError) throw new Error(`Events load failed: ${eventError.message}`);
   const events = (eventData ?? []) as EventRow[];
 
   // Published articles — newest first, with the author's name via a profiles
   // join (same shape as the dashboard feed).
-  const { data: articleData } = await supabase
+  const { data: articleData, error: articleError } = await supabase
     .from("articles")
     .select(
       "id, title, category, excerpt, created_at, author:profiles!articles_created_by_fkey(display_name)"
     )
     .eq("status", "published")
     .order("created_at", { ascending: false });
+  if (articleError)
+    throw new Error(`Articles load failed: ${articleError.message}`);
   const articles = (articleData ?? []).map((a) => ({
     ...a,
     author: a.author as unknown as { display_name: string | null } | null,

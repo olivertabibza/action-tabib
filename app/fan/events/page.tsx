@@ -25,12 +25,14 @@ export default async function FanEventsPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { data: eventData } = await supabase
+  const { data: eventData, error: eventError } = await supabase
     .from("events")
     .select("id, title, venue, event_type, starts_at")
     .eq("status", "published")
     .gte("starts_at", nowIso)
     .order("starts_at", { ascending: true });
+  // A failed load goes to app/fan/error.tsx, not the "no events" state.
+  if (eventError) throw new Error(`Events load failed: ${eventError.message}`);
   const events = (eventData ?? []) as EventRow[];
 
   // Which of these events the viewer has already RSVPed to (one query).

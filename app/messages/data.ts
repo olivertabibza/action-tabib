@@ -17,7 +17,12 @@ export type Inbox = {
   chats: ConversationSummary[];
   requests: ConversationSummary[];
   unreadChats: number;
+  /** Set when the inbox couldn't be loaded, so the page doesn't show an empty
+   *  inbox ("No messages yet") for what is really a failed load. */
+  error?: string;
 };
+
+const INBOX_ERROR = "Couldn't load your messages. Refresh to try again.";
 
 /**
  * Build the current user's inbox in one place — reused by the Messages list, and
@@ -34,10 +39,14 @@ export async function getInbox(
 ): Promise<Inbox> {
   // My side of every conversation I'm in: accepted (Chats vs Requests) + read
   // cursor. RLS scopes this to my own participant rows.
-  const { data: myRows } = await supabase
+  const { data: myRows, error: myRowsError } = await supabase
     .from("conversation_participants")
     .select("conversation_id, accepted, last_read_at")
     .eq("user_id", userId);
+  if (myRowsError) {
+    console.error("getInbox: participant rows failed:", myRowsError);
+    return { chats: [], requests: [], unreadChats: 0, error: INBOX_ERROR };
+  }
 
   const mine = myRows ?? [];
   if (mine.length === 0) return { chats: [], requests: [], unreadChats: 0 };
@@ -46,11 +55,15 @@ export async function getInbox(
 
   // The other party in each of those conversations (RLS lets me read participant
   // rows for conversations I'm in).
-  const { data: otherRows } = await supabase
+  const { data: otherRows, error: otherRowsError } = await supabase
     .from("conversation_participants")
     .select("conversation_id, user_id")
     .in("conversation_id", convIds)
     .neq("user_id", userId);
+  if (otherRowsError) {
+    console.error("getInbox: other participants failed:", otherRowsError);
+    return { chats: [], requests: [], unreadChats: 0, error: INBOX_ERROR };
+  }
   const otherByConv = new Map<string, string>();
   for (const r of otherRows ?? [])
     otherByConv.set(r.conversation_id as string, r.user_id as string);
@@ -69,11 +82,15 @@ export async function getInbox(
 
   // All messages in my conversations, newest first; reduce to the last one per
   // conversation.
-  const { data: msgs } = await supabase
+  const { data: msgs, error: msgsError } = await supabase
     .from("messages")
     .select("conversation_id, sender_id, body, created_at")
     .in("conversation_id", convIds)
     .order("created_at", { ascending: false });
+  if (msgsError) {
+    console.error("getInbox: messages failed:", msgsError);
+    return { chats: [], requests: [], unreadChats: 0, error: INBOX_ERROR };
+  }
   const lastByConv = new Map<
     string,
     { sender_id: string; body: string; created_at: string }

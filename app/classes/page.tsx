@@ -69,7 +69,7 @@ export default async function ClassesPage({
 
   // Published, upcoming classes — soonest first. RLS exposes published rows, so
   // a normal server query is all that's needed.
-  const { data: classData } = await supabase
+  const { data: classData, error: classError } = await supabase
     .from("classes")
     .select(
       "id, title, discipline, format, level, venue, price_cents, capacity, starts_at, instructor:profiles!classes_created_by_fkey(display_name)"
@@ -77,6 +77,8 @@ export default async function ClassesPage({
     .eq("status", "published")
     .gte("starts_at", nowIso)
     .order("starts_at", { ascending: true });
+  // A failed load goes to app/classes/error.tsx, not the "no classes" state.
+  if (classError) throw new Error(`Classes load failed: ${classError.message}`);
   const classes = (classData ?? []).map((c) => ({
     ...c,
     instructor: c.instructor as unknown as { display_name: string | null } | null,

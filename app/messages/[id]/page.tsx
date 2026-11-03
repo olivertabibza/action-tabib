@@ -31,23 +31,26 @@ export default async function ThreadPage({
   // The pair — RLS only returns it if I'm a party. Gives me the other party's id
   // even if THEY ignored (deleted their participant row); I can still read the
   // history, I just can't send (the DB blocks that).
-  const { data: conv } = await supabase
+  const { data: conv, error: convError } = await supabase
     .from("conversations")
     .select("user_a, user_b")
     .eq("id", id)
     .maybeSingle();
+  // A failed load goes to the error boundary (app/messages/error.tsx), not 404.
+  if (convError) throw new Error(`Thread load failed: ${convError.message}`);
   if (!conv) {
     notFound();
   }
 
   // My own participant row. Missing = I ignored this thread (or was never in it)
   // → it isn't mine to view.
-  const { data: mine } = await supabase
+  const { data: mine, error: mineError } = await supabase
     .from("conversation_participants")
     .select("accepted")
     .eq("conversation_id", id)
     .eq("user_id", user.id)
     .maybeSingle();
+  if (mineError) throw new Error(`Thread load failed: ${mineError.message}`);
   if (!mine) {
     notFound();
   }
@@ -62,11 +65,14 @@ export default async function ThreadPage({
     .maybeSingle();
   const otherName = other?.display_name || "A member";
 
-  const { data: messages } = await supabase
+  const { data: messages, error: messagesError } = await supabase
     .from("messages")
     .select("id, sender_id, body, created_at")
     .eq("conversation_id", id)
     .order("created_at", { ascending: true });
+  // Otherwise a failed load would read as "No messages yet. Say hello."
+  if (messagesError)
+    throw new Error(`Thread load failed: ${messagesError.message}`);
 
   return (
     <main className="flex h-[calc(100dvh-1px)] flex-1 flex-col px-4 py-4 md:h-screen">

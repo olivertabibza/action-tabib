@@ -37,7 +37,7 @@ export default async function MessagesPage({
     redirect("/login");
   }
 
-  const { chats, requests } = await getInbox(supabase, user.id);
+  const { chats, requests, error } = await getInbox(supabase, user.id);
   const active = tab === "requests" ? "requests" : "chats";
   const rows = active === "requests" ? requests : chats;
 
@@ -56,7 +56,14 @@ export default async function MessagesPage({
         />
       </div>
 
-      {rows.length > 0 ? (
+      {error ? (
+        <p
+          role="alert"
+          className="mt-4 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive"
+        >
+          {error}
+        </p>
+      ) : rows.length > 0 ? (
         <ul className="mt-4 flex flex-col divide-y divide-border">
           {rows.map((r) => (
             <ConversationRow key={r.conversationId} row={r} />
