@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { ExternalLink, FileText } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
+import { LogoutButton } from "@/components/LogoutButton";
 import {
   Card,
   CardContent,
@@ -169,6 +170,13 @@ export default async function ProfilePage() {
           </Card>
         )}
       </div>
+
+      {/* Phone only, approved pros only: ProShell's header hides Log out below
+          `sm` and the bottom tab bar has no room for it (same pattern as the
+          fan Profile page). Everyone else here gets SiteNav, which has its own. */}
+      {isApprovedPro && (
+        <LogoutButton className="mt-8 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-border px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50 sm:hidden" />
+      )}
     </main>
   );
 }
