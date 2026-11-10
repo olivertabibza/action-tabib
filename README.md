@@ -267,6 +267,13 @@ source of truth.
 or `psql "$TEST_DB_URL" -v ON_ERROR_STOP=1 -f supabase/<file>.sql`), run
 `npm test` until it passes, and only then run it on production.
 
+Two folders are exceptions:
+
+- `supabase/test-only/` is applied **only** to the test project. It holds
+  helpers the tests need that must never exist on production.
+- `supabase/one-off/` holds one-time production scripts, such as the
+  2026-11-10 cleanup. Each one says in its header where it may run.
+
 ---
 
 ## Documentation
