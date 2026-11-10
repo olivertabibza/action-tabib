@@ -298,7 +298,7 @@ export default async function Home() {
               size="lg"
               className="h-12 w-full px-8 text-base sm:w-auto"
             >
-              <Link href="/login">Already a member? Sign in</Link>
+              <Link href="/login">Already a member? Log in</Link>
             </Button>
           </div>
         </div>
@@ -306,21 +306,8 @@ export default async function Home() {
 
       {/* Footer */}
       <footer className="border-t border-border">
-        <div className="mx-auto flex w-full max-w-6xl flex-col items-center justify-between gap-4 px-4 py-8 text-sm text-muted-foreground sm:flex-row sm:px-6">
-          <div className="flex flex-col items-center gap-2 sm:flex-row sm:gap-3">
-            <span>© 2026 Action</span>
-            <span className="rounded-full border border-border px-2.5 py-0.5 text-xs">
-              Working title — coming soon
-            </span>
-          </div>
-          <a
-            href="https://action-web-kappa.vercel.app"
-            className="font-medium text-foreground transition-colors hover:text-brand"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            View business plan →
-          </a>
+        <div className="mx-auto flex w-full max-w-6xl justify-center px-4 py-8 text-sm text-muted-foreground sm:justify-start sm:px-6">
+          <span>© 2026 Action</span>
         </div>
       </footer>
     </main>
