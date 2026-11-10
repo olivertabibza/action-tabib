@@ -10,6 +10,7 @@ import { articleCategoryLabel } from "@/lib/content";
 import { Avatar } from "@/components/Avatar";
 import { SaveButton } from "../../saved/save-button";
 import { ArticleGateCard, FreeArticleBanner } from "../meter";
+import { MeterStamp } from "../meter-stamp";
 
 // PUBLIC page — no shell, no auth redirect. Published articles are open-access
 // (RLS exposes published rows to anon), so logged-out fans can read them. We
@@ -68,10 +69,12 @@ export default async function ArticleDetailPage({
       fallbackLabel = "Back to Explore";
     }
   }
-  const { href: backHref, label: backLabel } = await resolveBackLink(
-    `/explore/articles/${id}`,
-    { href: fallbackHref, label: fallbackLabel }
-  );
+  // A logged-out visitor always goes back to the landing page: the referer can
+  // be a members-only page (or /login), which would send them to log in (UX B-28).
+  const fallback = { href: fallbackHref, label: fallbackLabel };
+  const { href: backHref, label: backLabel } = user
+    ? await resolveBackLink(`/explore/articles/${id}`, fallback)
+    : fallback;
 
   const { data: article } = await supabase
     .from("articles")
@@ -114,12 +117,11 @@ export default async function ArticleDetailPage({
     initialSaved = !!mySave;
   }
 
-  // Article meter (logged-out readers only): proxy.ts stamps the FIRST article
-  // an anon visitor opens into the `article_meter` cookie. That article stays
-  // fully readable on every visit; any other id gets a server-side teaser and
-  // the gate. A missing cookie means this IS the first view (the proxy set it
-  // on this very request), so it's the free article. Logged-in viewers never
-  // gate.
+  // Article meter (logged-out readers only): MeterStamp records the FIRST
+  // article a visitor opens in the `article_meter` cookie (stampArticleMeter).
+  // That article stays fully readable on every visit; any other id gets a
+  // server-side teaser and the gate. A missing cookie means this IS the first
+  // view, so it's the free article. Logged-in viewers never gate.
   let isFreeArticle = false;
   let gated = false;
   if (!user) {
@@ -163,15 +165,23 @@ export default async function ArticleDetailPage({
           </p>
           <p className="text-muted-foreground">{published}</p>
         </div>
-        <SaveButton
-          itemType="article"
-          itemId={article.id}
-          initialSaved={initialSaved}
-          loggedIn={!!user}
-        />
+        {/* Visitors have nowhere to save to; Save only sent them to log in. */}
+        {user && (
+          <SaveButton
+            itemType="article"
+            itemId={article.id}
+            initialSaved={initialSaved}
+            loggedIn
+          />
+        )}
       </div>
 
-      {isFreeArticle && <FreeArticleBanner />}
+      {isFreeArticle && (
+        <>
+          <MeterStamp articleId={article.id} />
+          <FreeArticleBanner />
+        </>
+      )}
 
       {gated ? (
         <>
