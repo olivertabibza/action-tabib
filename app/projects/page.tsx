@@ -80,15 +80,22 @@ export default async function ProjectsPage({
   // set must reach `.in("id", [])` and render the empty state — never fall
   // through to "every project".
   let roleFilteredIds: string[] | null = null;
-  if (params.gender || params.age) {
+  const band = AGE_BANDS.find((b) => b.value === params.age);
+  const roleFiltersOn = Boolean(params.gender || band);
+  // The same test in JS, so each card's rail and the results bar show only the
+  // roles that match (UX B-08), not every role of a matching project. A role
+  // open to any gender matches every gender filter.
+  const roleMatches = (r: RoleRow) =>
+    (!params.gender || r.gender === params.gender || r.gender === "any") &&
+    (!band || ((r.age_min ?? 0) <= band.max && (r.age_max ?? 200) >= band.min));
+  if (roleFiltersOn) {
     let roleQuery = supabase
       .from("project_roles")
       .select("project_id")
       .eq("status", "open");
     if (params.gender) {
-      roleQuery = roleQuery.eq("gender", params.gender);
+      roleQuery = roleQuery.in("gender", [params.gender, "any"]);
     }
-    const band = AGE_BANDS.find((b) => b.value === params.age);
     if (band) {
       // Range overlap, with a null bound meaning "unbounded on that side".
       roleQuery = roleQuery
@@ -159,12 +166,15 @@ export default async function ProjectsPage({
       .in("project_id", allIds)
       .eq("status", "open")
       .order("sort_order", { ascending: true });
-    for (const role of (roleRows ?? []) as RoleRow[]) {
+    const shownRoles = ((roleRows ?? []) as RoleRow[]).filter(
+      (r) => !roleFiltersOn || roleMatches(r)
+    );
+    for (const role of shownRoles) {
       const list = rolesByProject.get(role.project_id);
       if (list) list.push(role);
       else rolesByProject.set(role.project_id, [role]);
     }
-    totalRoles = roleRows?.length ?? 0;
+    totalRoles = shownRoles.length;
   }
 
   // ── Circle counts (ONE batched RPC) and the caller's role applications ───
