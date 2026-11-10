@@ -121,7 +121,7 @@ export function SaveButton({
   }
 
   return (
-    <div className="inline-flex flex-col gap-1">
+    <div className="inline-flex flex-col items-start gap-1">
       <Button
         type="button"
         variant={saved ? "outline" : "default"}

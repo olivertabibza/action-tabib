@@ -51,7 +51,7 @@ export function FanFollowButton({
   }
 
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex flex-col items-start gap-1">
       <Button
         type="button"
         size="sm"

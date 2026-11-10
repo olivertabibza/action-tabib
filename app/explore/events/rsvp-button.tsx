@@ -69,7 +69,7 @@ export function RsvpButton({
       : rsvpCount + (rsvped ? 1 : 0) - (initialRsvped ? 1 : 0);
 
   return (
-    <div className="inline-flex flex-col gap-1">
+    <div className="inline-flex flex-col items-start gap-1">
       <div className="inline-flex items-center gap-3">
         <Button
           type="button"
