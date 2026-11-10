@@ -6,6 +6,7 @@ import Link from "next/link";
 
 import { createClient } from "@/lib/supabase/server";
 import { Avatar } from "@/components/Avatar";
+import { AvatarUploader } from "@/components/AvatarUploader";
 import { FanNameForm } from "./name-form";
 import { LogoutButton } from "@/components/LogoutButton";
 
@@ -48,7 +49,7 @@ export default async function FanProfilePage() {
   const { data: profile } = user
     ? await supabase
         .from("profiles")
-        .select("display_name")
+        .select("display_name, avatar_path")
         .eq("id", user.id)
         .maybeSingle()
     : { data: null };
@@ -126,7 +127,15 @@ export default async function FanProfilePage() {
     <main className="flex flex-1 flex-col px-4 py-6">
       {/* Identity header */}
       <div className="flex flex-col items-start gap-3">
-        <Avatar name={savedName ?? "?"} className="size-20 text-2xl" />
+        {user ? (
+          <AvatarUploader
+            userId={user.id}
+            name={savedName}
+            photoPath={profile?.avatar_path ?? null}
+          />
+        ) : (
+          <Avatar name={savedName ?? "?"} className="size-20 text-2xl" />
+        )}
         <div className="flex items-center gap-2">
           <h1 className="text-2xl font-bold tracking-tight">
             {savedName ?? "Your profile"}

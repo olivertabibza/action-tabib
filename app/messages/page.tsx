@@ -133,7 +133,7 @@ function ConversationRow({ row }: { row: ConversationSummary }) {
     <li className="py-3">
       <div className="flex items-start gap-3">
         <Link href={`/messages/${row.conversationId}`} className="shrink-0">
-          <Avatar name={name} />
+          <Avatar name={name} photoPath={row.otherAvatarPath} />
         </Link>
         <Link
           href={`/messages/${row.conversationId}`}

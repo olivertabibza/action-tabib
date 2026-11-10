@@ -175,7 +175,11 @@ export default async function ArticleDetailPage({
       </h1>
 
       <div className="mt-5 flex items-center gap-3">
-        <Avatar name={authorName} className="size-9" />
+        <Avatar
+          name={authorName}
+          photoPath={author?.avatar_path}
+          className="size-9"
+        />
         <div className="min-w-0 flex-1 text-sm">
           <p className="font-medium">
             {authorName}

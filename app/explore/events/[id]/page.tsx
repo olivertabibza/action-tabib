@@ -182,7 +182,11 @@ export default async function EventDetailPage({
       </div>
 
       <div className="mt-6 flex items-center gap-3">
-        <Avatar name={hostName} className="size-9" />
+        <Avatar
+          name={hostName}
+          photoPath={host?.avatar_path}
+          className="size-9"
+        />
         <p className="text-sm">
           <span className="text-muted-foreground">Hosted by </span>
           <span className="font-medium">{hostName}</span>

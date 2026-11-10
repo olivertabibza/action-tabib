@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { resolveBackLink } from "@/lib/back-link";
 import { signedPortfolioUrls } from "@/lib/portfolio";
 import { disciplineLabel } from "@/lib/marketplace";
+import { Avatar } from "@/components/Avatar";
 import { MessageButton } from "@/app/messages/message-button";
 import { FollowButton } from "@/app/explore/(tab)/people/follow-button";
 import { FanFollowButton } from "@/app/fan/explore/follow-button";
@@ -55,7 +56,9 @@ export default async function PublicProfilePage({
   const supabase = await createClient();
   const { data: profile } = await supabase
     .from("public_profiles")
-    .select("id, display_name, role, headline, bio, portfolio_files, skills")
+    .select(
+      "id, display_name, role, headline, bio, portfolio_files, skills, avatar_path"
+    )
     .eq("id", id)
     .maybeSingle();
 
@@ -156,6 +159,11 @@ export default async function PublicProfilePage({
       </Link>
 
       <div className="flex flex-wrap items-center gap-3">
+        <Avatar
+          name={profile.display_name}
+          photoPath={profile.avatar_path}
+          className="size-16 text-xl"
+        />
         <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
           {profile.display_name || "A member"}
         </h1>

@@ -32,7 +32,13 @@ const KIND_CHIPS: { icon: LucideIcon; label: string }[] = [
   { icon: GraduationCap, label: "Class note" },
 ];
 
-export function ComposeBox({ displayName }: { displayName?: string | null }) {
+export function ComposeBox({
+  displayName,
+  photoPath,
+}: {
+  displayName?: string | null;
+  photoPath?: string | null;
+}) {
   const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -66,6 +72,7 @@ export function ComposeBox({ displayName }: { displayName?: string | null }) {
         <div className="flex items-center gap-3">
           <Avatar
             name={displayName}
+            photoPath={photoPath}
             className="size-11 bg-avatar-fill text-text-secondary"
           />
           <Textarea

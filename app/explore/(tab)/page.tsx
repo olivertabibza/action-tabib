@@ -32,6 +32,7 @@ type PersonRow = {
   id: string;
   display_name: string | null;
   role: string | null;
+  avatar_path: string | null;
 };
 
 type ArticleRow = {
@@ -40,7 +41,7 @@ type ArticleRow = {
   category: string;
   excerpt: string;
   created_at: string;
-  author: { display_name: string | null } | null;
+  author: { display_name: string | null; avatar_path: string | null } | null;
 };
 
 // A pending/rejected submission the current user authored (event or article).
@@ -110,7 +111,7 @@ export default async function ExplorePage({
     const excluded = [user.id, ...(myFollows ?? []).map((f) => f.following_id)];
     const { data: peopleData } = await supabase
       .from("profiles")
-      .select("id, display_name, role")
+      .select("id, display_name, role, avatar_path")
       .eq("account_type", "professional")
       .eq("application_status", "approved")
       .eq("is_admin", false)
@@ -222,6 +223,11 @@ export default async function ExplorePage({
               key={p.id}
               className="flex items-center gap-3 rounded-lg border border-border bg-card px-3 py-2.5"
             >
+              <Avatar
+                name={p.display_name}
+                photoPath={p.avatar_path}
+                className="size-9"
+              />
               <div className="min-w-0 flex-1">
                 <Link
                   href={`/profile/${p.id}`}
@@ -345,7 +351,11 @@ function ArticleCard({ article }: { article: ArticleRow }) {
         <p className="mt-1 text-sm text-muted-foreground">{article.excerpt}</p>
       )}
       <div className="mt-3 flex items-center gap-2">
-        <Avatar name={author} className="size-7 text-xs" />
+        <Avatar
+          name={author}
+          photoPath={article.author?.avatar_path}
+          className="size-7 text-xs"
+        />
         <span className="text-xs text-muted-foreground">By {author}</span>
       </div>
     </article>

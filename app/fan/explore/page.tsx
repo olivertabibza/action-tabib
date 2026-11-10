@@ -26,6 +26,7 @@ type CreatorRow = {
   display_name: string | null;
   role: string | null;
   headline: string | null;
+  avatar_path: string | null;
 };
 
 type EventRow = {
@@ -42,7 +43,7 @@ type ArticleRow = {
   category: string;
   excerpt: string;
   created_at: string;
-  author: { display_name: string | null } | null;
+  author: { display_name: string | null; avatar_path: string | null } | null;
 };
 
 export default async function FanExplorePage({
@@ -62,7 +63,7 @@ export default async function FanExplorePage({
   // columns for approved pros.
   const { data: creatorData, error: creatorError } = await supabase
     .from("public_profiles")
-    .select("id, display_name, role, headline")
+    .select("id, display_name, role, headline, avatar_path")
     .order("display_name", { nullsFirst: false })
     .limit(12);
   // Failed loads go to app/fan/error.tsx, not the empty states.
@@ -135,7 +136,11 @@ export default async function FanExplorePage({
             return (
               <Card key={c.id} className="p-2">
                 <CardHeader className="flex items-center gap-3">
-                  <Avatar name={name} className="size-10" />
+                  <Avatar
+                    name={name}
+                    photoPath={c.avatar_path}
+                    className="size-10"
+                  />
                   <div className="min-w-0 flex-1">
                     <CardTitle className="text-base leading-snug">
                       <Link
@@ -239,7 +244,11 @@ export default async function FanExplorePage({
                     </p>
                   )}
                   <div className="mt-3 flex items-center gap-2">
-                    <Avatar name={author} className="size-7 text-xs" />
+                    <Avatar
+                      name={author}
+                      photoPath={a.author?.avatar_path}
+                      className="size-7 text-xs"
+                    />
                     <span className="text-xs text-muted-foreground">
                       By {author}
                     </span>

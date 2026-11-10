@@ -13,7 +13,11 @@ import {
 } from "@/lib/marketplace";
 import { ShareButton } from "./share-button";
 
-export type Poster = { display_name: string | null; role: string | null };
+export type Poster = {
+  display_name: string | null;
+  role: string | null;
+  avatar_path?: string | null;
+};
 
 export type ProjectRowData = {
   id: string;
@@ -229,6 +233,7 @@ export function ProjectRow({
         <div className="mt-4 flex items-center gap-2.5 border-t border-border-hairline pt-3.5">
           <Avatar
             name={project.poster?.display_name}
+            photoPath={project.poster?.avatar_path}
             className="size-7 bg-avatar-fill text-[11px] text-text-secondary"
           />
           <div className="min-w-0">

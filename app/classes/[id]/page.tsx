@@ -43,7 +43,11 @@ export async function generateMetadata({
 // so — unlike the public event detail page — this page assumes an approved pro
 // viewer and needs no anon/back-link handling.
 
-type Person = { display_name: string | null; role: string | null };
+type Person = {
+  display_name: string | null;
+  role: string | null;
+  avatar_path: string | null;
+};
 
 type Review = {
   id: string;
@@ -93,7 +97,7 @@ export default async function ClassDetailPage({
   const { data: klass } = await supabase
     .from("classes")
     .select(
-      "id, title, description, discipline, format, level, venue, price_cents, capacity, starts_at, status, created_by, instructor:profiles!classes_created_by_fkey(display_name, role)"
+      "id, title, description, discipline, format, level, venue, price_cents, capacity, starts_at, status, created_by, instructor:profiles!classes_created_by_fkey(display_name, role, avatar_path)"
     )
     .eq("id", id)
     .maybeSingle();
@@ -148,7 +152,7 @@ export default async function ClassDetailPage({
     const { data: rosterData } = await supabase
       .from("class_enrollments")
       .select(
-        "user_id, created_at, enrollee:profiles!class_enrollments_user_id_fkey(display_name, role)"
+        "user_id, created_at, enrollee:profiles!class_enrollments_user_id_fkey(display_name, role, avatar_path)"
       )
       .eq("class_id", id)
       .order("created_at", { ascending: true });
@@ -163,7 +167,7 @@ export default async function ClassDetailPage({
   const { data: reviewData } = await supabase
     .from("class_reviews")
     .select(
-      "id, rating, body, created_at, reviewer_id, reviewer:profiles!class_reviews_reviewer_id_fkey(display_name, role)"
+      "id, rating, body, created_at, reviewer_id, reviewer:profiles!class_reviews_reviewer_id_fkey(display_name, role, avatar_path)"
     )
     .eq("class_id", id)
     .order("created_at", { ascending: false });
@@ -261,7 +265,11 @@ export default async function ClassDetailPage({
       </div>
 
       <div className="mt-6 flex items-center gap-3">
-        <Avatar name={instructorName} className="size-9" />
+        <Avatar
+          name={instructorName}
+          photoPath={instructor?.avatar_path}
+          className="size-9"
+        />
         <p className="text-sm">
           <span className="text-muted-foreground">Taught by </span>
           <Link
@@ -326,7 +334,11 @@ export default async function ClassDetailPage({
                 const name = e.enrollee?.display_name || "A member";
                 return (
                   <li key={e.user_id} className="flex items-center gap-3">
-                    <Avatar name={name} className="size-9" />
+                    <Avatar
+                      name={name}
+                      photoPath={e.enrollee?.avatar_path}
+                      className="size-9"
+                    />
                     <div className="min-w-0 flex-1">
                       <p className="text-sm">
                         <Link
@@ -394,7 +406,11 @@ export default async function ClassDetailPage({
                 const name = r.reviewer?.display_name || "A member";
                 return (
                   <li key={r.id} className="flex items-start gap-3">
-                    <Avatar name={name} className="size-9" />
+                    <Avatar
+                      name={name}
+                      photoPath={r.reviewer?.avatar_path}
+                      className="size-9"
+                    />
                     <div className="min-w-0 flex-1">
                       <p className="text-sm">
                         <Link

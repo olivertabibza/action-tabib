@@ -20,6 +20,8 @@ export type NavCounts = {
   messages: number;
   /** Shows the Admin link in the shell (UX B-14: admin had no way in). */
   isAdmin: boolean;
+  /** The viewer's photo on the header's Profile button (UX B-01). */
+  avatarPath: string | null;
 };
 
 const ZERO: NavCounts = {
@@ -28,6 +30,7 @@ const ZERO: NavCounts = {
   network: 0,
   messages: 0,
   isAdmin: false,
+  avatarPath: null,
 };
 
 export async function getNavCounts(): Promise<NavCounts> {
@@ -49,7 +52,11 @@ export async function getNavCounts(): Promise<NavCounts> {
       .eq("addressee_id", user.id)
       .eq("status", "pending"),
     getUnreadChatCount(supabase, user.id),
-    supabase.from("profiles").select("is_admin").eq("id", user.id).maybeSingle(),
+    supabase
+      .from("profiles")
+      .select("is_admin, avatar_path")
+      .eq("id", user.id)
+      .maybeSingle(),
   ]);
 
   return {
@@ -57,5 +64,6 @@ export async function getNavCounts(): Promise<NavCounts> {
     network: pending.count ?? 0,
     messages,
     isAdmin: me.data?.is_admin === true,
+    avatarPath: (me.data?.avatar_path as string | null) ?? null,
   };
 }

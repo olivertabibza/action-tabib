@@ -113,7 +113,7 @@ export default async function ProjectsPage({
   let projectQuery = supabase
     .from("projects")
     .select(
-      "id, title, description, location, project_type, pay_min, pay_max, pay_unit, tags, staff_pick, posted_at, created_by, poster:profiles!projects_created_by_fkey(display_name, role)"
+      "id, title, description, location, project_type, pay_min, pay_max, pay_unit, tags, staff_pick, posted_at, created_by, poster:profiles!projects_created_by_fkey(display_name, role, avatar_path)"
     )
     .eq("status", "open");
 

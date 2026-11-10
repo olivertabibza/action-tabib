@@ -15,6 +15,7 @@ import {
 import { cn } from "@/lib/utils";
 import { LogoutButton } from "@/components/LogoutButton";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { Avatar } from "@/components/Avatar";
 import { type NavCounts } from "@/lib/nav-counts";
 
 // Callboard top-nav order (Feed · Projects · Classes · Explore · Messages).
@@ -216,7 +217,15 @@ export function ProShell({
               }
               className="focus-ring relative flex size-9 items-center justify-center rounded-full bg-avatar-fill text-text-secondary max-sm:hidden"
             >
-              <User className="size-[18px]" strokeWidth={1.5} />
+              {counts.avatarPath ? (
+                <Avatar
+                  name={null}
+                  photoPath={counts.avatarPath}
+                  className="size-9"
+                />
+              ) : (
+                <User className="size-[18px]" strokeWidth={1.5} />
+              )}
               <CountBadge
                 count={counts.network}
                 className="absolute -right-0.5 -top-0.5 h-[17px] min-w-[17px] text-[9.5px]"

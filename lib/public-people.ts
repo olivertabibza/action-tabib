@@ -2,7 +2,11 @@ import { createClient } from "@/lib/supabase/server";
 
 type ServerClient = Awaited<ReturnType<typeof createClient>>;
 
-export type PublicPerson = { display_name: string | null; role: string | null };
+export type PublicPerson = {
+  display_name: string | null;
+  role: string | null;
+  avatar_path: string | null;
+};
 
 /**
  * Hosts' and authors' names, read through the public_profiles view so every
@@ -19,9 +23,12 @@ export async function publicPeople(
   if (unique.length === 0) return new Map();
   const { data } = await supabase
     .from("public_profiles")
-    .select("id, display_name, role")
+    .select("id, display_name, role, avatar_path")
     .in("id", unique);
   return new Map(
-    (data ?? []).map((p) => [p.id, { display_name: p.display_name, role: p.role }])
+    (data ?? []).map((p) => [
+      p.id,
+      { display_name: p.display_name, role: p.role, avatar_path: p.avatar_path },
+    ])
   );
 }

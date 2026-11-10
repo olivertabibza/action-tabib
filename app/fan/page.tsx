@@ -16,7 +16,11 @@ export const metadata: Metadata = { title: "Feed" };
 // names/roles from the public_profiles security-definer view separately and join
 // them in memory.
 
-type Actor = { display_name: string | null; role: string | null };
+type Actor = {
+  display_name: string | null;
+  role: string | null;
+  avatar_path: string | null;
+};
 
 type FeedEvent = {
   id: string;
@@ -63,12 +67,13 @@ export default async function FanFeedPage() {
     const actorIds = [...new Set(events.map((e) => e.actor_id))];
     const { data: actors } = await supabase
       .from("public_profiles")
-      .select("id, display_name, role")
+      .select("id, display_name, role, avatar_path")
       .in("id", actorIds);
     for (const a of actors ?? []) {
       actorById.set(a.id as string, {
         display_name: a.display_name as string | null,
         role: a.role as string | null,
+        avatar_path: a.avatar_path as string | null,
       });
     }
   }
@@ -146,7 +151,7 @@ function FeedItem({
   return (
     <article className="rounded-xl border border-border bg-card p-4">
       <div className="flex gap-3">
-        <Avatar name={actorName} />
+        <Avatar name={actorName} photoPath={actor?.avatar_path} />
         <div className="min-w-0 flex-1">
           {/* UX B-25: names open the profile, where Follow now lives too. */}
           <Link

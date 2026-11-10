@@ -63,7 +63,7 @@ export default async function ThreadPage({
 
   const { data: other } = await supabase
     .from("profiles")
-    .select("display_name, role")
+    .select("display_name, role, avatar_path")
     .eq("id", otherId)
     .maybeSingle();
   const otherName = other?.display_name || "A member";
@@ -92,7 +92,11 @@ export default async function ThreadPage({
           <ArrowLeft className="size-5" />
         </Link>
         <Link href={`/profile/${otherId}`} className="flex items-center gap-3">
-          <Avatar name={otherName} className="size-9" />
+          <Avatar
+            name={otherName}
+            photoPath={other?.avatar_path}
+            className="size-9"
+          />
           <span>
             <span className="font-semibold">{otherName}</span>
             {other?.role ? (

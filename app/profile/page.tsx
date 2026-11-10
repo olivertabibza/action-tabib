@@ -5,6 +5,7 @@ import { ExternalLink, FileText } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
 import { LogoutButton } from "@/components/LogoutButton";
+import { AvatarUploader } from "@/components/AvatarUploader";
 import {
   Card,
   CardContent,
@@ -40,7 +41,7 @@ export default async function ProfilePage() {
   const { data: profile } = await supabase
     .from("profiles")
     .select(
-      "account_type, application_status, portfolio_files, display_name, role, headline, bio, skills, is_admin"
+      "account_type, application_status, portfolio_files, display_name, role, headline, bio, skills, is_admin, avatar_path"
     )
     .eq("id", user.id)
     .maybeSingle();
@@ -109,9 +110,17 @@ export default async function ProfilePage() {
         <Card className="p-2">
           <CardHeader>
             <CardTitle className="text-xl">Details</CardTitle>
-            <CardDescription>How you show up on Action.</CardDescription>
+            <CardDescription>
+              How you show up on Action: your photo, name and role.
+            </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex flex-col gap-6">
+            {/* UX B-01: there was no way to add a photo anywhere. */}
+            <AvatarUploader
+              userId={user.id}
+              name={profile?.display_name ?? null}
+              photoPath={profile?.avatar_path ?? null}
+            />
             <ProfileForm initial={initial} showSkills={isProfessional} />
           </CardContent>
         </Card>

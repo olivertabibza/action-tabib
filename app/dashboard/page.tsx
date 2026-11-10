@@ -36,6 +36,7 @@ type Actor = {
   role: string | null;
   headline: string | null;
   skills: string[] | null;
+  avatar_path: string | null;
 };
 
 type FeedEvent = {
@@ -53,12 +54,14 @@ type Suggestion = {
   id: string;
   display_name: string | null;
   role: string | null;
+  avatar_path: string | null;
 };
 
 type ConnectionRequest = {
   id: string;
   display_name: string | null;
   role: string | null;
+  avatar_path: string | null;
 };
 
 type EnrolledClass = {
@@ -133,7 +136,7 @@ export default async function DashboardPage() {
   // The current user, for the composer avatar and the left-rail profile card.
   const { data: me } = await supabase
     .from("profiles")
-    .select("display_name, role, headline")
+    .select("display_name, role, headline, avatar_path")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -142,7 +145,7 @@ export default async function DashboardPage() {
   const { data, error } = await supabase
     .from("activity_events")
     .select(
-      "id, kind, actor_id, body, subject_id, metadata, created_at, actor:profiles!activity_events_actor_id_fkey(display_name, role, headline, skills)"
+      "id, kind, actor_id, body, subject_id, metadata, created_at, actor:profiles!activity_events_actor_id_fkey(display_name, role, headline, skills, avatar_path)"
     )
     .order("created_at", { ascending: false })
     .limit(50);
@@ -203,7 +206,7 @@ export default async function DashboardPage() {
   // Staff admins are left out of member lists.
   const { data: candidates } = await supabase
     .from("profiles")
-    .select("id, display_name, role")
+    .select("id, display_name, role, avatar_path")
     .eq("account_type", "professional")
     .eq("application_status", "approved")
     .eq("is_admin", false)
@@ -253,7 +256,7 @@ export default async function DashboardPage() {
   if (incoming.length > 0) {
     const { data: requesters } = await supabase
       .from("profiles")
-      .select("id, display_name, role")
+      .select("id, display_name, role, avatar_path")
       .in(
         "id",
         incoming.map((c) => c.requester_id)
@@ -351,6 +354,7 @@ export default async function DashboardPage() {
       <div className="flex flex-col gap-4 max-rail:hidden">
         <ProfileCard
           name={me?.display_name ?? null}
+          photoPath={me?.avatar_path ?? null}
           role={me?.role ?? null}
           headline={me?.headline ?? null}
           connections={connectionCount}
@@ -380,7 +384,10 @@ export default async function DashboardPage() {
 
       {/* Center column. */}
       <div className="flex min-w-0 flex-col gap-4 max-sm:gap-3">
-        <ComposeBox displayName={me?.display_name ?? null} />
+        <ComposeBox
+          displayName={me?.display_name ?? null}
+          photoPath={me?.avatar_path ?? null}
+        />
 
         {error && (
           <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
@@ -455,6 +462,7 @@ export default async function DashboardPage() {
                 <li key={s.id} className="flex items-center gap-3">
                   <Avatar
                     name={s.display_name}
+                    photoPath={s.avatar_path}
                     className="size-11 bg-avatar-fill text-text-secondary"
                   />
                   <div className="min-w-0 flex-1">
@@ -488,6 +496,7 @@ export default async function DashboardPage() {
 
 function ProfileCard({
   name,
+  photoPath,
   role,
   headline,
   connections,
@@ -495,6 +504,7 @@ function ProfileCard({
   classesTaken,
 }: {
   name: string | null;
+  photoPath: string | null;
   role: string | null;
   headline: string | null;
   connections: number;
@@ -510,6 +520,7 @@ function ProfileCard({
       <div className="px-4 pb-4">
         <Avatar
           name={name}
+          photoPath={photoPath}
           className="-mt-[34px] size-[68px] bg-avatar-fill text-lg text-text-secondary ring-4 ring-surface"
         />
         <Link
@@ -595,6 +606,7 @@ function FeedItem({
         <div className="flex items-start gap-3.5 p-[18px] pb-0">
           <Avatar
             name={actorName}
+            photoPath={event.actor?.avatar_path}
             className="size-[50px] bg-avatar-fill text-text-secondary"
           />
           <div className="min-w-0 flex-1">
@@ -715,6 +727,7 @@ function ConnectionRequestsCard({ requests }: { requests: ConnectionRequest[] })
           <li key={r.id} className="flex gap-3">
             <Avatar
               name={r.display_name}
+              photoPath={r.avatar_path}
               className="size-11 bg-avatar-fill text-text-secondary"
             />
             <div className="min-w-0 flex-1">
