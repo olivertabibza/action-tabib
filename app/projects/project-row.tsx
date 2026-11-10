@@ -27,6 +27,7 @@ export type ProjectRowData = {
   tags: string[] | null;
   staff_pick: boolean;
   posted_at: string;
+  created_by: string;
   poster: Poster | null;
 };
 
@@ -54,12 +55,15 @@ export function ProjectRow({
   circleApplied,
   saved,
   appliedRoleIds,
+  isOwn = false,
 }: {
   project: ProjectRowData;
   roles: RoleRow[];
   circleApplied: number;
   saved: boolean;
   appliedRoleIds: Set<string>;
+  /** The viewer posted this project: no Apply pills (UX B-26). */
+  isOwn?: boolean;
 }) {
   const href = `/projects/${project.id}`;
   const pay = formatPayRange(project.pay_min, project.pay_max, project.pay_unit);
@@ -150,7 +154,7 @@ export function ProjectRow({
             href={href}
             className="focus-ring rounded-pill bg-accent px-[22px] py-[11px] text-sm font-semibold text-on-accent transition-opacity hover:opacity-90 max-sm:w-full max-sm:text-center"
           >
-            View details &amp; apply
+            {isOwn ? "View your project" : <>View details &amp; apply</>}
           </Link>
           {circleApplied > 0 && (
             // No avatar stack: circle_applied_counts() returns a bare count and
@@ -195,7 +199,7 @@ export function ProjectRow({
                       </p>
                     )}
                   </div>
-                  {applied ? (
+                  {isOwn ? null : applied ? (
                     <span className="shrink-0 rounded-pill bg-accent-tint px-3 py-1 text-[12.5px] font-semibold text-accent-text">
                       Applied
                     </span>
