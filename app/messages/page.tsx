@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Inbox, MailQuestion } from "lucide-react";
@@ -8,6 +9,8 @@ import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/Avatar";
 import { getInbox, type ConversationSummary } from "./data";
 import { RequestButtons } from "./request-buttons";
+
+export const metadata: Metadata = { title: "Messages" };
 
 // Auth + approved-pro gate and the ProShell come from app/messages/layout.tsx.
 // Two tabs via ?tab=: Chats (my accepted threads) and Requests (not yet

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
@@ -20,6 +21,23 @@ import { Button } from "@/components/ui/button";
 import { MessageButton } from "@/app/messages/message-button";
 import { EnrollButton } from "../enroll-button";
 import { ReviewComposer } from "../review-composer";
+
+// Tab and history title: the class's own name (UX B-32). RLS applies, so
+// anything the viewer can't see falls back to "Class".
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("classes")
+    .select("title")
+    .eq("id", id)
+    .maybeSingle();
+  return { title: data?.title || "Class" };
+}
 
 // Gated + wrapped in ProShell by app/classes/layout.tsx (classes are pro-only),
 // so — unlike the public event detail page — this page assumes an approved pro

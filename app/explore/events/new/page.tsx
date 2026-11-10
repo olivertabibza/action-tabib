@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
@@ -11,6 +12,8 @@ import {
 } from "@/components/ui/card";
 import { requireApprovedProPage } from "../../authoring-gate";
 import { EventForm } from "../event-form";
+
+export const metadata: Metadata = { title: "Host an event" };
 
 // This page lives outside the (tab) route group, so it gates access itself.
 export default async function NewEventPage() {

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import {
@@ -25,6 +26,23 @@ import { Button } from "@/components/ui/button";
 import { disciplineLabel, roleQualifier, titleCase } from "@/lib/marketplace";
 import { ApplyForm } from "./apply-form";
 import { OwnerControls } from "./owner-controls";
+
+// Tab and history title: the project's own name (UX B-32). RLS applies, so
+// anything the viewer can't see falls back to "Project".
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("projects")
+    .select("title")
+    .eq("id", id)
+    .maybeSingle();
+  return { title: data?.title || "Project" };
+}
 
 type Person = { display_name: string | null; role: string | null };
 type ProjectRole = {

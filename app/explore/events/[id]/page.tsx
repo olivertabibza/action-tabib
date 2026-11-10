@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, CalendarDays, Clock, MapPin } from "lucide-react";
@@ -10,6 +11,23 @@ import { eventTypeLabel } from "@/lib/content";
 import { Avatar } from "@/components/Avatar";
 import { RsvpButton } from "../rsvp-button";
 import { SaveButton } from "../../saved/save-button";
+
+// Tab and history title: the event's own name (UX B-32). RLS applies, so
+// anything the viewer can't see falls back to "Event".
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("events")
+    .select("title")
+    .eq("id", id)
+    .maybeSingle();
+  return { title: data?.title || "Event" };
+}
 
 // PUBLIC page — no shell, no auth redirect. Published events are open-access
 // (RLS exposes published rows to anon), so logged-out fans can view them. We

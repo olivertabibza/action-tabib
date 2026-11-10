@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -5,6 +6,8 @@ import { createClient } from "@/lib/supabase/server";
 import { destinationFor } from "@/lib/auth-dispatch";
 import { Button } from "@/components/ui/button";
 import { LogoutButton } from "@/components/LogoutButton";
+
+export const metadata: Metadata = { title: "Your application" };
 
 export default async function PendingPage() {
   const supabase = await createClient();

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { ExternalLink, FileText, Inbox } from "lucide-react";
 
@@ -8,6 +9,8 @@ import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { AdminNav } from "./admin-nav";
 import { DecisionButtons } from "./decision-buttons";
+
+export const metadata: Metadata = { title: "Applications · Admin" };
 
 const STATUSES = ["pending", "approved", "rejected"] as const;
 type Status = (typeof STATUSES)[number];

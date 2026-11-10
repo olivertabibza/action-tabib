@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
@@ -12,6 +13,23 @@ import { Avatar } from "@/components/Avatar";
 import { SaveButton } from "../../saved/save-button";
 import { ArticleGateCard, FreeArticleBanner } from "../meter";
 import { MeterStamp } from "../meter-stamp";
+
+// Tab and history title: the article's own name (UX B-32). RLS applies, so
+// anything the viewer can't see falls back to "Article".
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("articles")
+    .select("title")
+    .eq("id", id)
+    .maybeSingle();
+  return { title: data?.title || "Article" };
+}
 
 // PUBLIC page — no shell, no auth redirect. Published articles are open-access
 // (RLS exposes published rows to anon), so logged-out fans can read them. We

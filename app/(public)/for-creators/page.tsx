@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import {
   IdCard,
@@ -15,6 +16,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+
+export const metadata: Metadata = { title: "For Industry Professionals" };
 
 const pillars: { icon: LucideIcon; title: string; blurb: string }[] = [
   {

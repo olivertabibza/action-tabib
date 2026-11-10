@@ -1,6 +1,9 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
+
+export const metadata: Metadata = { title: "Something went wrong" };
 
 export default function AuthErrorPage() {
   return (

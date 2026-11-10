@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { GraduationCap, Plus, Star } from "lucide-react";
 
@@ -6,6 +7,8 @@ import { disciplineLabel } from "@/lib/marketplace";
 import { classLevelLabel, formatPrice } from "@/lib/content";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+
+export const metadata: Metadata = { title: "Classes" };
 
 // Access (auth + approved pro) is gated in app/classes/layout.tsx, which also
 // renders the ProShell around this page. Classes are professional-only, so —

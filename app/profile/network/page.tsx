@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -7,6 +8,8 @@ import { Avatar } from "@/components/Avatar";
 import { CallboardCard } from "@/components/CallboardCard";
 import { ConnectionRequestActions } from "@/components/ConnectionRequestActions";
 import { ProfileTabs } from "../profile-tabs";
+
+export const metadata: Metadata = { title: "Network" };
 
 type Requester = {
   id: string;

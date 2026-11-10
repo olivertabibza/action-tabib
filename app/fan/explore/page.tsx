@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 // Fan Explore — the fans' content surface. Articles and events come from the
 // SAME tables pros publish to (published rows are anon-readable, so a normal
 // server query works). The "films/filmmakers to follow" section is still a
@@ -17,6 +18,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { FanFollowButton } from "./follow-button";
+
+export const metadata: Metadata = { title: "Explore" };
 
 type CreatorRow = {
   id: string;

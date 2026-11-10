@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
@@ -27,6 +28,8 @@ import {
   EndorsePicker,
   type EndorsableSkill,
 } from "./endorse-picker";
+
+export const metadata: Metadata = { title: "Feed" };
 
 type Actor = {
   display_name: string | null;

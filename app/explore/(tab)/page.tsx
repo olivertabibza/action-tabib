@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { CalendarDays, Newspaper, PenLine, Plus } from "lucide-react";
 
@@ -11,6 +12,8 @@ import { GlobalSearch } from "@/components/GlobalSearch";
 import { Button } from "@/components/ui/button";
 import { MessageButton } from "@/app/messages/message-button";
 import { FollowButton } from "./people/follow-button";
+
+export const metadata: Metadata = { title: "Explore" };
 
 // Access (auth + approved pro) is gated in the (tab) route group's layout, which
 // also renders the ProShell around this page. The article/event DETAIL pages

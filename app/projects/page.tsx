@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { FolderOpen, FolderPlus, Plus, Star } from "lucide-react";
@@ -10,6 +11,8 @@ import { hrefWith, type BrowseParams } from "./browse-params";
 import { ProjectSearchCard } from "./project-search";
 import { SortSelect } from "./sort-select";
 import { ProjectRow, type ProjectRowData, type RoleRow } from "./project-row";
+
+export const metadata: Metadata = { title: "Projects" };
 
 /** One "page" of the Load more pagination. */
 const PAGE_SIZE = 10;

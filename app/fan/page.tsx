@@ -1,9 +1,12 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Rss } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
 import { titleCase } from "@/lib/marketplace";
 import { Avatar } from "@/components/Avatar";
+
+export const metadata: Metadata = { title: "Feed" };
 
 // The Fan home is the follow-only Feed tab. Auth + account gating live in
 // app/fan/layout.tsx, not here.

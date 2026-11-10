@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Users } from "lucide-react";
@@ -12,6 +13,8 @@ import {
 import { titleCase } from "@/lib/marketplace";
 import { MessageButton } from "@/app/messages/message-button";
 import { FollowButton } from "./follow-button";
+
+export const metadata: Metadata = { title: "People" };
 
 // The "Discover creators" grid, moved from the old /network page. Access (auth +
 // approved pro) and the ProShell come from the (tab) route group's layout.

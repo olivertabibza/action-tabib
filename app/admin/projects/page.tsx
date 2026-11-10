@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { FolderOpen } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
@@ -5,6 +6,8 @@ import { disciplineLabel } from "@/lib/marketplace";
 import { cn } from "@/lib/utils";
 import { AdminNav } from "../admin-nav";
 import { CloseButton } from "./close-button";
+
+export const metadata: Metadata = { title: "Projects · Admin" };
 
 type Owner = { display_name: string | null };
 

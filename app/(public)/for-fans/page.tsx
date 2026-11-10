@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import {
   Heart,
@@ -14,6 +15,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+
+export const metadata: Metadata = { title: "For Fans" };
 
 const features: { icon: LucideIcon; title: string; blurb: string }[] = [
   {

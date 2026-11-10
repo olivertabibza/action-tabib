@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import {
   CalendarDays,
@@ -20,6 +21,8 @@ import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { AdminNav } from "../admin-nav";
 import { ContentDecisionButtons } from "../content-decision-buttons";
+
+export const metadata: Metadata = { title: "Content · Admin" };
 
 const STATUSES = ["pending", "published", "rejected"] as const;
 type Status = (typeof STATUSES)[number];

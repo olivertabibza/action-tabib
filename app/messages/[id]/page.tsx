@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
@@ -9,6 +10,8 @@ import { Avatar } from "@/components/Avatar";
 import { Composer } from "../composer";
 import { RequestButtons } from "../request-buttons";
 import { MarkRead } from "../mark-read";
+
+export const metadata: Metadata = { title: "Messages" };
 
 // Gated + shelled by app/messages/layout.tsx. The thread between me and the
 // other party: header links to their profile, messages oldest→newest, composer

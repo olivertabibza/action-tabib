@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
@@ -12,6 +13,8 @@ import {
 } from "@/components/ui/card";
 import { ClassForm } from "../../class-form";
 import type { ClassFormValues } from "../../schema";
+
+export const metadata: Metadata = { title: "Edit class" };
 
 /**
  * The exact inverse of createClass's `new Date(`${date}T${time}`)`: both run on

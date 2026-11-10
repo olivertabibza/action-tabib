@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
@@ -9,6 +10,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { ClassForm } from "../class-form";
+
+export const metadata: Metadata = { title: "Teach a class" };
 
 // Access (auth + approved pro) and the ProShell come from app/classes/layout.tsx,
 // which wraps every /classes route — so this page doesn't re-gate or re-shell

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft, ExternalLink, FileText, UserRound } from "lucide-react";
 
@@ -14,6 +15,23 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+
+// Tab and history title: the profile's own name (UX B-32). RLS applies, so
+// anything the viewer can't see falls back to "Profile".
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("public_profiles")
+    .select("display_name")
+    .eq("id", id)
+    .maybeSingle();
+  return { title: data?.display_name || "Profile" };
+}
 
 /**
  * Public, read-only view of one industry professional. Distinct from

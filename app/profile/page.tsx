@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ExternalLink, FileText } from "lucide-react";
@@ -14,6 +15,8 @@ import {
 import { ProfileForm } from "./profile-form";
 import { WorkSamplesManager, type WorkSample } from "./work-samples-manager";
 import { ProfileTabs } from "./profile-tabs";
+
+export const metadata: Metadata = { title: "Your profile" };
 
 function accountLabel(accountType: string | null | undefined) {
   if (accountType === "professional") return "Industry Professional";

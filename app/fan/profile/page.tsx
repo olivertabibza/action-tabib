@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 // Fan Profile (F5) — the fan's own account surface: identity header, how many
 // filmmakers they follow, a marketing prompt to upgrade to Pro, and a saved
 // items section. No resume/credits — that's Pro-only. Matched to fan-profile.png.
@@ -7,6 +8,8 @@ import { createClient } from "@/lib/supabase/server";
 import { Avatar } from "@/components/Avatar";
 import { FanNameForm } from "./name-form";
 import { LogoutButton } from "@/components/LogoutButton";
+
+export const metadata: Metadata = { title: "Your profile" };
 
 // The polymorphic saved rows and the two title-lookup shapes they resolve to.
 type SavedRow = { item_type: "event" | "article"; item_id: string };

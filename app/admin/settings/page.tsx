@@ -1,7 +1,10 @@
+import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { AdminNav } from "../admin-nav";
 import type { AutoApproveKind } from "../schema";
 import { AutoApproveRow } from "./auto-approve-row";
+
+export const metadata: Metadata = { title: "Settings · Admin" };
 
 const ROWS: {
   kind: AutoApproveKind;
