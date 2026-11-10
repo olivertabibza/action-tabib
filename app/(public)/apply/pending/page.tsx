@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { destinationFor } from "@/lib/auth-dispatch";
 import { Button } from "@/components/ui/button";
+import { LogoutButton } from "@/components/LogoutButton";
 
 export default async function PendingPage() {
   const supabase = await createClient();
@@ -30,17 +31,20 @@ export default async function PendingPage() {
   }
 
   const rejected = profile?.application_status === "rejected";
-  const email = user?.email ?? "your email";
 
+  // UX B-12 / B-33 / PX F15: this is now the ONE waiting screen (the Projects
+  // gate sends pending pros here too). It uses the normal theme, makes no
+  // promise of an email (none is sent yet), and its actions go somewhere real
+  // instead of looping back to this page.
   return (
-    <div className="flex flex-1 flex-col items-center justify-center bg-[#0a0e14] px-4 py-24 text-center text-white">
+    <main className="flex flex-1 flex-col items-center justify-center px-4 py-24 text-center">
       <div className="max-w-xl">
         {rejected ? (
           <>
             <h1 className="text-4xl font-bold tracking-tight text-balance sm:text-5xl">
               Your application wasn&rsquo;t approved.
             </h1>
-            <p className="mt-5 text-lg text-white/70 text-balance">
+            <p className="mt-5 text-lg text-muted-foreground text-balance">
               Thanks for applying to Action. We weren&rsquo;t able to approve
               your professional profile this time.
             </p>
@@ -50,18 +54,24 @@ export default async function PendingPage() {
             <h1 className="text-4xl font-bold tracking-tight text-balance sm:text-5xl">
               You&rsquo;re on the list.
             </h1>
-            <p className="mt-5 text-lg text-white/70 text-balance">
-              We review every application personally. We&rsquo;ll email you at{" "}
-              <span className="font-medium text-white">{email}</span> when
-              you&rsquo;re approved. In the meantime, feel free to explore what
-              Action is all about.
+            <p className="mt-5 text-lg text-muted-foreground text-balance">
+              We review every application personally. A complete profile helps:
+              add your role, a headline and your work. Once you&rsquo;re
+              approved, signing in takes you straight into Action.
             </p>
           </>
         )}
-        <Button asChild size="lg" className="mt-8 h-11 px-6 text-base">
-          <Link href="/">Back to home</Link>
-        </Button>
+        {user && (
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+            {!rejected && (
+              <Button asChild size="lg" className="h-11 px-6 text-base">
+                <Link href="/profile">Complete your profile</Link>
+              </Button>
+            )}
+            <LogoutButton className="inline-flex h-11 items-center gap-2 rounded-lg border border-border px-5 text-base font-medium transition-colors hover:bg-muted disabled:opacity-50" />
+          </div>
+        )}
       </div>
-    </div>
+    </main>
   );
 }
