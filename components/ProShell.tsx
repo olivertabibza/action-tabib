@@ -117,10 +117,12 @@ export function ProShell({
           </Link>
 
           {/* Search pill → Explore with its search box focused, so it behaves like
-              the input it looks like. Its text matches what search covers. */}
+              the input it looks like. Its text matches what search covers.
+              From xl up only: between 1024 and 1279px it squeezed the nav and
+              wrapped onto two lines (Explore has the same search). */}
           <Link
             href="/explore?search=1"
-            className="focus-ring hidden w-[286px] items-center gap-[9px] rounded-full border border-border-hairline bg-surface-sunken px-[15px] py-2.5 lg:flex"
+            className="focus-ring hidden w-[286px] shrink-0 items-center gap-[9px] rounded-full border border-border-hairline bg-surface-sunken px-[15px] py-2.5 xl:flex"
           >
             <Search className="size-[17px] text-text-tertiary" strokeWidth={1.5} />
             <span className="text-sm text-text-tertiary">
@@ -203,7 +205,7 @@ export function ProShell({
             )}
             <ThemeToggle />
             <LogoutButton
-              className="focus-ring hidden items-center gap-2 rounded-full text-[13px] font-medium text-text-secondary transition-colors hover:text-text-primary disabled:opacity-50 sm:flex"
+              className="focus-ring hidden items-center gap-2 whitespace-nowrap rounded-full text-[13px] font-medium text-text-secondary transition-colors hover:text-text-primary disabled:opacity-50 sm:flex"
               iconClassName="size-[21px]"
               strokeWidth={1.5}
             />
@@ -212,7 +214,7 @@ export function ProShell({
               aria-label={
                 navAriaLabel("Profile", counts.network, "pending") ?? "Profile"
               }
-              className="focus-ring relative flex size-9 items-center justify-center rounded-full bg-avatar-fill text-text-secondary"
+              className="focus-ring relative flex size-9 items-center justify-center rounded-full bg-avatar-fill text-text-secondary max-sm:hidden"
             >
               <User className="size-[18px]" strokeWidth={1.5} />
               <CountBadge

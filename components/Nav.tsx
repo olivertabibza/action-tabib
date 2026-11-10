@@ -70,18 +70,23 @@ export function Nav({
   // Projects (the marketplace) is Pro-only — never shown to consumers (fans).
   // Dashboard + Explore are only for approved professionals; Admin only for
   // admins. All are appended to the base Home/Profile links.
-  const links = [
-    { href: "/home", label: "Home" },
-    ...(!consumer ? [{ href: "/projects", label: "Projects" }] : []),
-    { href: "/profile", label: "Profile" },
-    ...(isApprovedPro
-      ? [
-          { href: "/dashboard", label: "Dashboard" },
-          { href: "/explore", label: "Explore" },
-        ]
-      : []),
-    ...(isAdmin ? [{ href: "/admin", label: "Admin" }] : []),
-  ];
+  // UX B-18: one name for one page. Approved pros get "Feed" (what the tab
+  // bar calls it) instead of both "Home" and "Dashboard", which went to the
+  // same place.
+  const links = isApprovedPro
+    ? [
+        { href: "/dashboard", label: "Feed" },
+        { href: "/projects", label: "Projects" },
+        { href: "/explore", label: "Explore" },
+        { href: "/profile", label: "Profile" },
+        ...(isAdmin ? [{ href: "/admin", label: "Admin" }] : []),
+      ]
+    : [
+        { href: "/home", label: "Home" },
+        ...(!consumer ? [{ href: "/projects", label: "Projects" }] : []),
+        { href: "/profile", label: "Profile" },
+        ...(isAdmin ? [{ href: "/admin", label: "Admin" }] : []),
+      ];
 
   async function handleLogout() {
     setLoggingOut(true);
