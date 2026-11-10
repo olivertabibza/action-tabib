@@ -3,6 +3,7 @@ import Link from "next/link";
 import { CalendarDays, Newspaper, PenLine, Plus } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
+import { viewerTimeZone } from "@/lib/datetime";
 import { publicPeople } from "@/lib/public-people";
 import { eventTypeLabel, articleCategoryLabel } from "@/lib/content";
 import { titleCase } from "@/lib/marketplace";
@@ -59,6 +60,7 @@ export default async function ExplorePage({
 }) {
   const { submitted, search } = await searchParams;
   const supabase = await createClient();
+  const tz = await viewerTimeZone();
   const nowIso = new Date().toISOString();
   const {
     data: { user },
@@ -267,7 +269,7 @@ export default async function ExplorePage({
           {events.map((e) => (
             <li key={e.id}>
               <Link href={`/explore/events/${e.id}`} className="block">
-                <EventCard event={e} />
+                <EventCard event={e} tz={tz} />
               </Link>
             </li>
           ))}
@@ -313,12 +315,12 @@ export default async function ExplorePage({
   );
 }
 
-function EventCard({ event }: { event: EventRow }) {
+function EventCard({ event, tz }: { event: EventRow; tz: string }) {
   const d = new Date(event.starts_at);
   const month = d
-    .toLocaleDateString(undefined, { month: "short" })
+    .toLocaleDateString(undefined, { month: "short", timeZone: tz })
     .toUpperCase();
-  const day = d.toLocaleDateString(undefined, { day: "numeric" });
+  const day = d.toLocaleDateString(undefined, { day: "numeric", timeZone: tz });
 
   return (
     <article className="flex items-center gap-4 rounded-xl border border-border bg-card p-4 transition-colors hover:border-brand">

@@ -60,6 +60,7 @@ export function ProjectRow({
   saved,
   appliedRoleIds,
   isOwn = false,
+  tz,
 }: {
   project: ProjectRowData;
   roles: RoleRow[];
@@ -68,10 +69,13 @@ export function ProjectRow({
   appliedRoleIds: Set<string>;
   /** The viewer posted this project: no Apply pills (UX B-26). */
   isOwn?: boolean;
+  /** Viewer's time zone (lib/datetime.ts). */
+  tz: string;
 }) {
   const href = `/projects/${project.id}`;
   const pay = formatPayRange(project.pay_min, project.pay_max, project.pay_unit);
   const posted = new Date(project.posted_at).toLocaleDateString(undefined, {
+    timeZone: tz,
     month: "short",
     day: "numeric",
   });

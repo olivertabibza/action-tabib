@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Rss } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
+import { viewerTimeZone } from "@/lib/datetime";
 import { titleCase } from "@/lib/marketplace";
 import { Avatar } from "@/components/Avatar";
 
@@ -34,6 +35,7 @@ type FeedEvent = {
 
 export default async function FanFeedPage() {
   const supabase = await createClient();
+  const tz = await viewerTimeZone();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -91,7 +93,11 @@ export default async function FanFeedPage() {
         <ul className="mt-6 flex flex-col gap-4">
           {events.map((event) => (
             <li key={event.id}>
-              <FeedItem event={event} actor={actorById.get(event.actor_id)} />
+              <FeedItem
+                event={event}
+                actor={actorById.get(event.actor_id)}
+                tz={tz}
+              />
             </li>
           ))}
         </ul>
@@ -137,12 +143,15 @@ export default async function FanFeedPage() {
 function FeedItem({
   event,
   actor,
+  tz,
 }: {
   event: FeedEvent;
   actor: Actor | undefined;
+  tz: string;
 }) {
   const actorName = actor?.display_name || "A filmmaker";
   const when = new Date(event.created_at).toLocaleDateString(undefined, {
+    timeZone: tz,
     month: "short",
     day: "numeric",
   });

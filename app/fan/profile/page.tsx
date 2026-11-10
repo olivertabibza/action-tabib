@@ -5,6 +5,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { createClient } from "@/lib/supabase/server";
+import { viewerTimeZone } from "@/lib/datetime";
 import { Avatar } from "@/components/Avatar";
 import { AvatarUploader } from "@/components/AvatarUploader";
 import { FanNameForm } from "./name-form";
@@ -18,10 +19,15 @@ type EventLookup = { id: string; title: string; starts_at: string };
 type ArticleLookup = { id: string; title: string; body: string | null };
 
 // "Fri 12th" — short weekday + ordinal day, matching the mockup's subtitle.
-function formatSavedDate(iso: string): string {
+function formatSavedDate(iso: string, tz: string): string {
   const d = new Date(iso);
-  const weekday = d.toLocaleDateString(undefined, { weekday: "short" });
-  const day = d.getDate();
+  const weekday = d.toLocaleDateString(undefined, {
+    weekday: "short",
+    timeZone: tz,
+  });
+  const day = Number(
+    d.toLocaleDateString("en-US", { day: "numeric", timeZone: tz })
+  );
   const suffix =
     day % 10 === 1 && day !== 11
       ? "st"
@@ -41,6 +47,7 @@ function readingMinutes(body: string | null): number {
 
 export default async function FanProfilePage() {
   const supabase = await createClient();
+  const tz = await viewerTimeZone();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -107,7 +114,7 @@ export default async function FanProfilePage() {
           key: `event-${s.item_id}`,
           href: `/explore/events/${s.item_id}`,
           title: e.title,
-          subtitle: `Event · ${formatSavedDate(e.starts_at)}`,
+          subtitle: `Event · ${formatSavedDate(e.starts_at, tz)}`,
         },
       ];
     }

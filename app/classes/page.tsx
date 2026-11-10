@@ -3,6 +3,7 @@ import Link from "next/link";
 import { GraduationCap, Plus, Star } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
+import { viewerTimeZone } from "@/lib/datetime";
 import { disciplineLabel } from "@/lib/marketplace";
 import { classLevelLabel, formatPrice } from "@/lib/content";
 import { cn } from "@/lib/utils";
@@ -65,6 +66,7 @@ export default async function ClassesPage({
 }) {
   const { submitted } = await searchParams;
   const supabase = await createClient();
+  const tz = await viewerTimeZone();
   const nowIso = new Date().toISOString();
   const {
     data: { user },
@@ -264,6 +266,7 @@ export default async function ClassesPage({
                     c.capacity - (enrolledByClass.get(c.id) ?? 0)
                   )}
                   rating={ratingByClass.get(c.id) ?? null}
+                  tz={tz}
                 />
               </Link>
             </li>
@@ -342,16 +345,18 @@ function ClassCard({
   klass,
   spotsLeft,
   rating,
+  tz,
 }: {
   klass: ClassRow;
   spotsLeft: number;
   rating: { sum: number; count: number } | null;
+  tz: string;
 }) {
   const d = new Date(klass.starts_at);
   const month = d
-    .toLocaleDateString(undefined, { month: "short" })
+    .toLocaleDateString(undefined, { month: "short", timeZone: tz })
     .toUpperCase();
-  const day = d.toLocaleDateString(undefined, { day: "numeric" });
+  const day = d.toLocaleDateString(undefined, { day: "numeric", timeZone: tz });
   const instructor = klass.instructor?.display_name || "the Action team";
   const location =
     klass.format === "virtual" ? "Virtual" : klass.venue || "In person";

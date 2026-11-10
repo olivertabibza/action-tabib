@@ -11,6 +11,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { viewerTimeZone } from "@/lib/datetime";
 import { publicPeople } from "@/lib/public-people";
 import { destinationFor } from "@/lib/auth-dispatch";
 import { articleCategoryLabel } from "@/lib/content";
@@ -120,14 +121,17 @@ export default async function Home() {
     .gte("starts_at", new Date().toISOString())
     .order("starts_at", { ascending: true })
     .limit(2);
+  const tz = await viewerTimeZone();
   const upcomingEvents = (eventData ?? []).map((e) => {
     const d = new Date(e.starts_at);
     return {
       id: e.id,
       title: e.title,
       venue: e.venue,
-      month: d.toLocaleDateString(undefined, { month: "short" }).toUpperCase(),
-      day: d.toLocaleDateString(undefined, { day: "numeric" }),
+      month: d
+        .toLocaleDateString(undefined, { month: "short", timeZone: tz })
+        .toUpperCase(),
+      day: d.toLocaleDateString(undefined, { day: "numeric", timeZone: tz }),
     };
   });
 

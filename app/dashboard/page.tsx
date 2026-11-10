@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
+import { viewerTimeZone } from "@/lib/datetime";
 import { cn } from "@/lib/utils";
 import { titleCase, disciplineLabel, DISCIPLINES } from "@/lib/marketplace";
 import { Avatar } from "@/components/Avatar";
@@ -80,7 +81,7 @@ type RecentProject = {
 };
 
 /** Compact relative timestamp for post headers ("now", "5m", "2h", "6d"). */
-function timeAgo(iso: string) {
+function timeAgo(iso: string, tz: string) {
   const seconds = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
   if (seconds < 60) return "now";
   const minutes = Math.floor(seconds / 60);
@@ -90,6 +91,7 @@ function timeAgo(iso: string) {
   const days = Math.floor(hours / 24);
   if (days < 7) return `${days}d`;
   return new Date(iso).toLocaleDateString(undefined, {
+    timeZone: tz,
     month: "short",
     day: "numeric",
   });
@@ -123,6 +125,7 @@ function endorsableSkills(actor: Actor | null): EndorsableSkill[] {
 
 export default async function DashboardPage() {
   const supabase = await createClient();
+  const tz = await viewerTimeZone();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -405,6 +408,7 @@ export default async function DashboardPage() {
                 <li key={event.id}>
                   <FeedItem
                     event={event}
+                    tz={tz}
                     currentUserId={user.id}
                     commentCount={commentCounts.get(event.id) ?? 0}
                     congratsCount={congratsCounts.get(event.id) ?? 0}
@@ -445,7 +449,7 @@ export default async function DashboardPage() {
 
       {/* Right rail — drops below the wide breakpoint. */}
       <div className="flex flex-col gap-4 max-wide:hidden">
-        {enrolledClass && <ClassCard enrolled={enrolledClass} />}
+        {enrolledClass && <ClassCard enrolled={enrolledClass} tz={tz} />}
         {recentProjects.length > 0 && (
           <RecentProjectsCard projects={recentProjects} />
         )}
@@ -561,6 +565,7 @@ function StatRow({ label, value }: { label: string; value: number }) {
 
 function FeedItem({
   event,
+  tz,
   currentUserId,
   commentCount,
   congratsCount,
@@ -571,6 +576,7 @@ function FeedItem({
   endorsedSkills,
 }: {
   event: FeedEvent;
+  tz: string;
   currentUserId: string;
   commentCount: number;
   congratsCount: number;
@@ -618,7 +624,7 @@ function FeedItem({
                 {actorName}
               </Link>
               <span className="shrink-0 text-[13px] text-text-tertiary">
-                · {timeAgo(event.created_at)}
+                · {timeAgo(event.created_at, tz)}
               </span>
             </p>
             <p className="truncate text-[13.5px] text-text-secondary">
@@ -754,8 +760,15 @@ function ConnectionRequestsCard({ requests }: { requests: ConnectionRequest[] })
 
 /** Rendered only when the user has a real enrollment. The design's session
  * progress bar is omitted rather than faked — there is no session tracking. */
-function ClassCard({ enrolled }: { enrolled: EnrolledClass }) {
+function ClassCard({
+  enrolled,
+  tz,
+}: {
+  enrolled: EnrolledClass;
+  tz: string;
+}) {
   const when = new Date(enrolled.starts_at).toLocaleDateString(undefined, {
+    timeZone: tz,
     weekday: "long",
     month: "short",
     day: "numeric",

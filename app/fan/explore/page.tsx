@@ -6,6 +6,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { createClient } from "@/lib/supabase/server";
+import { viewerTimeZone } from "@/lib/datetime";
 import { publicPeople } from "@/lib/public-people";
 import { eventTypeLabel, articleCategoryLabel } from "@/lib/content";
 import { titleCase } from "@/lib/marketplace";
@@ -53,6 +54,7 @@ export default async function FanExplorePage({
 }) {
   const { search } = await searchParams;
   const supabase = await createClient();
+  const tz = await viewerTimeZone();
   const nowIso = new Date().toISOString();
   const {
     data: { user },
@@ -188,9 +190,9 @@ export default async function FanExplorePage({
             {events.map((e) => {
               const d = new Date(e.starts_at);
               const month = d
-                .toLocaleDateString(undefined, { month: "short" })
+                .toLocaleDateString(undefined, { month: "short", timeZone: tz })
                 .toUpperCase();
-              const day = d.toLocaleDateString(undefined, { day: "numeric" });
+              const day = d.toLocaleDateString(undefined, { day: "numeric", timeZone: tz });
               return (
                 <li key={e.id}>
                   <Link

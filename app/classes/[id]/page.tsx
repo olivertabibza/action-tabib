@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
+import { viewerTimeZone } from "@/lib/datetime";
 import { disciplineLabel } from "@/lib/marketplace";
 import { classLevelLabel, classFormatLabel, formatPrice } from "@/lib/content";
 import { cn } from "@/lib/utils";
@@ -207,14 +208,17 @@ export default async function ClassDetailPage({
   const instructorName = instructor?.display_name || "the Action team";
   const location =
     klass.format === "virtual" ? "Virtual" : klass.venue || "In person";
+  const tz = await viewerTimeZone();
   const starts = new Date(klass.starts_at);
   const dateLine = starts.toLocaleDateString(undefined, {
+    timeZone: tz,
     weekday: "long",
     year: "numeric",
     month: "long",
     day: "numeric",
   });
   const timeLine = starts.toLocaleTimeString(undefined, {
+    timeZone: tz,
     hour: "numeric",
     minute: "2-digit",
   });
@@ -357,6 +361,7 @@ export default async function ClassDetailPage({
                       <p className="text-xs text-muted-foreground">
                         Enrolled{" "}
                         {new Date(e.created_at).toLocaleDateString(undefined, {
+                          timeZone: tz,
                           month: "short",
                           day: "numeric",
                           year: "numeric",

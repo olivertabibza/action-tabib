@@ -7,6 +7,7 @@ import Link from "next/link";
 import { Clock, MapPin } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
+import { viewerTimeZone } from "@/lib/datetime";
 import { eventTypeLabel } from "@/lib/content";
 import { RsvpButton } from "@/app/explore/events/rsvp-button";
 import { Button } from "@/components/ui/button";
@@ -23,6 +24,7 @@ type EventRow = {
 
 export default async function FanEventsPage() {
   const supabase = await createClient();
+  const tz = await viewerTimeZone();
   const nowIso = new Date().toISOString();
   const {
     data: { user },
@@ -77,10 +79,11 @@ export default async function FanEventsPage() {
           {events.map((e) => {
             const d = new Date(e.starts_at);
             const month = d
-              .toLocaleDateString(undefined, { month: "short" })
+              .toLocaleDateString(undefined, { month: "short", timeZone: tz })
               .toUpperCase();
-            const day = d.toLocaleDateString(undefined, { day: "numeric" });
+            const day = d.toLocaleDateString(undefined, { day: "numeric", timeZone: tz });
             const time = d.toLocaleTimeString(undefined, {
+              timeZone: tz,
               hour: "numeric",
               minute: "2-digit",
             });

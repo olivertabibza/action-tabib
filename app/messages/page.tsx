@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { Inbox, MailQuestion } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
+import { viewerTimeZone } from "@/lib/datetime";
 import { titleCase } from "@/lib/marketplace";
 import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/Avatar";
@@ -16,14 +17,23 @@ export const metadata: Metadata = { title: "Messages" };
 // Two tabs via ?tab=: Chats (my accepted threads) and Requests (not yet
 // accepted), matching mockup P5.
 
-function timeLabel(iso: string | null): string {
+function timeLabel(iso: string | null, tz: string): string {
   if (!iso) return "";
   const d = new Date(iso);
-  const now = new Date();
-  const sameDay = d.toDateString() === now.toDateString();
+  // "Same day" in the viewer's zone, not the server's.
+  const dayOf = (x: Date) => x.toLocaleDateString("en-US", { timeZone: tz });
+  const sameDay = dayOf(d) === dayOf(new Date());
   return sameDay
-    ? d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })
-    : d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+    ? d.toLocaleTimeString(undefined, {
+        hour: "numeric",
+        minute: "2-digit",
+        timeZone: tz,
+      })
+    : d.toLocaleDateString(undefined, {
+        month: "short",
+        day: "numeric",
+        timeZone: tz,
+      });
 }
 
 export default async function MessagesPage({
@@ -33,6 +43,7 @@ export default async function MessagesPage({
 }) {
   const { tab } = await searchParams;
   const supabase = await createClient();
+  const tz = await viewerTimeZone();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -69,7 +80,7 @@ export default async function MessagesPage({
       ) : rows.length > 0 ? (
         <ul className="mt-4 flex flex-col divide-y divide-border">
           {rows.map((r) => (
-            <ConversationRow key={r.conversationId} row={r} />
+            <ConversationRow key={r.conversationId} row={r} tz={tz} />
           ))}
         </ul>
       ) : active === "requests" ? (
@@ -127,7 +138,13 @@ function TabLink({
   );
 }
 
-function ConversationRow({ row }: { row: ConversationSummary }) {
+function ConversationRow({
+  row,
+  tz,
+}: {
+  row: ConversationSummary;
+  tz: string;
+}) {
   const name = row.otherName || "A member";
   return (
     <li className="py-3">
@@ -154,7 +171,7 @@ function ConversationRow({ row }: { row: ConversationSummary }) {
               ) : null}
             </span>
             <span className="shrink-0 text-xs text-muted-foreground">
-              {timeLabel(row.lastAt)}
+              {timeLabel(row.lastAt, tz)}
             </span>
           </div>
           <p

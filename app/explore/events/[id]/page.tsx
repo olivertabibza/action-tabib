@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, CalendarDays, Clock, MapPin } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
+import { viewerTimeZone } from "@/lib/datetime";
 import { resolveBackLink } from "@/lib/back-link";
 import { publicPeople } from "@/lib/public-people";
 import { titleCase } from "@/lib/marketplace";
@@ -137,14 +138,17 @@ export default async function EventDetailPage({
     event.created_by
   );
   const hostName = host?.display_name || "the Action team";
+  const tz = await viewerTimeZone();
   const starts = new Date(event.starts_at);
   const dateLine = starts.toLocaleDateString(undefined, {
+    timeZone: tz,
     weekday: "long",
     year: "numeric",
     month: "long",
     day: "numeric",
   });
   const timeLine = starts.toLocaleTimeString(undefined, {
+    timeZone: tz,
     hour: "numeric",
     minute: "2-digit",
   });

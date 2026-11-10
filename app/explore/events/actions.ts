@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
+import { viewerTimeZone, zonedToUtc } from "@/lib/datetime";
 import { eventSchema, type EventFormValues } from "./schema";
 
 /**
@@ -28,7 +29,8 @@ export async function createEvent(values: EventFormValues) {
   }
 
   const { date, time, ...rest } = parsed.data;
-  const starts = new Date(`${date}T${time}`);
+  // Typed in the creator's own time zone (ENG F11, lib/datetime.ts).
+  const starts = zonedToUtc(date, time, await viewerTimeZone());
   if (Number.isNaN(starts.getTime())) {
     return { error: "That date and time don't look right." };
   }

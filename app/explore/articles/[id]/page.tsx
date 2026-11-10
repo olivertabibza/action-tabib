@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
+import { viewerTimeZone } from "@/lib/datetime";
 import { resolveBackLink } from "@/lib/back-link";
 import { publicPeople } from "@/lib/public-people";
 import { titleCase } from "@/lib/marketplace";
@@ -151,7 +152,9 @@ export default async function ArticleDetailPage({
     article.created_by
   );
   const authorName = author?.display_name || "the Action desk";
+  const tz = await viewerTimeZone();
   const published = new Date(article.created_at).toLocaleDateString(undefined, {
+    timeZone: tz,
     year: "numeric",
     month: "long",
     day: "numeric",

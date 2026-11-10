@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { FolderOpen, FolderPlus, Plus, Star } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
+import { viewerTimeZone } from "@/lib/datetime";
 import { cn } from "@/lib/utils";
 import { AGE_BANDS } from "@/lib/marketplace";
 import { CallboardCard } from "@/components/CallboardCard";
@@ -60,6 +61,7 @@ export default async function ProjectsPage({
   );
 
   const supabase = await createClient();
+  const tz = await viewerTimeZone();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -303,6 +305,7 @@ export default async function ProjectsPage({
                 saved={savedIds.has(project.id)}
                 appliedRoleIds={appliedRoleIds}
                 isOwn={project.created_by === user.id}
+                tz={tz}
               />
             ))}
           </div>
