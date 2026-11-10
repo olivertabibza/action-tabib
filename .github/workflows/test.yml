@@ -22,14 +22,18 @@ jobs:
       # Errors fail the build; warnings don't.
       - run: npm run lint
 
+      # Every secret below belongs to the TEST Supabase project ("action-test"),
+      # never production: same names, test-project values (see
+      # .env.test.local.example for which key each one takes).
       - run: npm run build
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
 
       # Layer 1 (RLS/integration) only. These act solely as seed accounts against
-      # the shared Supabase instance, so the three vars below must be set as repo
-      # secrets. No service-role key here — the tests never need one.
+      # the TEST Supabase project, so the vars below must be set as repo secrets
+      # holding the test project's values. No service-role key here — the tests
+      # never need one.
       - run: npm test
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}

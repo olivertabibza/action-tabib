@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "seed": "tsx --env-file=.env.local scripts/seed.ts",
+    "seed": "tsx --env-file=.env.test.local scripts/seed.ts",
     "seed:rotate-passwords": "tsx --env-file=.env.local scripts/rotate-seed-passwords.ts",
     "test": "vitest run",
     "test:watch": "vitest",

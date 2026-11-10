@@ -2,10 +2,13 @@
  * Database seed — demo Industry Professionals, projects, project roles,
  * applications, events, articles, follows, connections, and feed activity.
  *
- * SERVER-ONLY. Run with `npm run seed` (which loads .env.local via tsx's
+ * SERVER-ONLY. Run with `npm run seed` (which loads .env.test.local via tsx's
  * --env-file). It uses the Supabase SECRET (service-role) key, which bypasses
  * RLS and can create confirmed auth users — so this file must NEVER be
  * imported from anything under app/ or any client code.
+ *
+ * TEST PROJECT ONLY. It refuses to run unless SEED_ALLOWED=true, which only
+ * .env.test.local sets, so it can't seed production by accident.
  *
  * Safe to re-run: seed accounts are identified by the @actionseed.test email
  * pattern. Existing seed auth users are reused (password reset to SEED_PASSWORD
@@ -22,6 +25,21 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 const SEED_DOMAIN = "actionseed.test";
 
+// Checked before anything else, so a seed pointed at the wrong project exits
+// before it creates a client, let alone writes.
+if (process.env.SEED_ALLOWED !== "true") {
+  console.error(
+    [
+      "Refusing to seed: SEED_ALLOWED is not \"true\".",
+      "",
+      "The seed only runs against the TEST Supabase project. npm run seed loads",
+      ".env.test.local, which sets SEED_ALLOWED=true; production's .env.local",
+      "never does. See .env.test.local.example.",
+    ].join("\n")
+  );
+  process.exit(1);
+}
+
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SECRET_KEY =
   process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -34,7 +52,7 @@ if (!SUPABASE_URL || !SECRET_KEY) {
       "  NEXT_PUBLIC_SUPABASE_URL    " + (SUPABASE_URL ? "ok" : "MISSING"),
       "  SUPABASE_SECRET_KEY         " + (SECRET_KEY ? "ok" : "MISSING"),
       "",
-      "Add the Supabase SECRET (service-role) key to .env.local, e.g.:",
+      "Add the Supabase SECRET (service-role) key to .env.test.local, e.g.:",
       "  SUPABASE_SECRET_KEY=sb_secret_...   (Dashboard → Project Settings → API keys)",
       "",
       "Use the secret/service-role key — NOT the publishable/anon key.",
@@ -56,7 +74,7 @@ if (SEED_PASSWORD.length < MIN_SEED_PASSWORD_LENGTH) {
         ? `SEED_PASSWORD is too short (needs at least ${MIN_SEED_PASSWORD_LENGTH} characters).`
         : "Missing required env var SEED_PASSWORD.",
       "",
-      "Set it in .env.local to a long random value, e.g. from:",
+      "Set it in .env.test.local to a long random value, e.g. from:",
       "  openssl rand -hex 20",
       "",
       "The seed script, npm run seed:rotate-passwords and the tests all read it.",
@@ -2017,7 +2035,7 @@ async function main() {
 
   console.log("\nDone. ✅");
   console.log(`\n  Login email pattern:  seed-<role>-<n>@${SEED_DOMAIN}`);
-  console.log(`  Shared password:      SEED_PASSWORD from .env.local`);
+  console.log(`  Shared password:      SEED_PASSWORD from .env.test.local`);
   console.log(`  Re-run any time:      npm run seed\n`);
 }
 

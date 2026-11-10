@@ -1,16 +1,16 @@
-import { config } from "dotenv";
+import { loadTestEnv } from "./helpers/load-test-env";
 
-// The seed script loads env via tsx's --env-file=.env.local; Vitest doesn't, so
-// we load the same file here. Matches scripts/seed.ts's source of truth. Tests
-// only ever need the PUBLIC url + anon key and the shared SEED_PASSWORD — never
-// the secret/service-role key (that stays out of the test process entirely).
+// The seed script loads env via tsx's --env-file=.env.test.local; Vitest
+// doesn't, so we load the same file here. Matches scripts/seed.ts's source of
+// truth. Tests only ever need the PUBLIC url + anon key and the shared
+// SEED_PASSWORD — never the secret/service-role key (that stays out of the test
+// process entirely).
 //
-// .env.local is a LOCAL CONVENIENCE ONLY and is deliberately optional: dotenv
-// returns { error } (ENOENT) instead of throwing when the file is absent, and it
-// never overwrites vars that are already in process.env. In CI the file doesn't
-// exist and the three vars arrive from the workflow's env: block, so process.env
-// is the real source of truth in both environments. Ignore the error.
-config({ path: ".env.local" });
+// Locally, .env.test.local (the TEST Supabase project) is required and there is
+// deliberately no fallback to .env.local, which points at production. In CI the
+// file doesn't exist and the vars arrive from the workflow's env: block (the
+// test project's secrets), so process.env is the source of truth there.
+loadTestEnv();
 
 const required = [
   "NEXT_PUBLIC_SUPABASE_URL",
@@ -58,8 +58,9 @@ if (missing.length > 0 || malformed.length > 0) {
     );
   throw new Error(
     `Env problem for tests — ${parts.join("; ")}. ` +
-      `Locally: add them to .env.local (see .env.local.example). ` +
-      `In CI: set them as Repository secrets, referenced by the npm test step's ` +
+      `Locally: add them to .env.test.local (see .env.test.local.example). ` +
+      `In CI: set them as Repository secrets (the TEST project's values), ` +
+      `referenced by the npm test step's ` +
       `env: block in .github/workflows/test.yml. ` +
       `SEED_PASSWORD is the single source of the seed accounts' password ` +
         `(scripts/seed.ts reads it too).`
