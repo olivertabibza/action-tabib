@@ -41,6 +41,13 @@ export default async function ProfilePage() {
     .eq("id", user.id)
     .maybeSingle();
 
+  // UX B-13: a fan's own profile lives at /fan/profile (name only). This page's
+  // form asks for a film role and headline, which fans don't have. Only the
+  // owner's page redirects; /profile/[id] stays public.
+  if (profile?.account_type === "consumer") {
+    redirect("/fan/profile");
+  }
+
   // The "portfolios" bucket is PRIVATE, so a plain public URL won't load. We
   // mint a short-lived signed URL on the server for each uploaded file.
   const paths: string[] = Array.isArray(profile?.portfolio_files)
