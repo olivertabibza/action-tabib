@@ -247,3 +247,46 @@ create view public.class_enrollment_counts
   group by class_id;
 
 grant select on public.class_enrollment_counts to anon, authenticated;
+
+
+-- ── 6. The last seat can't be taken twice (audit ENG F06) ───────────────────
+-- The insert policy (§4) counts seats, but two enrollments arriving together
+-- each count from a snapshot that doesn't include the other, so both can take
+-- the last seat. This trigger runs before each enrollment insert and locks the
+-- class row first: a second enrollment in the same class waits until the first
+-- commits, then counts again and sees it. Each statement in a plpgsql function
+-- takes a fresh snapshot, so the count after the lock is current.
+--
+-- security definer: the lock and the count must ignore the caller's RLS (the
+-- same narrow elevation as class_seats_taken; nothing is returned). The error
+-- is a check_violation, which toggleEnrollment already reports as "This class
+-- is full."
+create or replace function public.class_enrollments_hold_seat()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_capacity integer;
+begin
+  select c.capacity into v_capacity
+  from public.classes c
+  where c.id = new.class_id
+  for update;
+
+  if v_capacity is not null and (
+    select count(*) from public.class_enrollments e
+    where e.class_id = new.class_id
+  ) >= v_capacity then
+    raise exception 'This class is full.' using errcode = 'check_violation';
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists class_enrollments_hold_seat on public.class_enrollments;
+create trigger class_enrollments_hold_seat
+  before insert on public.class_enrollments
+  for each row execute function public.class_enrollments_hold_seat();

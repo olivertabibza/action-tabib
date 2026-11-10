@@ -274,4 +274,30 @@ describe("classes RLS", () => {
       .single();
     expect(after?.title).toBe(DEMO_TITLE);
   });
+
+  // (i) ENG F06: two people taking the last seat at the same moment. The insert
+  // policy alone let both through (each counted seats from a snapshot without
+  // the other); the class_enrollments_hold_seat trigger locks the class row,
+  // so the second waits, recounts and is refused. Two HTTP requests aren't
+  // guaranteed to overlap, so a run can pass without the trigger; the race
+  // itself was reproduced and fixed on a local copy of the schema.
+  test("i) the last seat can't be taken twice at once", async () => {
+    await clearFixtureEnrollments();
+    const { error: first } = await e1
+      .from("class_enrollments")
+      .insert({ class_id: fixtureId, user_id: e1Id });
+    expect(first).toBeNull();
+
+    const [r2, r3] = await Promise.all([
+      e2.from("class_enrollments").insert({ class_id: fixtureId, user_id: e2Id }),
+      e3.from("class_enrollments").insert({ class_id: fixtureId, user_id: e3Id }),
+    ]);
+    expect([r2.error, r3.error].filter((e) => e === null)).toHaveLength(1);
+
+    const { data: rows } = await owner
+      .from("class_enrollments")
+      .select("user_id")
+      .eq("class_id", fixtureId);
+    expect(rows ?? []).toHaveLength(FIXTURE_CAPACITY);
+  });
 });
