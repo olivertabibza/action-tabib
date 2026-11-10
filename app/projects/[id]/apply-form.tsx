@@ -53,10 +53,13 @@ export function ApplyForm({
           rows={4}
           placeholder="Why you're a fit — relevant experience, availability, a link to your work."
           aria-invalid={!!errors.note}
+          aria-describedby={errors.note ? "apply-note-error" : undefined}
           {...register("note")}
         />
         {errors.note && (
-          <p className="text-sm text-destructive">{errors.note.message}</p>
+          <p id="apply-note-error" className="text-sm text-destructive">
+            {errors.note.message}
+          </p>
         )}
       </div>
 

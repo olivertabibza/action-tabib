@@ -121,10 +121,16 @@ export function ProfileForm({
           id="display_name"
           placeholder="e.g. Jane Doe"
           aria-invalid={!!errors.display_name}
+          aria-describedby={
+            errors.display_name ? "profile-display-name-error" : undefined
+          }
           {...register("display_name")}
         />
         {errors.display_name && (
-          <p className="text-sm text-destructive">
+          <p
+            id="profile-display-name-error"
+            className="text-sm text-destructive"
+          >
             {errors.display_name.message}
           </p>
         )}
@@ -135,6 +141,7 @@ export function ProfileForm({
         <NativeSelect
           id="role"
           aria-invalid={!!errors.role}
+          aria-describedby={errors.role ? "profile-role-error" : undefined}
           {...register("role")}
         >
           <option value="">Select your role</option>
@@ -145,7 +152,9 @@ export function ProfileForm({
           ))}
         </NativeSelect>
         {errors.role && (
-          <p className="text-sm text-destructive">{errors.role.message}</p>
+          <p id="profile-role-error" className="text-sm text-destructive">
+            {errors.role.message}
+          </p>
         )}
       </div>
 
@@ -155,15 +164,23 @@ export function ProfileForm({
           id="headline"
           placeholder="e.g. Director / Screenwriter"
           aria-invalid={!!errors.headline}
+          aria-describedby={
+            errors.headline ? "profile-headline-error" : undefined
+          }
           {...register("headline")}
         />
         {errors.headline && (
-          <p className="text-sm text-destructive">{errors.headline.message}</p>
+          <p id="profile-headline-error" className="text-sm text-destructive">
+            {errors.headline.message}
+          </p>
         )}
       </div>
 
       {showSkills && (
-        <fieldset className="flex flex-col gap-2">
+        <fieldset
+          className="flex flex-col gap-2"
+          aria-describedby={errors.skills ? "profile-skills-error" : undefined}
+        >
           <legend className="mb-2 text-sm font-medium">
             Skills — other roles you can work
           </legend>
@@ -184,7 +201,9 @@ export function ProfileForm({
             ))}
           </div>
           {errors.skills && (
-            <p className="text-sm text-destructive">{errors.skills.message}</p>
+            <p id="profile-skills-error" className="text-sm text-destructive">
+              {errors.skills.message}
+            </p>
           )}
         </fieldset>
       )}
@@ -196,10 +215,13 @@ export function ProfileForm({
           rows={4}
           placeholder="A short introduction — what you do and what you're working on."
           aria-invalid={!!errors.bio}
+          aria-describedby={errors.bio ? "profile-bio-error" : undefined}
           {...register("bio")}
         />
         {errors.bio && (
-          <p className="text-sm text-destructive">{errors.bio.message}</p>
+          <p id="profile-bio-error" className="text-sm text-destructive">
+            {errors.bio.message}
+          </p>
         )}
       </div>
 

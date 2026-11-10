@@ -73,12 +73,15 @@ export function ComposeBox({ displayName }: { displayName?: string | null }) {
             className="min-h-0 flex-1 resize-none rounded-full border-border-hairline bg-surface-sunken px-[18px] py-[13px] text-[15px]"
             placeholder="Share an update with your circle…"
             aria-invalid={!!errors.body}
+            aria-describedby={errors.body ? "compose-body-error" : undefined}
             aria-label="Status update"
             {...register("body")}
           />
         </div>
         {errors.body && (
-          <p className="text-sm text-destructive">{errors.body.message}</p>
+          <p id="compose-body-error" className="text-sm text-destructive">
+            {errors.body.message}
+          </p>
         )}
         {serverError && (
           <p
