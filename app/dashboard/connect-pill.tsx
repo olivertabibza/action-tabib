@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 
@@ -32,6 +32,9 @@ const LABELS: Record<ConnectionState, string> = {
  * page.tsx); we flip it on success and refresh so mutual counts and the
  * requests card re-derive. There is no toast primitive in this repo, so a
  * failed action surfaces its message as the button's title.
+ *
+ * PX F12: "Connected" and "Pending" read as status, not as buttons, yet one
+ * tap deleted the connection or request. Those two now ask first, inline.
  */
 export function ConnectPill({
   targetId,
@@ -44,8 +47,27 @@ export function ConnectPill({
   const [state, setState] = useState(initialState);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const [confirming, setConfirming] = useState(false);
+  const keepRef = useRef<HTMLButtonElement>(null);
+
+  // The pill the user just pressed is gone, so put focus on the safe choice.
+  useEffect(() => {
+    if (confirming) keepRef.current?.focus();
+  }, [confirming]);
+
+  const pillBase =
+    "focus-ring flex shrink-0 items-center gap-1.5 rounded-full px-[18px] py-[7px] text-[13.5px] font-semibold transition-[background-color,opacity] disabled:opacity-60";
 
   function click() {
+    if (state === "connected" || state === "pending_outgoing") {
+      setConfirming(true);
+      return;
+    }
+    run();
+  }
+
+  function run() {
+    setConfirming(false);
     setError(null);
     startTransition(async () => {
       let result: { error?: string };
@@ -72,6 +94,41 @@ export function ConnectPill({
     });
   }
 
+  if (confirming) {
+    const isConnected = state === "connected";
+    return (
+      <div
+        role="group"
+        aria-label={
+          isConnected ? "Remove this connection?" : "Withdraw your request?"
+        }
+        className="flex shrink-0 items-center gap-1"
+      >
+        <button
+          type="button"
+          onClick={run}
+          className={cn(
+            pillBase,
+            "bg-destructive/10 px-3.5 text-destructive hover:bg-destructive/15"
+          )}
+        >
+          {isConnected ? "Disconnect" : "Withdraw"}
+        </button>
+        <button
+          ref={keepRef}
+          type="button"
+          onClick={() => setConfirming(false)}
+          className={cn(
+            pillBase,
+            "px-3.5 text-text-secondary hover:bg-muted"
+          )}
+        >
+          Keep
+        </button>
+      </div>
+    );
+  }
+
   return (
     <button
       type="button"
@@ -79,7 +136,7 @@ export function ConnectPill({
       disabled={pending}
       title={error ?? undefined}
       className={cn(
-        "focus-ring flex shrink-0 items-center gap-1.5 rounded-full px-[18px] py-[7px] text-[13.5px] font-semibold transition-[background-color,opacity] disabled:opacity-60",
+        pillBase,
         state === "none"
           ? "border-[1.5px] border-accent text-accent hover:bg-accent-tint"
           : "bg-accent-tint text-accent hover:opacity-80"
