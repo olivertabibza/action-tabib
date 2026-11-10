@@ -6,6 +6,8 @@ import { resolveBackLink } from "@/lib/back-link";
 import { signedPortfolioUrls } from "@/lib/portfolio";
 import { disciplineLabel } from "@/lib/marketplace";
 import { MessageButton } from "@/app/messages/message-button";
+import { FollowButton } from "@/app/explore/(tab)/people/follow-button";
+import { FanFollowButton } from "@/app/fan/explore/follow-button";
 import {
   Card,
   CardContent,
@@ -51,6 +53,7 @@ export default async function PublicProfilePage({
   let fallbackHref = "/";
   let fallbackLabel = "Back";
   let viewerIsApprovedPro = false;
+  let viewerIsFan = false;
   if (user) {
     const { data: viewer } = await supabase
       .from("profiles")
@@ -65,6 +68,7 @@ export default async function PublicProfilePage({
       fallbackHref = "/explore";
       fallbackLabel = "Back to Explore";
     } else {
+      viewerIsFan = viewer?.account_type === "consumer";
       fallbackHref = "/fan/explore";
       fallbackLabel = "Back to Explore";
     }
@@ -100,6 +104,22 @@ export default async function PublicProfilePage({
     .select("id, title, storage_path")
     .eq("profile_id", profile.id)
     .order("created_at", { ascending: false });
+  // Follow lives on the profile too (UX B-25), so nobody has to go back to a
+  // list to follow someone they just read about. Pros and fans each keep their
+  // own button: the pro one also posts to the Feed.
+  const canFollow =
+    !!user && user.id !== profile.id && (viewerIsApprovedPro || viewerIsFan);
+  let isFollowing = false;
+  if (canFollow) {
+    const { data: follow } = await supabase
+      .from("follows")
+      .select("following_id")
+      .eq("follower_id", user.id)
+      .eq("following_id", profile.id)
+      .maybeSingle();
+    isFollowing = !!follow;
+  }
+
   const workSamples = (workSampleRows ?? []).map((sample) => ({
     id: sample.id,
     title: sample.title,
@@ -149,9 +169,22 @@ export default async function PublicProfilePage({
       )}
 
       {/* Message: only an approved pro can DM, and never yourself. */}
-      {viewerIsApprovedPro && user && user.id !== profile.id && (
-        <div className="mt-5">
-          <MessageButton otherId={profile.id} variant="default" />
+      {canFollow && (
+        <div className="mt-5 flex flex-wrap items-start gap-2">
+          {viewerIsApprovedPro ? (
+            <>
+              <FollowButton
+                targetId={profile.id}
+                initialFollowing={isFollowing}
+              />
+              <MessageButton otherId={profile.id} variant="outline" />
+            </>
+          ) : (
+            <FanFollowButton
+              targetId={profile.id}
+              initialFollowing={isFollowing}
+            />
+          )}
         </div>
       )}
 

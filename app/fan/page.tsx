@@ -92,14 +92,34 @@ export default async function FanFeedPage() {
           <span className="flex size-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
             <Rss className="size-5" strokeWidth={1.75} />
           </span>
-          <p className="mt-4 font-medium">Your feed will appear here</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Follow filmmakers from{" "}
-            <Link href="/fan/explore" className="text-brand hover:underline">
-              Explore
-            </Link>{" "}
-            and their posts will show up here.
-          </p>
+          {/* PX F16: a fan who already follows people was told to go follow
+              people. Say what's actually true for them. */}
+          {followingIds.length > 0 ? (
+            <>
+              <p className="mt-4 font-medium">No posts yet</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {followingIds.length === 1
+                  ? "The filmmaker you follow hasn't posted yet."
+                  : "The filmmakers you follow haven't posted yet."}{" "}
+                Find more to follow in{" "}
+                <Link href="/fan/explore" className="text-brand hover:underline">
+                  Explore
+                </Link>
+                .
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="mt-4 font-medium">Your feed will appear here</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Follow filmmakers from{" "}
+                <Link href="/fan/explore" className="text-brand hover:underline">
+                  Explore
+                </Link>{" "}
+                and their posts will show up here.
+              </p>
+            </>
+          )}
         </div>
       )}
     </main>
@@ -125,7 +145,13 @@ function FeedItem({
       <div className="flex gap-3">
         <Avatar name={actorName} />
         <div className="min-w-0 flex-1">
-          <p className="truncate font-semibold">{actorName}</p>
+          {/* UX B-25: names open the profile, where Follow now lives too. */}
+          <Link
+            href={`/profile/${event.actor_id}`}
+            className="block truncate font-semibold transition-colors hover:text-brand"
+          >
+            {actorName}
+          </Link>
           <p className="text-xs text-muted-foreground">{subtitle}</p>
 
           {event.kind === "status_update" ? (
