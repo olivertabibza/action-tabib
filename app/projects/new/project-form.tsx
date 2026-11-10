@@ -105,10 +105,22 @@ export function ProjectForm() {
     setValue("tags", [...tags, value], { shouldValidate: true });
   }
 
+  // UX B-11: gender and age don't apply to crew, so a crew role hides those
+  // fields and never sends values typed before switching Billing to Crew.
+  const roleValues = watch("roles");
+
   function onSubmit(values: ProjectFormValues) {
     setServerError(null);
+    const cleaned: ProjectFormValues = {
+      ...values,
+      roles: values.roles.map((r) =>
+        r.billing === "crew"
+          ? { ...r, gender: "any", age_min: null, age_max: null }
+          : r
+      ),
+    };
     startTransition(async () => {
-      const result = await createProject(values);
+      const result = await createProject(cleaned);
       if ("id" in result) {
         router.push(`/projects/${result.id}`);
         return;
@@ -123,7 +135,7 @@ export function ProjectForm() {
         <Label htmlFor="title">Title</Label>
         <Input
           id="title"
-          placeholder="e.g. Lead actor for a short film"
+          placeholder="e.g. Midnight Diner"
           aria-invalid={!!errors.title}
           {...register("title")}
         />
@@ -433,7 +445,19 @@ export function ProjectForm() {
                 <NativeSelect
                   id={`role-billing-${index}`}
                   className="w-36"
-                  {...register(`roles.${index}.billing`)}
+                  {...register(`roles.${index}.billing`, {
+                    // Clear the hidden crew-irrelevant fields so a value typed
+                    // before switching can't fail validation out of sight.
+                    onChange: (e) => {
+                      if (e.target.value === "crew") {
+                        setValue(`roles.${index}.gender`, "any");
+                        setValue(`roles.${index}.age_min`, null);
+                        setValue(`roles.${index}.age_max`, null, {
+                          shouldValidate: true,
+                        });
+                      }
+                    },
+                  })}
                 >
                   {ROLE_BILLINGS.map((b) => (
                     <option key={b} value={b}>
@@ -442,6 +466,8 @@ export function ProjectForm() {
                   ))}
                 </NativeSelect>
               </div>
+              {roleValues?.[index]?.billing !== "crew" && (
+              <>
               <div className="flex flex-col gap-2">
                 <Label
                   htmlFor={`role-gender-${index}`}
@@ -506,6 +532,8 @@ export function ProjectForm() {
                   })}
                 />
               </div>
+              </>
+              )}
             </div>
             {(errors.roles?.[index]?.age_min ||
               errors.roles?.[index]?.age_max) && (
