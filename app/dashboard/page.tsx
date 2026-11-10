@@ -311,8 +311,7 @@ export default async function DashboardPage() {
       )
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
+      .limit(50),
     supabase
       .from("projects")
       .select("id, title, discipline, location, compensation")
@@ -325,8 +324,20 @@ export default async function DashboardPage() {
   const vouches = vouchesRes.count ?? 0;
   const classesTaken = classesTakenRes.count ?? 0;
   const savedCount = savedRes.count ?? 0;
+  // UX B-21: "Your class" is the NEXT class you're enrolled in, never one that
+  // has already ended.
+  const nowMs = new Date().getTime();
   const enrolledClass =
-    (enrollmentRes.data?.class as unknown as EnrolledClass | null) ?? null;
+    ((enrollmentRes.data ?? [])
+      .map((e) => e.class as unknown as EnrolledClass | null)
+      .filter(
+        (c): c is EnrolledClass =>
+          !!c && new Date(c.starts_at).getTime() >= nowMs
+      )
+      .sort(
+        (a, b) =>
+          new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime()
+      )[0] ?? null);
   const recentProjects = (recentProjectsRes.data ?? []) as RecentProject[];
 
   return (
@@ -514,7 +525,7 @@ function ProfileCard({
         </p>
         <div className="mt-3.5 flex flex-col gap-[9px] border-t border-border-hairline pt-3.5">
           <StatRow label="Connections" value={connections} />
-          <StatRow label="Classes taken" value={classesTaken} />
+          <StatRow label="Classes enrolled" value={classesTaken} />
         </div>
       </div>
     </CallboardCard>
