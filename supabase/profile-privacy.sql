@@ -58,7 +58,8 @@ grant select (
   headline,
   bio,
   is_admin,
-  skills
+  skills,
+  avatar_path -- added by avatars.sql; run that file before re-running this one
 ) on public.profiles to anon, authenticated;
 
 

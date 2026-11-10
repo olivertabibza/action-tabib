@@ -219,7 +219,8 @@ from the secret key. Apply these files in the Supabase SQL editor:
 | `fix-profiles-policy.sql` | Explicit self-insert / self-update policies on `profiles` |
 | `marketplace.sql` | `projects` and `applications` tables, indexes, and marketplace RLS; `is_approved_pro()` / `has_applied()` helpers |
 | `social-feed.sql` | `follows` and `activity_events` tables + RLS; `is_following()` helper |
-| `public-profiles.sql` | `public_profiles` view and storage policy so anon visitors can read approved pros |
+| `public-profiles.sql` | `public_profiles` view (approved pros, admins left out, with `avatar_path`) and storage policy so anon visitors can read approved pros. Run after `avatars.sql` |
+| `avatars.sql` | `profiles.avatar_path`, the public `avatars` bucket and its own-folder upload/delete policies |
 | `admin.sql` | `profiles.is_admin` flag, `is_admin()` helper, admin RLS, and the one-time admin bootstrap note |
 
 ### Core tables
@@ -239,6 +240,9 @@ from the secret key. Apply these files in the Supabase SQL editor:
   by anon.
 
 ### Storage
+
+Profile photos live in a **public** `avatars` bucket under `<user_id>/<random>.<ext>`
+(`avatars.sql`); members write only to their own folder.
 
 Portfolio files live in a **private** `portfolios` bucket under `<user_id>/…`.
 Pages mint short-lived signed URLs with the anon key; storage RLS lets owners,
