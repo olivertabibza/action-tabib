@@ -287,35 +287,7 @@ $$;
 revoke execute on function public.open_conversation(uuid) from public, anon;
 grant execute on function public.open_conversation(uuid) to authenticated;
 
-
--- ── 7. reset_seed_conversation(): TEST-ONLY ─────────────────────────────────
--- Used by tests/rls/messages.test.ts to start each run from a fresh thread,
--- since clients can no longer insert or reset participant rows themselves.
--- TEMPORARY: goes away with the separate test database (roadmap Step 2e).
---
--- Why it's safe on the shared database: it deletes ONLY the one conversation
--- between the caller and p_other (participants and messages cascade), and ONLY
--- when BOTH people's login emails (auth.users, which users can't edit through
--- the API) end in '@actionseed.test' — i.e. both are seed accounts. For anyone
--- else it does nothing. It can't be called with the anon key.
-create or replace function public.reset_seed_conversation(p_other uuid)
-returns void
-language plpgsql
-security definer
-set search_path = ''
-as $$
-begin
-  if (
-    select count(*) from auth.users u
-    where u.id in (auth.uid(), p_other)
-      and u.email like '%@actionseed.test'
-  ) = 2 then
-    delete from public.conversations c
-    where c.user_a = least(auth.uid(), p_other)
-      and c.user_b = greatest(auth.uid(), p_other);
-  end if;
-end;
-$$;
-
-revoke execute on function public.reset_seed_conversation(uuid) from public, anon;
-grant execute on function public.reset_seed_conversation(uuid) to authenticated;
+-- reset_seed_conversation() (test-only) moved to
+-- supabase/test-only/reset-seed-conversation.sql on 2026-11-10. It exists only
+-- on the action-test project; production's copy was dropped by
+-- supabase/one-off/2026-11-10-clean-production.sql.
