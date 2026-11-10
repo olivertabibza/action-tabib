@@ -17,7 +17,7 @@ import {
   ComboboxList,
 } from "@/components/ui/combobox";
 
-type Step = "choose" | "professional" | "consumer";
+export type Step = "choose" | "professional" | "consumer";
 
 const ROLES = [
   "Actor",
@@ -80,11 +80,13 @@ const CONSUMER_OPTIONS: {
 export function OnboardingFlow({
   userId,
   email,
+  initialStep = "choose",
 }: {
   userId: string;
   email: string;
+  initialStep?: Step;
 }) {
-  const [step, setStep] = useState<Step>("choose");
+  const [step, setStep] = useState<Step>(initialStep);
 
   return (
     <div className="w-full max-w-3xl">

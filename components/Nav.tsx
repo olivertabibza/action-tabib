@@ -188,10 +188,10 @@ export function Nav({
                   </Link>
                 );
               })}
+              {/* No untyped "Sign up" here (UX B-04): visitors join from the
+                  typed buttons on the landing, For Industry Professionals and
+                  For Fans pages, so the form knows which account they want. */}
               <ThemeToggle />
-              <Button asChild size="lg" className="px-5">
-                <Link href="/signup">Sign up</Link>
-              </Button>
             </>
           )}
         </div>
@@ -244,13 +244,7 @@ export function Nav({
               <LogOut className="size-4" />
               {loggingOut ? "Logging out…" : "Log out"}
             </Button>
-          ) : (
-            <Button asChild size="lg" className="mt-2 w-full">
-              <Link href="/signup" onClick={() => setOpen(false)}>
-                Sign up
-              </Link>
-            </Button>
-          )}
+          ) : null}
         </div>
       </div>
     </header>
