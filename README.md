@@ -68,9 +68,13 @@ Create `.env.local` in the repo root:
 NEXT_PUBLIC_SUPABASE_URL=https://<your-project>.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<your-anon-key>
 
-# Only needed to run the seed script (server-only, bypasses RLS):
+# Only needed for npm run seed:rotate-passwords (server-only, bypasses RLS):
 SUPABASE_SECRET_KEY=sb_secret_...
 ```
+
+`.env.local` points at **production**. Seeding and tests use a separate file,
+`.env.test.local`, which points at the **test** project; see
+[Test database](#test-database).
 
 ### 3. Apply the database schema
 
@@ -95,7 +99,10 @@ Open [http://localhost:3000](http://localhost:3000).
 | `npm run build` | Production build |
 | `npm run start` | Serve the production build |
 | `npm run lint` | ESLint |
-| `npm run seed` | Seed demo pros, projects, and applications (needs `SUPABASE_SECRET_KEY`) |
+| `npm run seed` | Seed demo pros, projects, and applications into the **test** project (reads `.env.test.local`; refuses to run without `SEED_ALLOWED=true`) |
+| `npm run seed:rotate-passwords` | Rotate **production's** existing seed accounts' password and revoke their sessions (reads `.env.local`) |
+| `npm test` | RLS / integration tests against the test project (reads `.env.test.local`) |
+| `npm run test:e2e` | Playwright smoke tests against the test project (boots its own `next dev`) |
 
 ---
 
@@ -236,6 +243,29 @@ from the secret key. Apply these files in the Supabase SQL editor:
 Portfolio files live in a **private** `portfolios` bucket under `<user_id>/…`.
 Pages mint short-lived signed URLs with the anon key; storage RLS lets owners,
 admins, and (for approved pros only) the public read the right objects.
+
+### Test database
+
+There are two Supabase projects:
+
+- **Production**, used by the app and configured in `.env.local`.
+- **action-test**, used by `npm test`, `npm run test:e2e`, CI and
+  `npm run seed`, and configured in `.env.test.local` (copy
+  `.env.test.local.example`).
+
+Seed accounts live only in the test project. The tests throw if
+`.env.test.local` is missing (outside CI) rather than fall back to
+`.env.local`, and the seed refuses to run unless `SEED_ALLOWED=true`, which only
+`.env.test.local` sets. CI's repo secrets hold the test project's values.
+
+The test project was built from a snapshot of production's schema in
+[`supabase/baseline/`](supabase/baseline/README.md), which also explains how to
+build another environment from it. The `supabase/*.sql` feature files remain the
+source of truth.
+
+**Every SQL change runs on the test project first.** Apply it there (SQL editor
+or `psql "$TEST_DB_URL" -v ON_ERROR_STOP=1 -f supabase/<file>.sql`), run
+`npm test` until it passes, and only then run it on production.
 
 ---
 

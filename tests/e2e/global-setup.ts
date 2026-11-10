@@ -1,8 +1,8 @@
 import { mkdir } from "node:fs/promises";
-import { config } from "dotenv";
 import { chromium } from "@playwright/test";
+import { loadTestEnv } from "../helpers/load-test-env";
 
-config({ path: ".env.local" });
+loadTestEnv();
 
 import { signInAs, getProfileId, seedEmail } from "../helpers/auth";
 
