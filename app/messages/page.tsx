@@ -50,7 +50,7 @@ export default async function MessagesPage({
         <TabLink href="/messages" label="Chats" active={active === "chats"} />
         <TabLink
           href="/messages?tab=requests"
-          label="Requests"
+          label="Message requests"
           active={active === "requests"}
           badge={requests.length}
         />
