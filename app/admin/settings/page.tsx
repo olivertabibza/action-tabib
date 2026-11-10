@@ -13,7 +13,7 @@ const ROWS: {
     kind: "pro_applications",
     label: "Pro applications",
     noun: "applications",
-    note: "While this is on, anyone who signs up as a professional is approved instantly. Turn it off after the demo.",
+    note: "While this is on, anyone who signs up as a professional is approved instantly.",
   },
   { kind: "classes", label: "Classes", noun: "classes" },
   { kind: "events", label: "Events", noun: "events" },

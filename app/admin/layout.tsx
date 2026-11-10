@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 import { destinationFor } from "@/lib/auth-dispatch";
+import { ProShellServer } from "@/components/ProShellServer";
 
 /**
  * Access gate for the whole admin area. Mirrors the marketplace gate in
@@ -34,5 +35,7 @@ export default async function AdminLayout({
     redirect(destinationFor(profile));
   }
 
-  return <>{children}</>;
+  // UX B-14: admin pages get the app's normal top bar (logo back to the Feed,
+  // Log out, Profile) instead of a bare page with no way out.
+  return <ProShellServer wide>{children}</ProShellServer>;
 }

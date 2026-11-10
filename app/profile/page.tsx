@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ExternalLink, FileText } from "lucide-react";
 
@@ -36,7 +37,7 @@ export default async function ProfilePage() {
   const { data: profile } = await supabase
     .from("profiles")
     .select(
-      "account_type, application_status, portfolio_files, display_name, role, headline, bio, skills"
+      "account_type, application_status, portfolio_files, display_name, role, headline, bio, skills, is_admin"
     )
     .eq("id", user.id)
     .maybeSingle();
@@ -181,6 +182,15 @@ export default async function ProfilePage() {
       {/* Phone only, approved pros only: ProShell's header hides Log out below
           `sm` and the bottom tab bar has no room for it (same pattern as the
           fan Profile page). Everyone else here gets SiteNav, which has its own. */}
+      {/* Phone only: the header's Admin link is hidden below `sm` (UX B-14). */}
+      {profile?.is_admin && (
+        <Link
+          href="/admin"
+          className="mt-8 inline-flex w-full items-center justify-center rounded-lg border border-border px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted sm:hidden"
+        >
+          Admin tools
+        </Link>
+      )}
       {isApprovedPro && (
         <LogoutButton className="mt-8 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-border px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50 sm:hidden" />
       )}

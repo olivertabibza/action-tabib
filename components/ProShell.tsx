@@ -193,6 +193,14 @@ export function ProShell({
                 className="absolute -right-0.5 -top-0.5 h-[17px] min-w-[17px] text-[9.5px]"
               />
             </Link>
+            {counts.isAdmin && (
+              <Link
+                href="/admin"
+                className="focus-ring hidden items-center rounded-full border border-border-hairline px-3 py-1.5 text-[13px] font-medium text-text-secondary transition-colors hover:text-text-primary sm:flex"
+              >
+                Admin
+              </Link>
+            )}
             <ThemeToggle />
             <LogoutButton
               className="focus-ring hidden items-center gap-2 rounded-full text-[13px] font-medium text-text-secondary transition-colors hover:text-text-primary disabled:opacity-50 sm:flex"
