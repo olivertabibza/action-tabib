@@ -4,6 +4,7 @@ import { ArrowLeft, CalendarDays, Clock, MapPin } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
 import { resolveBackLink } from "@/lib/back-link";
+import { publicPeople } from "@/lib/public-people";
 import { titleCase } from "@/lib/marketplace";
 import { eventTypeLabel } from "@/lib/content";
 import { Avatar } from "@/components/Avatar";
@@ -13,8 +14,6 @@ import { SaveButton } from "../../saved/save-button";
 // PUBLIC page — no shell, no auth redirect. Published events are open-access
 // (RLS exposes published rows to anon), so logged-out fans can view them. We
 // still fetch the viewer (if any) to allow the host/admin to preview a draft.
-
-type Person = { display_name: string | null; role: string | null };
 
 export default async function EventDetailPage({
   params,
@@ -61,7 +60,7 @@ export default async function EventDetailPage({
   const { data: event } = await supabase
     .from("events")
     .select(
-      "id, title, description, venue, event_type, starts_at, status, created_by, host:profiles!events_created_by_fkey(display_name, role)"
+      "id, title, description, venue, event_type, starts_at, status, created_by"
     )
     .eq("id", id)
     .maybeSingle();
@@ -116,8 +115,9 @@ export default async function EventDetailPage({
     initialSaved = !!mySave;
   }
 
-  // Supabase types embedded relations as arrays; this FK is to-one at runtime.
-  const host = event.host as unknown as Person | null;
+  const host = (await publicPeople(supabase, [event.created_by])).get(
+    event.created_by
+  );
   const hostName = host?.display_name || "the Action team";
   const starts = new Date(event.starts_at);
   const dateLine = starts.toLocaleDateString(undefined, {

@@ -11,6 +11,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { publicPeople } from "@/lib/public-people";
 import { destinationFor } from "@/lib/auth-dispatch";
 import { articleCategoryLabel } from "@/lib/content";
 import { Button } from "@/components/ui/button";
@@ -94,14 +95,20 @@ export default async function Home() {
   const { data: articleData } = await supabase
     .from("articles")
     .select(
-      "id, title, category, excerpt, author:profiles!articles_created_by_fkey(display_name)"
+      "id, title, category, excerpt, created_by"
     )
     .eq("status", "published")
     .order("created_at", { ascending: false })
     .limit(3);
+  // Names via public_profiles: as anon, a profiles join returns no author, so
+  // every byline read "the Action desk" (UX B-24).
+  const authors = await publicPeople(
+    supabase,
+    (articleData ?? []).map((a) => a.created_by)
+  );
   const latestArticles = (articleData ?? []).map((a) => ({
     ...a,
-    author: a.author as unknown as { display_name: string | null } | null,
+    author: authors.get(a.created_by) ?? null,
   }));
 
   // Happening soon: the next 2 published events that haven't started yet. Same

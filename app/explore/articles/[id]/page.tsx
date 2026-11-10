@@ -5,6 +5,7 @@ import { ArrowLeft } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
 import { resolveBackLink } from "@/lib/back-link";
+import { publicPeople } from "@/lib/public-people";
 import { titleCase } from "@/lib/marketplace";
 import { articleCategoryLabel } from "@/lib/content";
 import { Avatar } from "@/components/Avatar";
@@ -15,8 +16,6 @@ import { MeterStamp } from "../meter-stamp";
 // PUBLIC page — no shell, no auth redirect. Published articles are open-access
 // (RLS exposes published rows to anon), so logged-out fans can read them. We
 // still fetch the viewer (if any) to allow the author/admin to preview a draft.
-
-type Person = { display_name: string | null; role: string | null };
 
 /**
  * The teaser shown above the gate. Cut after the second paragraph, or at a
@@ -79,7 +78,7 @@ export default async function ArticleDetailPage({
   const { data: article } = await supabase
     .from("articles")
     .select(
-      "id, title, category, excerpt, body, created_at, status, created_by, author:profiles!articles_created_by_fkey(display_name, role)"
+      "id, title, category, excerpt, body, created_at, status, created_by"
     )
     .eq("id", id)
     .maybeSingle();
@@ -130,8 +129,9 @@ export default async function ArticleDetailPage({
     gated = !isFreeArticle;
   }
 
-  // Supabase types embedded relations as arrays; this FK is to-one at runtime.
-  const author = article.author as unknown as Person | null;
+  const author = (await publicPeople(supabase, [article.created_by])).get(
+    article.created_by
+  );
   const authorName = author?.display_name || "the Action desk";
   const published = new Date(article.created_at).toLocaleDateString(undefined, {
     year: "numeric",

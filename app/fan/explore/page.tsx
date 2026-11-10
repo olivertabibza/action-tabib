@@ -5,6 +5,7 @@
 import Link from "next/link";
 
 import { createClient } from "@/lib/supabase/server";
+import { publicPeople } from "@/lib/public-people";
 import { eventTypeLabel, articleCategoryLabel } from "@/lib/content";
 import { titleCase } from "@/lib/marketplace";
 import { Avatar } from "@/components/Avatar";
@@ -88,19 +89,23 @@ export default async function FanExplorePage({
   if (eventError) throw new Error(`Events load failed: ${eventError.message}`);
   const events = (eventData ?? []) as EventRow[];
 
-  // Published articles, newest first, with the author's name.
+  // Published articles, newest first, with the author's public name (UX B-24).
   const { data: articleData, error: articleError } = await supabase
     .from("articles")
     .select(
-      "id, title, category, excerpt, created_at, author:profiles!articles_created_by_fkey(display_name)"
+      "id, title, category, excerpt, created_at, created_by"
     )
     .eq("status", "published")
     .order("created_at", { ascending: false });
   if (articleError)
     throw new Error(`Articles load failed: ${articleError.message}`);
+  const authors = await publicPeople(
+    supabase,
+    (articleData ?? []).map((a) => a.created_by)
+  );
   const articles = (articleData ?? []).map((a) => ({
     ...a,
-    author: a.author as unknown as { display_name: string | null } | null,
+    author: authors.get(a.created_by) ?? null,
   })) as ArticleRow[];
 
   return (
