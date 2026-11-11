@@ -1,6 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { CalendarDays, Newspaper, PenLine, Plus } from "lucide-react";
+import {
+  CalendarDays,
+  ChevronRight,
+  Newspaper,
+  PenLine,
+  Plus,
+} from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
 import { viewerTimeZone } from "@/lib/datetime";
@@ -11,8 +17,6 @@ import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/Avatar";
 import { GlobalSearch } from "@/components/GlobalSearch";
 import { Button } from "@/components/ui/button";
-import { MessageButton } from "@/app/messages/message-button";
-import { FollowButton } from "./people/follow-button";
 
 export const metadata: Metadata = { title: "Explore" };
 
@@ -209,50 +213,8 @@ export default async function ExplorePage({
         </>
       )}
 
-      {/* People */}
-      <div className="mt-8 flex items-center justify-between gap-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-          People
-        </h2>
-        <Button asChild size="sm" variant="outline">
-          <Link href="/explore/people">See all people</Link>
-        </Button>
-      </div>
-      {people.length > 0 ? (
-        <ul className="mt-3 flex flex-col gap-2">
-          {people.map((p) => (
-            <li
-              key={p.id}
-              className="flex items-center gap-3 rounded-lg border border-border bg-card px-3 py-2.5"
-            >
-              <Avatar
-                name={p.display_name}
-                photoPath={p.avatar_path}
-                className="size-9"
-              />
-              <div className="min-w-0 flex-1">
-                <Link
-                  href={`/profile/${p.id}`}
-                  className="block truncate text-sm font-medium transition-colors hover:text-brand"
-                >
-                  {p.display_name || "Unnamed creator"}
-                </Link>
-                <p className="truncate text-xs text-muted-foreground">
-                  {p.role ? titleCase(p.role) : "Pro"}
-                </p>
-              </div>
-              <FollowButton targetId={p.id} initialFollowing={false} />
-              <MessageButton otherId={p.id} />
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="mt-3 text-sm text-muted-foreground">
-          You&rsquo;re already following everyone on Action.
-        </p>
-      )}
-
-      {/* Upcoming events */}
+      {/* Upcoming events first (UX B-10): pros have no Events tab, and events
+          used to sit below six people. */}
       <div className="mt-8 flex items-center justify-between gap-3">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
           Upcoming events
@@ -280,6 +242,49 @@ export default async function ExplorePage({
           title="No upcoming events"
           body="Screenings, Q&As, panels, and mixers will show up here once they're published."
         />
+      )}
+
+      {/* People */}
+      <div className="mt-8 flex items-center justify-between gap-3">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          People
+        </h2>
+        <Button asChild size="sm" variant="outline">
+          <Link href="/explore/people">See all people</Link>
+        </Button>
+      </div>
+      {people.length > 0 ? (
+        <ul className="mt-3 flex flex-col gap-2">
+          {people.map((p) => (
+            <li key={p.id}>
+              {/* UX B-10: the whole row opens the profile, where Follow and
+                  Message live; 12 small buttons here crowded the first screen. */}
+              <Link
+                href={`/profile/${p.id}`}
+                className="flex min-h-14 items-center gap-3 rounded-lg border border-border bg-card px-3 py-2.5 transition-colors hover:border-brand"
+              >
+                <Avatar
+                  name={p.display_name}
+                  photoPath={p.avatar_path}
+                  className="size-9"
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium">
+                    {p.display_name || "Unnamed creator"}
+                  </p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {p.role ? titleCase(p.role) : "Pro"}
+                  </p>
+                </div>
+                <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+              </Link>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-3 text-sm text-muted-foreground">
+          You&rsquo;re already following everyone on Action.
+        </p>
       )}
 
       {/* Read */}
