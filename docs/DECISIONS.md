@@ -16,6 +16,21 @@ A running log of significant decisions. Newest entries go at the top.
 
 ---
 
+## 2026-11-11 — Messaging: no double sends, one unread rule, live threads that fit the screen
+
+**Decision:** Fixes the rest of the messaging audit findings (ENG F08–F10, F18; PX F17, F18).
+- **No double sends.** `messages.client_id` has a unique index on (sender_id, client_id). The composer gives each send a random id and reuses it when retrying the same text, so a repeat of a send that already reached the server is refused (23505), and `sendMessage` treats that as sent.
+- **One unread rule.** `public.my_unread_conversations()` (security invoker) is the only definition, used by both the inbox dots and the nav badge. A conversation is unread when the other person is still in it, the newest message is theirs, and it's newer than my `last_read_at`. Sending a reply moves my `last_read_at` forward. The old badge counted threads where the other person had pressed Ignore, which the inbox never showed.
+- **Lighter loads.** The inbox reads one row per conversation (`public.my_last_messages()`) instead of every message ever sent. A thread loads its newest 50 messages, and "Show earlier messages" adds 50 at a time.
+- **Live threads.** An open thread re-renders every 8 seconds while the tab is visible, and as soon as you return to it. It stays pinned to the newest message unless you've scrolled up. It marks itself read when a newer message appears, then refreshes so the badge drops straight away (`app/messages/thread-live.tsx`, which replaces `mark-read.tsx`).
+- **Fits one screen.** The thread is exactly the space between the 68px header and, on phones, the 70px tab bar, so the composer is never hidden.
+
+RLS tests m and n in `tests/rls/messages.test.ts`.
+
+**Reasoning:** Polling every few seconds is enough at this size and needs no realtime setup or extra RLS surface. A database function is the one place both the inbox and the badge can share.
+
+**Alternatives considered:** Supabase Realtime, deferred until message volume justifies it. Keeping Ignore as a deleted row: unchanged; the unread rule now accounts for it.
+
 ## 2026-11-11 — Portfolio files are private to their owner, admins, and approved pros' public pages
 
 **Decision:** The portfolios bucket's rules were created in the Supabase dashboard and weren't in the repo. Two were too broad. "Authenticated users can read portfolio files" let any signed-in member read and list every portfolio file, including pending and rejected applicants' CVs. "Authenticated users can upload portfolio files" let anyone upload into another person's folder. `supabase/portfolios.sql` now holds every portfolio rule except the public one: it drops the broad read, limits uploads and deletes to your own `<user id>/` folder, and keeps the owner and admin reads. Approved pros' files stay readable by anyone through "Public can read approved pros portfolio files" (`public-profiles.sql`), which is what public profiles and project owners' applicant lists use, because applicants are always approved pros. RLS tests: `tests/rls/portfolios.test.ts` (a–f).

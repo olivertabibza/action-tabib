@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/Avatar";
 import { Composer } from "../composer";
 import { RequestButtons } from "../request-buttons";
-import { MarkRead } from "../mark-read";
+import { ThreadMessages } from "../thread-live";
 
 export const metadata: Metadata = { title: "Messages" };
 
@@ -17,12 +17,23 @@ export const metadata: Metadata = { title: "Messages" };
 // other party: header links to their profile, messages oldest→newest, composer
 // pinned at the bottom (or Accept/Ignore if I haven't accepted the request yet).
 
+// The newest messages load first; "Show earlier messages" adds a page at a time
+// (audit ENG F09: a long thread used to load every message ever sent).
+const PAGE = 50;
+const MAX_SHOWN = 1000;
+
 export default async function ThreadPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ show?: string }>;
 }) {
   const { id } = await params;
+  const requested = Number((await searchParams).show);
+  const show = Number.isFinite(requested)
+    ? Math.min(Math.max(Math.floor(requested), PAGE), MAX_SHOWN)
+    : PAGE;
   const supabase = await createClient();
   const {
     data: { user },
@@ -68,20 +79,25 @@ export default async function ThreadPage({
     .maybeSingle();
   const otherName = other?.display_name || "A member";
 
-  const { data: messages, error: messagesError } = await supabase
+  // Newest first so the limit keeps the latest ones; one extra row tells us
+  // whether there's anything earlier. Shown oldest→newest below.
+  const { data: newestFirst, error: messagesError } = await supabase
     .from("messages")
     .select("id, sender_id, body, created_at")
     .eq("conversation_id", id)
-    .order("created_at", { ascending: true });
+    .order("created_at", { ascending: false })
+    .limit(show + 1);
   // Otherwise a failed load would read as "No messages yet. Say hello."
   if (messagesError)
     throw new Error(`Thread load failed: ${messagesError.message}`);
+  const hasEarlier = (newestFirst ?? []).length > show;
+  const messages = (newestFirst ?? []).slice(0, show).reverse();
 
   return (
-    <main className="flex h-[calc(100dvh-1px)] flex-1 flex-col px-4 py-4 md:h-screen">
-      {/* Mark read once mounted (updates the inbox + badge on next visit). */}
-      <MarkRead conversationId={id} />
-
+    // Exactly one screen: below the 68px header and, on phones, above the 70px
+    // tab bar, so the composer is always visible (audit PX F18). The message
+    // list scrolls inside it.
+    <main className="flex h-[calc(100dvh-68px-70px-env(safe-area-inset-bottom))] flex-col px-4 py-4 sm:h-[calc(100dvh-68px)]">
       {/* Header */}
       <div className="flex items-center gap-3 border-b border-border pb-3">
         <Link
@@ -108,14 +124,27 @@ export default async function ThreadPage({
         </Link>
       </div>
 
-      {/* Messages, oldest→newest */}
-      <div className="flex flex-1 flex-col gap-2 overflow-y-auto py-4">
-        {(messages ?? []).length === 0 ? (
+      {/* Messages, oldest→newest. Live: see thread-live.tsx. */}
+      <ThreadMessages
+        conversationId={id}
+        newestId={messages.at(-1)?.id ?? null}
+        className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto py-4"
+      >
+        {hasEarlier && (
+          <Link
+            href={`/messages/${id}?show=${show + PAGE}`}
+            scroll={false}
+            className="self-center rounded-full px-3 py-1.5 text-sm font-medium text-brand hover:bg-muted"
+          >
+            Show earlier messages
+          </Link>
+        )}
+        {messages.length === 0 ? (
           <p className="m-auto max-w-xs text-center text-sm text-muted-foreground">
             No messages yet. Say hello.
           </p>
         ) : (
-          (messages ?? []).map((m) => {
+          messages.map((m) => {
             const mineMsg = m.sender_id === user.id;
             return (
               <div
@@ -132,7 +161,7 @@ export default async function ThreadPage({
             );
           })
         )}
-      </div>
+      </ThreadMessages>
 
       {/* Composer, or Accept/Ignore if this is still a request to me */}
       <div className="border-t border-border pt-3">

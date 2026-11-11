@@ -19,6 +19,10 @@ import { sendMessage } from "./actions";
  * send starts, so anything typed while it's in flight is a new draft that the
  * send never touches. If the send fails, the unsent text comes back (ahead of
  * any new draft) so nothing is lost.
+ *
+ * Each send carries a client id, and a retry of the same text reuses it, so if
+ * the first attempt did reach the server (say the connection dropped on the
+ * way back) the database recognises the retry and nothing is posted twice.
  */
 export function Composer({ conversationId }: { conversationId: string }) {
   const router = useRouter();
@@ -26,23 +30,31 @@ export function Composer({ conversationId }: { conversationId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const sending = useRef(false);
+  const lastFailed = useRef<{ body: string; clientId: string } | null>(null);
 
   function submit() {
     const trimmed = body.trim();
     if (!trimmed || sending.current) return;
     sending.current = true;
+    const clientId =
+      lastFailed.current?.body === trimmed
+        ? lastFailed.current.clientId
+        : crypto.randomUUID();
     setBody("");
     setError(null);
-    const restoreUnsent = () =>
+    const restoreUnsent = () => {
+      lastFailed.current = { body: trimmed, clientId };
       setBody((draft) => (draft.trim() ? `${trimmed}\n${draft}` : trimmed));
+    };
     startTransition(async () => {
       try {
-        const result = await sendMessage(conversationId, trimmed);
+        const result = await sendMessage(conversationId, trimmed, clientId);
         if (result?.error) {
           setError(result.error);
           restoreUnsent();
           return;
         }
+        lastFailed.current = null;
         router.refresh();
       } catch {
         setError("Couldn't send. Check your connection and try again.");
