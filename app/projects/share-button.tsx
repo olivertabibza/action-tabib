@@ -26,7 +26,7 @@ export function ShareButton({ path, title }: { path: string; title: string }) {
           // simply doesn't confirm. Nothing else to fall back to.
         }
       }}
-      className="focus-ring flex size-8 items-center justify-center rounded-full text-text-tertiary transition-colors hover:text-accent"
+      className="focus-ring flex size-8 items-center justify-center rounded-full text-text-tertiary transition-colors hover:text-accent pointer-coarse:-m-1.5 pointer-coarse:size-11"
     >
       {copied ? (
         <Check className="size-5 text-accent" strokeWidth={1.5} />

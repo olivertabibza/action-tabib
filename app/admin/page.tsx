@@ -70,7 +70,7 @@ export default async function AdminApplicationsPage({
             key={s}
             href={s === "pending" ? "/admin" : `/admin?status=${s}`}
             className={cn(
-              "rounded-full px-3 py-1 text-sm font-medium capitalize transition-colors",
+              "rounded-full px-3 py-1 text-sm font-medium capitalize transition-colors pointer-coarse:inline-flex pointer-coarse:min-h-11 pointer-coarse:items-center pointer-coarse:px-4",
               s === status
                 ? "bg-brand text-brand-foreground"
                 : "bg-muted text-muted-foreground hover:text-foreground"

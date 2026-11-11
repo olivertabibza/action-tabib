@@ -18,7 +18,7 @@ export function SortSelect({ value }: { value: string }) {
   const params = useSearchParams();
 
   return (
-    <label className="flex w-[160px] shrink-0 flex-col justify-center gap-0.5 rounded-input border border-border bg-surface px-3 py-2">
+    <label className="flex w-[160px] shrink-0 flex-col justify-center gap-0.5 rounded-input border border-border bg-surface px-3 py-2 focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/30">
       <span className="text-[11px] leading-none text-text-tertiary">Sort</span>
       <select
         value={value}

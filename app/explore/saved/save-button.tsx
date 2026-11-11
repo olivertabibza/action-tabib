@@ -70,7 +70,7 @@ export function SaveButton({
         <Link
           href="/login"
           aria-label="Log in to save"
-          className="focus-ring flex size-8 items-center justify-center rounded-full text-text-tertiary transition-colors hover:text-accent"
+          className="focus-ring flex size-8 items-center justify-center rounded-full text-text-tertiary transition-colors hover:text-accent pointer-coarse:-m-1.5 pointer-coarse:size-11"
         >
           <Bookmark className="size-5" strokeWidth={1.5} />
         </Link>
@@ -87,7 +87,7 @@ export function SaveButton({
           aria-pressed={saved}
           aria-label={saved ? "Remove bookmark" : "Bookmark"}
           className={cn(
-            "focus-ring flex size-8 items-center justify-center rounded-full transition-colors hover:text-accent disabled:opacity-60",
+            "focus-ring flex size-8 items-center justify-center rounded-full transition-colors hover:text-accent disabled:opacity-60 pointer-coarse:-m-1.5 pointer-coarse:size-11",
             saved ? "text-accent" : "text-text-tertiary"
           )}
         >
