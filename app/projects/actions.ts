@@ -176,6 +176,54 @@ export async function applyToProject(
   return { success: true };
 }
 
+export type ApplicationStatus = "submitted" | "shortlisted" | "declined";
+const APPLICATION_STATUSES: ApplicationStatus[] = [
+  "submitted",
+  "shortlisted",
+  "declined",
+];
+
+/**
+ * Shortlist, decline or move an applicant back to new. Only the project's owner
+ * can, and only the status column (supabase/application-status.sql). An update
+ * RLS filters out reports success with no rows, so the row count is checked.
+ */
+export async function setApplicationStatus(
+  projectId: string,
+  applicationId: string,
+  status: ApplicationStatus
+) {
+  if (!APPLICATION_STATUSES.includes(status)) {
+    return { error: "That isn't a valid status." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { error: "Your session has expired. Please log in again." };
+  }
+
+  const { data, error } = await supabase
+    .from("applications")
+    .update({ status })
+    .eq("id", applicationId)
+    .eq("project_id", projectId)
+    .select("id");
+
+  if (error) {
+    return { error: error.message };
+  }
+  if (!data || data.length === 0) {
+    return { error: "Only the project's poster can change this." };
+  }
+
+  revalidatePath(`/projects/${projectId}`);
+  revalidatePath("/projects");
+  return { success: true };
+}
+
 /** Open or close a project. RLS limits this to the owner; we pass created_by
  *  in the filter as a second line of defence. */
 export async function setProjectStatus(

@@ -30,6 +30,7 @@ import { disciplineLabel, roleQualifier, titleCase } from "@/lib/marketplace";
 import { ApplyForm } from "./apply-form";
 import { ShareButton } from "../share-button";
 import { OwnerControls } from "./owner-controls";
+import { ApplicantStatusButtons, ApplicantStatusPill } from "./applicant-status";
 
 // Tab and history title: the project's own name (UX B-32). RLS applies, so
 // anything the viewer can't see falls back to "Project".
@@ -247,6 +248,12 @@ export default async function ProjectDetailPage({
             projectId={project.id}
             isOpen={project.status === "open"}
             role={selectedRole}
+            roleApplication={
+              selectedRole
+                ? (myApplications.find((a) => a.role_id === selectedRole.id) ??
+                  null)
+                : null
+            }
             wholeApplication={wholeApplication}
             hasOpenRoles={roles.some((r) => r.status === "open")}
           />
@@ -328,7 +335,7 @@ async function ApplicantsList({ projectId }: { projectId: string }) {
                       photoPath={applicant?.avatar_path}
                       className="size-10"
                     />
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <p>
                         {applicant?.id ? (
                           <Link
@@ -359,6 +366,7 @@ async function ApplicantsList({ projectId }: { projectId: string }) {
                         })}
                       </p>
                     </div>
+                    <ApplicantStatusPill status={app.status} />
                   </div>
                   {app.note && (
                     <p className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground">
@@ -391,6 +399,13 @@ async function ApplicantsList({ projectId }: { projectId: string }) {
                         No portfolio files
                       </p>
                     )}
+                  </div>
+                  <div className="mt-4">
+                    <ApplicantStatusButtons
+                      projectId={projectId}
+                      applicationId={app.id}
+                      status={app.status}
+                    />
                   </div>
                   {/* The next step (PX F08): reach out from here. */}
                   {applicant?.id && (
@@ -514,6 +529,17 @@ function RolesCard({
 
 /* ── Non-owner: apply / already applied / closed ───────────────────────── */
 
+/** What an applicant reads about where their application stands. */
+function applicationStatusCopy(status: string): string {
+  if (status === "shortlisted") {
+    return "You’re on the shortlist. The poster will be in touch.";
+  }
+  if (status === "declined") {
+    return "The poster has gone another way on this one.";
+  }
+  return "The poster will be in touch.";
+}
+
 // Shown under "You've applied…" so applicants can find all their applications.
 function MyApplicationsLink() {
   return (
@@ -526,28 +552,25 @@ function MyApplicationsLink() {
   );
 }
 
-async function ApplicantView({
+function ApplicantView({
   projectId,
   isOpen,
   role,
+  roleApplication,
   wholeApplication,
   hasOpenRoles,
 }: {
   projectId: string;
   isOpen: boolean;
   role: ProjectRole | null;
+  roleApplication: MyApplication | null;
   wholeApplication: MyApplication | null;
   hasOpenRoles: boolean;
 }) {
-  // Role-scoped apply (?role=…). has_applied_to_role() is the security-definer
-  // check the schema provides for exactly this state — one role, one call.
+  // Role-scoped apply (?role=…): the caller's own application for that role,
+  // if any, comes from the page's one applications read.
   if (role) {
-    const supabase = await createClient();
-    const { data: alreadyApplied } = await supabase.rpc("has_applied_to_role", {
-      p_role_id: role.id,
-    });
-
-    if (alreadyApplied) {
+    if (roleApplication) {
       return (
         <div className="flex items-start gap-3 rounded-xl border border-border bg-muted/40 p-4">
           <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-brand" />
@@ -556,7 +579,7 @@ async function ApplicantView({
               You&rsquo;ve applied for {role.name}
             </p>
             <p className="mt-1 text-sm text-muted-foreground">
-              The poster will be in touch.
+              {applicationStatusCopy(roleApplication.status)}
             </p>
             <MyApplicationsLink />
           </div>
@@ -597,8 +620,7 @@ async function ApplicantView({
         <div>
           <p className="font-medium">You&rsquo;ve applied to this project</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            Status: {titleCase(wholeApplication.status)}. The poster will be in
-            touch.
+            {applicationStatusCopy(wholeApplication.status)}
           </p>
           <MyApplicationsLink />
         </div>
