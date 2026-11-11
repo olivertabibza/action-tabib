@@ -8,6 +8,7 @@ import { disciplineLabel } from "@/lib/marketplace";
 import { classLevelLabel, formatPrice } from "@/lib/content";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { SegmentedTabs } from "@/components/SegmentedTabs";
 
 export const metadata: Metadata = { title: "Classes" };
 
@@ -62,9 +63,12 @@ function upcomingThenPast(rows: MyClass[], nowIso: string): MyClass[] {
 export default async function ClassesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ submitted?: string }>;
+  searchParams: Promise<{ submitted?: string; tab?: string }>;
 }) {
-  const { submitted } = await searchParams;
+  const { submitted, tab: tabParam } = await searchParams;
+  // PX F20 / §E: Browse (upcoming classes) and My classes (Enrolled, Teaching,
+  // Submissions). A just-submitted class lands on My classes, where it's listed.
+  const tab = tabParam === "mine" || submitted === "class" ? "mine" : "browse";
   const supabase = await createClient();
   const tz = await viewerTimeZone();
   const nowIso = new Date().toISOString();
@@ -165,7 +169,7 @@ export default async function ClassesPage({
     );
   }
 
-  // UX B-20: classes you teach or take are already listed above, so Upcoming
+  // UX B-20: classes you teach or take are listed under My classes, so Browse
   // shows everyone else's instead of listing yours a second time.
   const mine = new Set([...teaching, ...enrolledIn].map((c) => c.id));
   const others = classes.filter((c) => !mine.has(c.id));
@@ -193,94 +197,126 @@ export default async function ClassesPage({
         </p>
       )}
 
-      {/* Your submissions (pending / rejected) */}
-      {submissions.length > 0 && (
+      <SegmentedTabs
+        label="Classes views"
+        className="mt-5"
+        tabs={[
+          { href: "/classes", label: "Browse", active: tab === "browse" },
+          {
+            href: "/classes?tab=mine",
+            label: "My classes",
+            active: tab === "mine",
+            count: teaching.length + enrolledIn.length + submissions.length,
+          },
+        ]}
+      />
+
+      {tab === "mine" ? (
         <>
-          <h2 className="mt-8 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-            Your submissions
-          </h2>
-          <ul className="mt-3 flex flex-col gap-2">
-            {submissions.map((s) => (
-              <li key={s.id} className="flex items-center gap-2">
-                <Link
-                  href={`/classes/${s.id}`}
-                  className="flex min-w-0 flex-1 items-center gap-3 rounded-lg border border-border bg-card px-3 py-2.5 transition-colors hover:border-brand"
-                >
-                  <span className="min-w-0 flex-1 truncate text-sm font-medium">
-                    {s.title}
-                  </span>
-                  <span
-                    className={cn(
-                      "rounded-full px-2 py-0.5 text-xs font-medium capitalize",
-                      s.status === "rejected"
-                        ? "bg-destructive/10 text-destructive"
-                        : "bg-muted text-muted-foreground"
-                    )}
-                  >
-                    {s.status}
-                  </span>
+          {enrolledIn.length > 0 && (
+            <>
+              <h2 className="mt-8 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                Enrolled
+              </h2>
+              <MyClassList classes={enrolledIn} nowIso={nowIso} />
+            </>
+          )}
+
+          {teaching.length > 0 && (
+            <>
+              <h2 className="mt-8 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                Teaching
+              </h2>
+              <MyClassList
+                classes={teaching}
+                nowIso={nowIso}
+                enrolledByClass={enrolledByClass}
+                editable
+              />
+            </>
+          )}
+
+          {/* Your submissions (pending / rejected) */}
+          {submissions.length > 0 && (
+            <>
+              <h2 className="mt-8 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                Submissions
+              </h2>
+              <ul className="mt-3 flex flex-col gap-2">
+                {submissions.map((s) => (
+                  <li key={s.id} className="flex items-center gap-2">
+                    <Link
+                      href={`/classes/${s.id}`}
+                      className="flex min-w-0 flex-1 items-center gap-3 rounded-lg border border-border bg-card px-3 py-2.5 transition-colors hover:border-brand"
+                    >
+                      <span className="min-w-0 flex-1 truncate text-sm font-medium">
+                        {s.title}
+                      </span>
+                      <span
+                        className={cn(
+                          "rounded-full px-2 py-0.5 text-xs font-medium capitalize",
+                          s.status === "rejected"
+                            ? "bg-destructive/10 text-destructive"
+                            : "bg-muted text-muted-foreground"
+                        )}
+                      >
+                        {s.status}
+                      </span>
+                    </Link>
+                    {s.status === "pending" && <EditLink classId={s.id} />}
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+          {teaching.length + enrolledIn.length + submissions.length === 0 && (
+            <div className="mt-6 flex flex-col items-center gap-2 rounded-xl border border-dashed border-border py-12 text-center">
+              <GraduationCap className="size-7 text-muted-foreground" />
+              <p className="font-medium">No classes yet</p>
+              <p className="max-w-sm text-sm text-muted-foreground">
+                Classes you enroll in, teach or submit will show up here.{" "}
+                <Link href="/classes" className="text-brand hover:underline">
+                  Browse classes
                 </Link>
-                {s.status === "pending" && <EditLink classId={s.id} />}
-              </li>
-            ))}
-          </ul>
+              </p>
+            </div>
+          )}
         </>
-      )}
-
-      {teaching.length > 0 && (
-        <>
-          <h2 className="mt-8 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-            You&rsquo;re teaching
-          </h2>
-          <MyClassList
-            classes={teaching}
-            nowIso={nowIso}
-            enrolledByClass={enrolledByClass}
-            editable
-          />
-        </>
-      )}
-
-      {enrolledIn.length > 0 && (
-        <>
-          <h2 className="mt-8 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-            You&rsquo;re enrolled in
-          </h2>
-          <MyClassList classes={enrolledIn} nowIso={nowIso} />
-        </>
-      )}
-
-      {/* Upcoming classes */}
-      <h2 className="mt-8 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-        {mine.size > 0 ? "More upcoming classes" : "Upcoming classes"}
-      </h2>
-      {others.length > 0 ? (
-        <ul className="mt-3 flex flex-col gap-3">
-          {others.map((c) => (
-            <li key={c.id}>
-              <Link href={`/classes/${c.id}`} className="block">
-                <ClassCard
-                  klass={c}
-                  spotsLeft={Math.max(
-                    0,
-                    c.capacity - (enrolledByClass.get(c.id) ?? 0)
-                  )}
-                  rating={ratingByClass.get(c.id) ?? null}
-                  tz={tz}
-                />
-              </Link>
-            </li>
-          ))}
-        </ul>
       ) : (
-        <div className="mt-3 flex flex-col items-center gap-2 rounded-xl border border-dashed border-border py-12 text-center">
-          <GraduationCap className="size-7 text-muted-foreground" />
-          <p className="font-medium">No classes yet</p>
-          <p className="max-w-sm text-sm text-muted-foreground">
-            Workshops and classes from working pros will appear here once
-            they&rsquo;re published.
-          </p>
-        </div>
+        <>
+          {/* Upcoming classes */}
+          <h2 className="mt-8 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            Upcoming classes
+          </h2>
+          {others.length > 0 ? (
+            <ul className="mt-3 flex flex-col gap-3">
+              {others.map((c) => (
+                <li key={c.id}>
+                  <Link href={`/classes/${c.id}`} className="block">
+                    <ClassCard
+                      klass={c}
+                      spotsLeft={Math.max(
+                        0,
+                        c.capacity - (enrolledByClass.get(c.id) ?? 0)
+                      )}
+                      rating={ratingByClass.get(c.id) ?? null}
+                      tz={tz}
+                    />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="mt-3 flex flex-col items-center gap-2 rounded-xl border border-dashed border-border py-12 text-center">
+              <GraduationCap className="size-7 text-muted-foreground" />
+              <p className="font-medium">No classes yet</p>
+              <p className="max-w-sm text-sm text-muted-foreground">
+                Workshops and classes from working pros will appear here once
+                they&rsquo;re published.
+              </p>
+            </div>
+          )}
+        </>
       )}
     </main>
   );
