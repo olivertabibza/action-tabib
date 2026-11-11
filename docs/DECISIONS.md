@@ -2,6 +2,39 @@
 
 A running log of significant decisions. Newest entries go at the top.
 
+## 2026-11-11 — Applicant status, portfolio editing, job type per role, and a better review queue
+
+**Decision:** The last four audit findings, all of which needed SQL.
+- **Shortlist or decline (follow-up to PX F08).** `supabase/application-status.sql` (a new file, because `marketplace.sql` is the original v1 schema).
+  - A project's owner may set an application's status to `submitted`, `shortlisted` or `declined`. Nobody else may update applications, the applicant included.
+  - `status` is the only updatable column (table-level UPDATE revoked, `UPDATE (status)` granted).
+  - INSERT is limited to the four columns `applyToProject` sends, so an applicant can't apply already shortlisted. Before this, the baseline's GRANT ALL let them.
+  - The owner's applicant list has a status pill with Shortlist, Decline and Move back to new. Applicants see what their status means on the project page.
+  - RLS tests: `tests/rls/application-status.test.ts` (a–e).
+- **Portfolio files (PX F19).** `profiles_portfolio_files_check` (`supabase/portfolios.sql` §5, through the immutable helper `portfolio_paths_valid`) allows only paths in the owner's own folder: at most 10 entries, each at most 300 characters.
+  - The /profile Portfolio card has Add files and a Remove per file. Remove takes the file off the profile first, then deletes it from storage.
+  - Onboarding and /profile share the accepted types and path rule (`lib/portfolio.ts`). Onboarding refuses more than 10 files and trims long file names, so the new check never blocks a signup.
+  - RLS tests: `portfolios.test.ts` (g–i).
+- **Job type per role (UX B-08).** `project_roles.discipline` (`project-roles.sql` §3) is nullable and uses the same vocabulary as `projects.disciplines`.
+  - The form asks for each role's Job type, starting from the project's first chosen discipline. Roles use specific disciplines only, since a role is one job.
+  - `createProject` adds every role's job type to `projects.disciplines`, unless the project is "any", which already matches every filter.
+  - Cards and the project page show a role's job type. With a Job type filter on, matching roles are listed first.
+  - Existing roles have none.
+  - RLS tests: `project-roles.test.ts` (l, m). They use throwaway roles, not a throwaway project, because projects have no DELETE policy.
+- **Review queue (PX F24).** Pending applications and content list oldest first, with "Waiting N hours/days".
+  - Both queues take a server-side `?q=` search.
+  - Approving or rejecting can carry a reason of up to 500 characters, kept in `public.review_reasons` (`supabase/review-reasons.sql`), one row per reviewed item.
+  - A trigger derives `subject_id` from the item, so the caller can't choose it. Only the subject and admins can read a reason, and only admins can write one. A decision without a reason, or a re-queue, removes the old one.
+  - Rejected applicants see the reason on /apply/pending. Authors see it under their rejected classes (Classes, My classes) and events and articles (Explore).
+  - RLS tests: `review-reasons.test.ts` (a–e). The admin tests skip without `SEED_ADMIN_PASSWORD`.
+
+**Reasoning:** Each rule lives in the database: a column grant plus a policy for status, a CHECK for portfolio paths, a CHECK for job types, and RLS plus a trigger for reasons. The app's checks only give friendlier messages. Reasons get their own table because every approved pro can read `profiles` rows.
+
+**Alternatives considered:**
+- A `profiles.rejection_reason` column: rejected, because peers could read it.
+- A CHECK constraint on `applications.status`: not needed, because the owner policy's WITH CHECK covers the only writer and inserts always take the default.
+- Letting a role's job type be "any": rejected, because it would make the whole project match every Job type filter.
+
 ## 2026-11-11 — Saved page for pros, a next step on applicants, touch targets, CI takes turns
 
 **Decision:** The audit fixes that need no SQL.

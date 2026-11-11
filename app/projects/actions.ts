@@ -50,11 +50,14 @@ export async function createProject(values: ProjectFormValues) {
   const { roles, tags, ...project } = parsed.data;
 
   // "any" is mutually exclusive with specific disciplines (the form enforces
-  // this too, but never trust the client). The legacy single-value column keeps
-  // being written as the first entry for backward compatibility.
+  // this too, but never trust the client). Otherwise every role's job type is
+  // added, so the Job type filter (an overlaps on this array) finds the project
+  // when any role matches (UX B-08); an "any" project already matches every
+  // filter. The legacy single-value column keeps being written as the first
+  // entry for backward compatibility.
   const disciplines = project.disciplines.includes("any")
     ? ["any"]
-    : project.disciplines;
+    : [...new Set([...project.disciplines, ...roles.map((r) => r.discipline)])];
 
   // Unpaid and deferred projects have NO pay range — the browse card renders no
   // pay line at all for them. The form hides the inputs and clears them; this
@@ -169,6 +172,54 @@ export async function applyToProject(
       return { error: "That role isn't part of this project." };
     }
     return { error: error.message };
+  }
+
+  revalidatePath(`/projects/${projectId}`);
+  revalidatePath("/projects");
+  return { success: true };
+}
+
+export type ApplicationStatus = "submitted" | "shortlisted" | "declined";
+const APPLICATION_STATUSES: ApplicationStatus[] = [
+  "submitted",
+  "shortlisted",
+  "declined",
+];
+
+/**
+ * Shortlist, decline or move an applicant back to new. Only the project's owner
+ * can, and only the status column (supabase/application-status.sql). An update
+ * RLS filters out reports success with no rows, so the row count is checked.
+ */
+export async function setApplicationStatus(
+  projectId: string,
+  applicationId: string,
+  status: ApplicationStatus
+) {
+  if (!APPLICATION_STATUSES.includes(status)) {
+    return { error: "That isn't a valid status." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { error: "Your session has expired. Please log in again." };
+  }
+
+  const { data, error } = await supabase
+    .from("applications")
+    .update({ status })
+    .eq("id", applicationId)
+    .eq("project_id", projectId)
+    .select("id");
+
+  if (error) {
+    return { error: error.message };
+  }
+  if (!data || data.length === 0) {
+    return { error: "Only the project's poster can change this." };
   }
 
   revalidatePath(`/projects/${projectId}`);

@@ -1,5 +1,6 @@
 -- ============================================================================
--- Portfolio files: who can read and write the private "portfolios" bucket
+-- Portfolio files: who can read and write the private "portfolios" bucket,
+-- and which paths a profile's portfolio_files may list
 -- ----------------------------------------------------------------------------
 -- Safe to run more than once (drop-then-create throughout). Run on the TEST
 -- project first, then `npm test` (tests/rls/portfolios.test.ts), then
@@ -63,3 +64,42 @@ create policy "Users delete own portfolio files"
     bucket_id = 'portfolios'
     and (storage.foldername(name))[1] = auth.uid()::text
   );
+
+-- ── 5. profiles.portfolio_files: only your own files ────────────────────────
+-- The owner writes this array (their profile row), and nothing checked it, so
+-- a member could list someone else's file paths as theirs. Every entry must sit
+-- in the owner's own folder ('<id>/…'), with at most 10 entries of at most 300
+-- characters each. A CHECK can't contain a subquery, so the rule lives in this
+-- small immutable helper. Not security definer: it reads only its arguments.
+-- Adding the constraint validates existing rows, so first list any row that
+-- would fail (read-only; it must return nothing):
+--
+--   select p.id, p.account_type, p.application_status, p.portfolio_files
+--   from public.profiles p
+--   where p.portfolio_files is not null
+--     and (cardinality(p.portfolio_files) > 10
+--          or exists (select 1 from unnest(p.portfolio_files) as f(path)
+--                     where f.path is null or length(f.path) > 300
+--                        or left(f.path, 37) <> p.id::text || '/'));
+create or replace function public.portfolio_paths_valid(p_owner uuid, p_paths text[])
+returns boolean
+language sql
+immutable
+set search_path = ''
+as $$
+  select p_paths is null or (
+    cardinality(p_paths) <= 10
+    and not exists (
+      select 1 from unnest(p_paths) as f(path)
+      where f.path is null
+         or length(f.path) > 300
+         or left(f.path, 37) <> p_owner::text || '/'
+    )
+  );
+$$;
+
+alter table public.profiles
+  drop constraint if exists profiles_portfolio_files_check;
+alter table public.profiles
+  add constraint profiles_portfolio_files_check
+  check (public.portfolio_paths_valid(id, portfolio_files));

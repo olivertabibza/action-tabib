@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 import { destinationFor } from "@/lib/auth-dispatch";
+import { reviewReasons } from "@/lib/review-reasons";
 import { Button } from "@/components/ui/button";
 import { LogoutButton } from "@/components/LogoutButton";
 
@@ -34,6 +35,12 @@ export default async function PendingPage() {
   }
 
   const rejected = profile?.application_status === "rejected";
+  // The admin's reason, if they gave one (supabase/review-reasons.sql: only
+  // the applicant and admins can read it).
+  const reason =
+    rejected && user
+      ? (await reviewReasons(supabase, "profile", [user.id])).get(user.id)
+      : undefined;
 
   // UX B-12 / B-33 / PX F15: this is now the ONE waiting screen (the Projects
   // gate sends pending pros here too). It uses the normal theme, makes no
@@ -51,6 +58,14 @@ export default async function PendingPage() {
               Thanks for applying to Action. We weren&rsquo;t able to approve
               your professional profile this time.
             </p>
+            {reason && (
+              <div className="mt-6 rounded-xl border border-border bg-muted/40 p-4 text-left">
+                <p className="text-sm font-medium">From the reviewer</p>
+                <p className="mt-1 whitespace-pre-wrap text-sm text-muted-foreground">
+                  {reason}
+                </p>
+              </div>
+            )}
           </>
         ) : (
           <>

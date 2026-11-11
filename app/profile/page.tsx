@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ExternalLink, FileText } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
+import { signedPortfolioUrls } from "@/lib/portfolio";
 import { LogoutButton } from "@/components/LogoutButton";
 import { AvatarUploader } from "@/components/AvatarUploader";
 import { AppearanceSetting } from "@/components/ThemeToggle";
@@ -17,6 +17,7 @@ import {
 import { ProfileForm } from "./profile-form";
 import { WorkSamplesManager, type WorkSample } from "./work-samples-manager";
 import { ProfileTabs } from "./profile-tabs";
+import { PortfolioManager } from "./portfolio-manager";
 
 export const metadata: Metadata = { title: "Your profile" };
 
@@ -56,19 +57,7 @@ export default async function ProfilePage() {
 
   // The "portfolios" bucket is PRIVATE, so a plain public URL won't load. We
   // mint a short-lived signed URL on the server for each uploaded file.
-  const paths: string[] = Array.isArray(profile?.portfolio_files)
-    ? profile.portfolio_files
-    : [];
-
-  const files: { name: string; url: string }[] = [];
-  for (const path of paths) {
-    const { data: signed } = await supabase.storage
-      .from("portfolios")
-      .createSignedUrl(path, 60 * 60); // valid for 1 hour
-    if (signed?.signedUrl) {
-      files.push({ name: path.split("/").pop() ?? path, url: signed.signedUrl });
-    }
-  }
+  const files = await signedPortfolioUrls(supabase, profile?.portfolio_files);
 
   const isProfessional = profile?.account_type === "professional";
   const isApprovedPro =
@@ -233,32 +222,11 @@ export default async function ProfilePage() {
             <CardHeader>
               <CardTitle className="text-xl">Portfolio</CardTitle>
               <CardDescription>
-                Files you uploaded with your application.
+                Your resume, reel, style book or other work, up to 10 files.
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {files.length > 0 ? (
-                <ul className="flex flex-col gap-2">
-                  {files.map((file) => (
-                    <li key={file.url}>
-                      <a
-                        href={file.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-3 rounded-lg border border-border px-3 py-2.5 text-sm transition-colors hover:border-brand hover:bg-muted/50"
-                      >
-                        <FileText className="size-4 shrink-0 text-brand" />
-                        <span className="truncate">{file.name}</span>
-                        <ExternalLink className="ml-auto size-4 shrink-0 text-muted-foreground" />
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  No portfolio files uploaded yet.
-                </p>
-              )}
+              <PortfolioManager userId={user.id} files={files} />
             </CardContent>
           </Card>
         )}
