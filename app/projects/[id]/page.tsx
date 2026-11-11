@@ -9,11 +9,14 @@ import {
   FileText,
   Lock,
   MapPin,
-  UserRound,
+  Users,
   Wallet,
 } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
+import { viewerTimeZone } from "@/lib/datetime";
+import { Avatar } from "@/components/Avatar";
+import { MessageButton } from "@/app/messages/message-button";
 import { signedPortfolioUrls, type PortfolioFile } from "@/lib/portfolio";
 import {
   Card,
@@ -59,6 +62,7 @@ type ProjectRole = {
 type MyApplication = { id: string; status: string; role_id: string | null };
 type Applicant = Person & {
   id: string;
+  avatar_path: string | null;
   portfolio_files: string[] | null;
 };
 
@@ -115,6 +119,9 @@ export default async function ProjectDetailPage({
   // whole-project state and every role row's Applied pill — the applications
   // SELECT policy already returns the caller's own rows.
   let myApplications: MyApplication[] = [];
+  // Owners get a pointer to their applicants near the top (PX F08): the list
+  // itself sits below the description and roles.
+  let applicantCount = 0;
   if (!isOwner) {
     const { data } = await supabase
       .from("applications")
@@ -122,6 +129,12 @@ export default async function ProjectDetailPage({
       .eq("project_id", id)
       .eq("applicant_id", user.id);
     myApplications = (data ?? []) as MyApplication[];
+  } else {
+    const { count } = await supabase
+      .from("applications")
+      .select("*", { count: "exact", head: true })
+      .eq("project_id", id);
+    applicantCount = count ?? 0;
   }
   const wholeApplication =
     myApplications.find((a) => a.role_id === null) ?? null;
@@ -190,6 +203,20 @@ export default async function ProjectDetailPage({
         </span>
       </div>
 
+      {isOwner && applicantCount > 0 && (
+        <a
+          href="#applicants"
+          className="mt-6 flex items-center justify-between gap-3 rounded-xl border border-brand/30 bg-brand/5 px-4 py-3 text-sm font-medium transition-colors hover:border-brand"
+        >
+          <span className="inline-flex items-center gap-2">
+            <Users className="size-4 text-brand" />
+            {applicantCount} {applicantCount === 1 ? "person has" : "people have"}{" "}
+            applied
+          </span>
+          <span className="shrink-0 text-brand">Review applicants</span>
+        </a>
+      )}
+
       <Card className="mt-8 p-2">
         <CardHeader>
           <CardTitle className="text-xl">About this project</CardTitle>
@@ -236,7 +263,7 @@ async function ApplicantsList({ projectId }: { projectId: string }) {
   const { data: applications } = await supabase
     .from("applications")
     .select(
-      "id, note, status, created_at, role:project_roles(name), applicant:profiles!applications_applicant_id_fkey(id, display_name, role, portfolio_files)"
+      "id, note, status, created_at, role:project_roles(name), applicant:profiles!applications_applicant_id_fkey(id, display_name, role, avatar_path, portfolio_files)"
     )
     .eq("project_id", projectId)
     .order("created_at", { ascending: true });
@@ -264,15 +291,18 @@ async function ApplicantsList({ projectId }: { projectId: string }) {
   }
 
   const count = applications?.length ?? 0;
+  const tz = await viewerTimeZone();
 
   return (
-    <Card className="p-2">
+    <Card id="applicants" className="scroll-mt-24 p-2">
       <CardHeader>
         <CardTitle className="text-xl">
           Applicants {count > 0 && `(${count})`}
         </CardTitle>
         <CardDescription>
-          Everyone who has applied to this project.
+          {count > 0
+            ? "Message the people you’d like to meet or audition. Your message starts a private thread they’ll find in Messages."
+            : "Everyone who applies will show up here."}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -285,44 +315,51 @@ async function ApplicantsList({ projectId }: { projectId: string }) {
               const appliedRole = app.role as unknown as { name: string } | null;
               const files = filesByApp.get(app.id) ?? [];
               const email = applicant?.id ? emailById.get(applicant.id) : undefined;
+              const name = applicant?.display_name || "A member";
+              const firstName = name.split(/\s+/)[0];
               return (
                 <li
                   key={app.id}
                   className="rounded-lg border border-border p-4"
                 >
-                  <div className="flex items-center gap-2">
-                    <UserRound className="size-4 text-brand" />
-                    {applicant?.id ? (
-                      <Link
-                        href={`/profile/${applicant.id}`}
-                        className="font-medium hover:underline"
-                      >
-                        {applicant.display_name || "A member"}
-                      </Link>
-                    ) : (
-                      <span className="font-medium">
-                        {applicant?.display_name || "A member"}
-                      </span>
-                    )}
-                    {applicant?.role && (
-                      <span className="text-sm text-muted-foreground">
-                        · {disciplineLabel(applicant.role)}
-                      </span>
-                    )}
+                  <div className="flex items-start gap-3">
+                    <Avatar
+                      name={name}
+                      photoPath={applicant?.avatar_path}
+                      className="size-10"
+                    />
+                    <div className="min-w-0">
+                      <p>
+                        {applicant?.id ? (
+                          <Link
+                            href={`/profile/${applicant.id}`}
+                            className="font-medium hover:underline"
+                          >
+                            {name}
+                          </Link>
+                        ) : (
+                          <span className="font-medium">{name}</span>
+                        )}
+                        {applicant?.role && (
+                          <span className="text-sm text-muted-foreground">
+                            {" "}
+                            · {disciplineLabel(applicant.role)}
+                          </span>
+                        )}
+                      </p>
+                      <p className="mt-0.5 text-sm text-muted-foreground">
+                        {appliedRole?.name
+                          ? `Applied for ${appliedRole.name}`
+                          : "Applied to the whole production"}{" "}
+                        ·{" "}
+                        {new Date(app.created_at).toLocaleDateString(undefined, {
+                          timeZone: tz,
+                          month: "short",
+                          day: "numeric",
+                        })}
+                      </p>
+                    </div>
                   </div>
-                  {email && (
-                    <a
-                      href={`mailto:${email}`}
-                      className="mt-1 inline-block text-sm text-brand hover:underline"
-                    >
-                      {email}
-                    </a>
-                  )}
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {appliedRole?.name
-                      ? `Applied for: ${appliedRole.name}`
-                      : "Applied to the whole production"}
-                  </p>
                   {app.note && (
                     <p className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground">
                       {app.note}
@@ -355,6 +392,28 @@ async function ApplicantsList({ projectId }: { projectId: string }) {
                       </p>
                     )}
                   </div>
+                  {/* The next step (PX F08): reach out from here. */}
+                  {applicant?.id && (
+                    <div className="mt-4 flex flex-wrap items-start gap-2">
+                      <MessageButton
+                        otherId={applicant.id}
+                        variant="default"
+                        size="default"
+                        label={`Message ${firstName}`}
+                      />
+                      <Button asChild variant="outline">
+                        <Link href={`/profile/${applicant.id}`}>View profile</Link>
+                      </Button>
+                    </div>
+                  )}
+                  {email && (
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      Or email{" "}
+                      <a href={`mailto:${email}`} className="text-brand hover:underline">
+                        {email}
+                      </a>
+                    </p>
+                  )}
                 </li>
               );
             })}

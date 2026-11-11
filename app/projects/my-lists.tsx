@@ -35,10 +35,15 @@ export async function MyPostings({ userId }: { userId: string }) {
               <ProjectCard
                 key={p.id}
                 project={p}
+                // With applicants, the card opens straight on them (PX F08).
+                href={count > 0 ? `/projects/${p.id}#applicants` : undefined}
                 meta={
                   <span className="inline-flex items-center gap-1.5 text-foreground/80">
                     <Users className="size-4 text-brand" />
                     {count} {count === 1 ? "applicant" : "applicants"}
+                    {count > 0 && (
+                      <span className="font-medium text-brand">· Review</span>
+                    )}
                   </span>
                 }
               />
