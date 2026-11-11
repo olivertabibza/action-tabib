@@ -14,7 +14,6 @@ import {
 
 import { cn } from "@/lib/utils";
 import { LogoutButton } from "@/components/LogoutButton";
-import { ThemeToggle } from "@/components/ThemeToggle";
 import { Avatar } from "@/components/Avatar";
 import { type NavCounts } from "@/lib/nav-counts";
 
@@ -78,13 +77,9 @@ function Wordmark() {
       <span className="flex size-9 items-center justify-center rounded-[11px] bg-accent font-condensed text-[19px] font-bold text-on-accent">
         A
       </span>
-      <span className="flex flex-col leading-none">
-        <span className="font-condensed text-[21px] font-bold tracking-[0.01em] text-text-primary">
-          ACTION
-        </span>
-        <span className="font-mono text-[9.5px] font-medium tracking-[0.18em] text-text-tertiary">
-          PRO NETWORK
-        </span>
+      {/* UX B-16: the 9.5px sub-label under the name was unreadable on phones. */}
+      <span className="font-condensed text-[21px] font-bold leading-none tracking-[0.01em] text-text-primary">
+        ACTION
       </span>
     </span>
   );
@@ -204,7 +199,6 @@ export function ProShell({
                 Admin
               </Link>
             )}
-            <ThemeToggle />
             <LogoutButton
               className="focus-ring hidden items-center gap-2 whitespace-nowrap rounded-full text-[13px] font-medium text-text-secondary transition-colors hover:text-text-primary disabled:opacity-50 sm:flex"
               iconClassName="size-[21px]"

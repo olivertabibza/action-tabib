@@ -6,6 +6,7 @@ import { ExternalLink, FileText } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { LogoutButton } from "@/components/LogoutButton";
 import { AvatarUploader } from "@/components/AvatarUploader";
+import { AppearanceSetting } from "@/components/ThemeToggle";
 import {
   Card,
   CardContent,
@@ -150,6 +151,15 @@ export default async function ProfilePage() {
             <div>
               <p className="text-sm font-medium text-muted-foreground">Email</p>
               <p className="mt-1">{user.email}</p>
+            </div>
+            {/* Appearance lives here, not in the top bar (UX B-19). */}
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">
+                Appearance
+              </p>
+              <div className="mt-2">
+                <AppearanceSetting />
+              </div>
             </div>
           </CardContent>
         </Card>

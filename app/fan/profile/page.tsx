@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/server";
 import { viewerTimeZone } from "@/lib/datetime";
 import { Avatar } from "@/components/Avatar";
 import { AvatarUploader } from "@/components/AvatarUploader";
+import { AppearanceSetting } from "@/components/ThemeToggle";
 import { FanNameForm } from "./name-form";
 import { LogoutButton } from "@/components/LogoutButton";
 
@@ -189,6 +190,14 @@ export default async function FanProfilePage() {
           Nothing saved yet — save events and articles to find them here.
         </p>
       )}
+
+      {/* Appearance lives here, not in the top bar (UX B-19). */}
+      <h2 className="mt-8 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+        Appearance
+      </h2>
+      <div className="mt-3">
+        <AppearanceSetting />
+      </div>
 
       {/* Upgrade prompt, below Saved (UX B-31): the fan's own things come first. Links to /for-creators, the established creator-application
           entry point. NOTE: the real consumer→pro upgrade flow is a separate future

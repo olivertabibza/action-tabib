@@ -6,7 +6,6 @@ import { AlignLeft, Calendar, Search, User } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { LogoutButton } from "@/components/LogoutButton";
-import { ThemeToggle } from "@/components/ThemeToggle";
 
 // Single source of truth for the Fan app's destinations — shared by the
 // desktop top nav and the mobile bottom tab bar so the two can't drift apart.
@@ -29,13 +28,9 @@ function Wordmark() {
       <span className="flex size-9 items-center justify-center rounded-[11px] bg-accent font-condensed text-[19px] font-bold text-on-accent">
         A
       </span>
-      <span className="flex flex-col leading-none">
-        <span className="font-condensed text-[21px] font-bold tracking-[0.01em] text-text-primary">
-          ACTION
-        </span>
-        <span className="font-mono text-[9.5px] font-medium tracking-[0.18em] text-text-tertiary">
-          FAN
-        </span>
+      {/* UX B-16: the 9.5px sub-label under the name was unreadable on phones. */}
+      <span className="font-condensed text-[21px] font-bold leading-none tracking-[0.01em] text-text-primary">
+        ACTION
       </span>
     </span>
   );
@@ -108,7 +103,6 @@ export function FanShell({ children }: { children: React.ReactNode }) {
 
           {/* Right cluster — mobile logout lives on the Profile page instead. */}
           <div className="flex items-center gap-3.5 border-l border-border-hairline pl-[18px] max-sm:border-l-0 max-sm:pl-0">
-            <ThemeToggle />
             <LogoutButton
               className="focus-ring hidden items-center gap-2 rounded-full text-[13px] font-medium text-text-secondary transition-colors hover:text-text-primary disabled:opacity-50 sm:flex"
               iconClassName="size-[21px]"
