@@ -16,6 +16,14 @@ A running log of significant decisions. Newest entries go at the top.
 
 ---
 
+## 2026-11-11 — Portfolio files are private to their owner, admins, and approved pros' public pages
+
+**Decision:** The portfolios bucket's rules were created in the Supabase dashboard and weren't in the repo. Two were too broad. "Authenticated users can read portfolio files" let any signed-in member read and list every portfolio file, including pending and rejected applicants' CVs. "Authenticated users can upload portfolio files" let anyone upload into another person's folder. `supabase/portfolios.sql` now holds every portfolio rule except the public one: it drops the broad read, limits uploads and deletes to your own `<user id>/` folder, and keeps the owner and admin reads. Approved pros' files stay readable by anyone through "Public can read approved pros portfolio files" (`public-profiles.sql`), which is what public profiles and project owners' applicant lists use, because applicants are always approved pros. RLS tests: `tests/rls/portfolios.test.ts` (a–f).
+
+**Reasoning:** Nothing in the app needed the broad rules. Owners, admins and public profiles each already had their own narrower rule.
+
+**Alternatives considered:** Leaving the dashboard rules and only adding tests, rejected because the read rule exposed applicants' documents to every member.
+
 ## 2026-11-10 — Dates and times are shown and entered in the viewer's time zone
 
 **Decision:** Fixes ENG F11. **The browser reports its time zone once,** in a `tz` cookie set by `components/TimeZoneCookie.tsx` (root layout), which refreshes the page the first time so its dates are already right. **`lib/datetime.ts` is the one helper:** `viewerTimeZone()` reads the cookie (falling back to `America/New_York` on a first visit or a bad value), every server-rendered date and time passes `timeZone: tz`, `zonedToUtc()` turns a typed date and time into the instant the person meant (`createClass`, `updateClass`, `createEvent`), and `utcToZoned()` is its inverse for the class edit form. Checked across daylight-saving changes in both directions. Client components (comment times) already format in the browser.

@@ -221,6 +221,7 @@ from the secret key. Apply these files in the Supabase SQL editor:
 | `social-feed.sql` | `follows` and `activity_events` tables + RLS; `is_following()` helper |
 | `public-profiles.sql` | `public_profiles` view (approved pros, admins left out, with `avatar_path`) and storage policy so anon visitors can read approved pros. Run after `avatars.sql` |
 | `avatars.sql` | `profiles.avatar_path`, the public `avatars` bucket and its own-folder upload/delete policies |
+| `portfolios.sql` | Who can upload, read and delete files in the private `portfolios` bucket (owner, admins); the approved-pros public read is in `public-profiles.sql` |
 | `admin.sql` | `profiles.is_admin` flag, `is_admin()` helper, admin RLS, and the one-time admin bootstrap note |
 
 ### Core tables
