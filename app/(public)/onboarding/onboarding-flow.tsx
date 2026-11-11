@@ -6,6 +6,11 @@ import { Clapperboard, Heart, Loader2, Paperclip, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
+import {
+  MAX_PORTFOLIO_FILES,
+  newPortfolioPath,
+  PORTFOLIO_ACCEPT,
+} from "@/lib/portfolio";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
@@ -215,6 +220,10 @@ function ProfessionalStep({
       setError("Please select or type your role.");
       return;
     }
+    if (files.length > MAX_PORTFOLIO_FILES) {
+      setError(`You can add up to ${MAX_PORTFOLIO_FILES} files.`);
+      return;
+    }
 
     setSubmitting(true);
     const supabase = createClient();
@@ -222,11 +231,7 @@ function ProfessionalStep({
 
     try {
       for (const file of files) {
-        // ENG F12: each file gets its own random folder, so two files with the
-        // same name never overwrite each other. The last segment stays the
-        // original name, which is what the Profile page shows.
-        const safeName = file.name.replace(/[^A-Za-z0-9._-]+/g, "-");
-        const path = `${userId}/${crypto.randomUUID()}/${safeName}`;
+        const path = newPortfolioPath(userId, file.name);
         const { error: uploadError } = await supabase.storage
           .from("portfolios")
           .upload(path, file);
@@ -314,7 +319,7 @@ function ProfessionalStep({
             id="portfolio"
             type="file"
             multiple
-            accept=".pdf,.doc,.docx,video/*,image/*"
+            accept={PORTFOLIO_ACCEPT}
             onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
             className="flex w-full rounded-lg border border-input bg-transparent text-sm text-muted-foreground transition-colors outline-none file:mr-3 file:cursor-pointer file:border-0 file:bg-muted file:px-3 file:py-2 file:text-sm file:font-medium file:text-foreground hover:file:bg-muted/70 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
           />
