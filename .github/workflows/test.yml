@@ -6,6 +6,14 @@ on:
   pull_request:
     branches: [main]
 
+# Every run signs in as the same seed accounts on the one test project, so two
+# runs at once (a PR run and the main run after its merge) trip the test
+# project's sign-in rate limit. One run at a time; the next waits its turn
+# (GitHub keeps only the newest waiting run and cancels older waiting ones).
+concurrency:
+  group: test-supabase
+  cancel-in-progress: false
+
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
