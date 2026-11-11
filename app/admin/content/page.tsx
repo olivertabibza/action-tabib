@@ -19,9 +19,11 @@ import {
   formatPrice,
 } from "@/lib/content";
 import { cn } from "@/lib/utils";
+import { reviewReasons } from "@/lib/review-reasons";
 import { Card, CardContent } from "@/components/ui/card";
 import { AdminNav } from "../admin-nav";
 import { ContentDecisionButtons } from "../content-decision-buttons";
+import { AdminSearch, sanitizeQuery, waitingLabel } from "../review-queue";
 
 export const metadata: Metadata = { title: "Content · Admin" };
 
@@ -75,9 +77,10 @@ function submittedOn(iso: string, tz: string) {
 export default async function AdminContentPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<{ status?: string; q?: string }>;
 }) {
-  const { status: statusParam } = await searchParams;
+  const { status: statusParam, q: qParam } = await searchParams;
+  const q = sanitizeQuery(qParam);
   const tz = await viewerTimeZone();
   const status: Status = STATUSES.includes(statusParam as Status)
     ? (statusParam as Status)
@@ -85,41 +88,76 @@ export default async function AdminContentPage({
 
   const supabase = await createClient();
 
-  const { data: eventData } = await supabase
+  // ?q= matches the title or the author's name. Authors are looked up first
+  // (admins read every profile), then each list matches either.
+  let filter: string | null = null;
+  if (q) {
+    const { data: authors } = await supabase
+      .from("profiles")
+      .select("id")
+      .ilike("display_name", `%${q}%`)
+      .limit(100);
+    const ids = (authors ?? []).map((a) => a.id as string);
+    filter = ids.length
+      ? `title.ilike.%${q}%,created_by.in.(${ids.join(",")})`
+      : `title.ilike.%${q}%`;
+  }
+  // PX F24: the pending queue is oldest first; decided lists newest first.
+  const oldestFirst = status === "pending";
+  const now = new Date().getTime();
+
+  let eventQuery = supabase
     .from("events")
     .select(
       "id, title, description, venue, event_type, starts_at, created_at, host:profiles!events_created_by_fkey(display_name)"
     )
-    .eq("status", status)
-    .order("created_at", { ascending: false });
+    .eq("status", status);
+  if (filter) eventQuery = eventQuery.or(filter);
+  const { data: eventData } = await eventQuery.order("created_at", {
+    ascending: oldestFirst,
+  });
   const events = (eventData ?? []).map((e) => ({
     ...e,
     host: e.host as unknown as { display_name: string | null } | null,
   })) as EventRow[];
 
-  const { data: articleData } = await supabase
+  let articleQuery = supabase
     .from("articles")
     .select(
       "id, title, category, excerpt, created_at, author:profiles!articles_created_by_fkey(display_name)"
     )
-    .eq("status", status)
-    .order("created_at", { ascending: false });
+    .eq("status", status);
+  if (filter) articleQuery = articleQuery.or(filter);
+  const { data: articleData } = await articleQuery.order("created_at", {
+    ascending: oldestFirst,
+  });
   const articles = (articleData ?? []).map((a) => ({
     ...a,
     author: a.author as unknown as { display_name: string | null } | null,
   })) as ArticleRow[];
 
-  const { data: classData } = await supabase
+  let classQuery = supabase
     .from("classes")
     .select(
       "id, title, description, discipline, level, format, venue, price_cents, capacity, starts_at, created_at, instructor:profiles!classes_created_by_fkey(display_name)"
     )
-    .eq("status", status)
-    .order("created_at", { ascending: false });
+    .eq("status", status);
+  if (filter) classQuery = classQuery.or(filter);
+  const { data: classData } = await classQuery.order("created_at", {
+    ascending: oldestFirst,
+  });
   const classes = (classData ?? []).map((c) => ({
     ...c,
     instructor: c.instructor as unknown as { display_name: string | null } | null,
   })) as ClassRow[];
+
+  const [eventReasons, articleReasons, classReasons] = await Promise.all([
+    reviewReasons(supabase, "event", events.map((e) => e.id)),
+    reviewReasons(supabase, "article", articles.map((a) => a.id)),
+    reviewReasons(supabase, "class", classes.map((c) => c.id)),
+  ]);
+  const waiting = (iso: string) =>
+    status === "pending" ? ` · ${waitingLabel(iso, now)}` : "";
 
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-12 sm:px-6 sm:py-16">
@@ -150,6 +188,13 @@ export default async function AdminContentPage({
         ))}
       </div>
 
+      <AdminSearch
+        action="/admin/content"
+        status={status}
+        q={q}
+        placeholder="Search title or author"
+      />
+
       {/* Events */}
       <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
         <CalendarDays className="size-4" />
@@ -179,6 +224,7 @@ export default async function AdminContentPage({
 
                   <p className="text-sm text-muted-foreground">
                     Hosted by {host} · submitted {submittedOn(e.created_at, tz)}
+                    {waiting(e.created_at)}
                   </p>
 
                   <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
@@ -208,6 +254,7 @@ export default async function AdminContentPage({
                       kind="event"
                       id={e.id}
                       current={status}
+                      initialReason={eventReasons.get(e.id)}
                     />
                   </div>
                 </CardContent>
@@ -247,6 +294,7 @@ export default async function AdminContentPage({
 
                   <p className="text-sm text-muted-foreground">
                     By {author} · submitted {submittedOn(a.created_at, tz)}
+                    {waiting(a.created_at)}
                   </p>
 
                   {a.excerpt && (
@@ -258,6 +306,7 @@ export default async function AdminContentPage({
                       kind="article"
                       id={a.id}
                       current={status}
+                      initialReason={articleReasons.get(a.id)}
                     />
                   </div>
                 </CardContent>
@@ -304,6 +353,7 @@ export default async function AdminContentPage({
                   <p className="text-sm text-muted-foreground">
                     Taught by {instructor} · submitted{" "}
                     {submittedOn(c.created_at, tz)}
+                    {waiting(c.created_at)}
                   </p>
 
                   <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
@@ -337,6 +387,7 @@ export default async function AdminContentPage({
                       kind="class"
                       id={c.id}
                       current={status}
+                      initialReason={classReasons.get(c.id)}
                     />
                   </div>
                 </CardContent>

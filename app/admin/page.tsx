@@ -5,10 +5,12 @@ import { ExternalLink, FileText, Inbox } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { titleCase } from "@/lib/marketplace";
 import { signedPortfolioUrls, type PortfolioFile } from "@/lib/portfolio";
+import { reviewReasons } from "@/lib/review-reasons";
 import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { AdminNav } from "./admin-nav";
 import { DecisionButtons } from "./decision-buttons";
+import { AdminSearch, sanitizeQuery, waitingLabel } from "./review-queue";
 
 export const metadata: Metadata = { title: "Applications · Admin" };
 
@@ -18,21 +20,37 @@ type Status = (typeof STATUSES)[number];
 export default async function AdminApplicationsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<{ status?: string; q?: string }>;
 }) {
-  const { status: statusParam } = await searchParams;
+  const { status: statusParam, q: qParam } = await searchParams;
+  const q = sanitizeQuery(qParam);
   const status: Status = STATUSES.includes(statusParam as Status)
     ? (statusParam as Status)
     : "pending";
 
   const supabase = await createClient();
 
-  const { data: applicants, error } = await supabase
+  // PX F24: the pending queue is oldest first, so whoever has waited longest
+  // is at the top. Decided lists stay alphabetical.
+  let query = supabase
     .from("profiles")
-    .select("id, display_name, role, headline, bio, portfolio_files")
+    .select("id, display_name, role, headline, bio, portfolio_files, created_at")
     .eq("account_type", "professional")
-    .eq("application_status", status)
-    .order("display_name");
+    .eq("application_status", status);
+  if (q) {
+    query = query.or(
+      `display_name.ilike.%${q}%,role.ilike.%${q}%,headline.ilike.%${q}%`
+    );
+  }
+  const { data: applicants, error } = await (status === "pending"
+    ? query.order("created_at", { ascending: true })
+    : query.order("display_name"));
+  const now = new Date().getTime();
+  const reasons = await reviewReasons(
+    supabase,
+    "profile",
+    (applicants ?? []).map((a) => a.id)
+  );
 
   // profiles.email isn't readable; admins get login emails from
   // admin_profile_emails (supabase/profile-privacy.sql).
@@ -81,6 +99,13 @@ export default async function AdminApplicationsPage({
         ))}
       </div>
 
+      <AdminSearch
+        action="/admin"
+        status={status}
+        q={q}
+        placeholder="Search name, role or headline"
+      />
+
       {error && (
         <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
           Couldn&rsquo;t load applications: {error.message}
@@ -107,6 +132,11 @@ export default async function AdminApplicationsPage({
                     {a.role && (
                       <span className="rounded-full bg-brand/10 px-2.5 py-1 text-xs font-medium text-brand">
                         {titleCase(a.role)}
+                      </span>
+                    )}
+                    {status === "pending" && a.created_at && (
+                      <span className="text-sm text-muted-foreground">
+                        {waitingLabel(a.created_at, now)}
                       </span>
                     )}
                   </div>
@@ -158,7 +188,11 @@ export default async function AdminApplicationsPage({
                   </div>
 
                   <div className="border-t border-border pt-4">
-                    <DecisionButtons profileId={a.id} current={status} />
+                    <DecisionButtons
+                      profileId={a.id}
+                      current={status}
+                      initialReason={reasons.get(a.id)}
+                    />
                   </div>
                 </CardContent>
               </Card>
@@ -169,9 +203,13 @@ export default async function AdminApplicationsPage({
         !error && (
           <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border py-16 text-center">
             <Inbox className="size-8 text-muted-foreground" />
-            <p className="font-medium">No {status} applications</p>
+            <p className="font-medium">
+              {q ? `No ${status} applications match “${q}”` : `No ${status} applications`}
+            </p>
             <p className="max-w-sm text-sm text-muted-foreground">
-              {status === "pending"
+              {q
+                ? "Try a different name, role or headline."
+                : status === "pending"
                 ? "Nothing waiting for review right now."
                 : `No one is ${status} yet.`}
             </p>

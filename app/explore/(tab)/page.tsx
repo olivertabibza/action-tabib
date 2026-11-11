@@ -14,6 +14,7 @@ import { publicPeople } from "@/lib/public-people";
 import { eventTypeLabel, articleCategoryLabel } from "@/lib/content";
 import { titleCase } from "@/lib/marketplace";
 import { cn } from "@/lib/utils";
+import { reviewReasons } from "@/lib/review-reasons";
 import { Avatar } from "@/components/Avatar";
 import { GlobalSearch } from "@/components/GlobalSearch";
 import { Button } from "@/components/ui/button";
@@ -55,6 +56,8 @@ type Submission = {
   title: string;
   kind: "event" | "article";
   status: "pending" | "rejected";
+  /** The admin's reason, for a rejected submission that has one. */
+  reason?: string;
 };
 
 export default async function ExplorePage({
@@ -140,12 +143,19 @@ export default async function ExplorePage({
         .in("status", ["pending", "rejected"])
         .order("created_at", { ascending: false }),
     ]);
+    const rejectedIds = (rows: { id: string; status: string }[] | null) =>
+      (rows ?? []).filter((r) => r.status === "rejected").map((r) => r.id);
+    const [eventReasons, articleReasons] = await Promise.all([
+      reviewReasons(supabase, "event", rejectedIds(myEvents)),
+      reviewReasons(supabase, "article", rejectedIds(myArticles)),
+    ]);
     for (const e of myEvents ?? [])
       submissions.push({
         id: e.id,
         title: e.title,
         kind: "event",
         status: e.status as "pending" | "rejected",
+        reason: eventReasons.get(e.id),
       });
     for (const a of myArticles ?? [])
       submissions.push({
@@ -153,6 +163,7 @@ export default async function ExplorePage({
         title: a.title,
         kind: "article",
         status: a.status as "pending" | "rejected",
+        reason: articleReasons.get(a.id),
       });
   }
 
@@ -207,6 +218,11 @@ export default async function ExplorePage({
                     {s.status}
                   </span>
                 </Link>
+                {s.reason && (
+                  <p className="mt-1 px-3 text-sm whitespace-pre-wrap text-muted-foreground">
+                    Reviewer: {s.reason}
+                  </p>
+                )}
               </li>
             ))}
           </ul>

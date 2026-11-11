@@ -7,6 +7,7 @@ import { viewerTimeZone } from "@/lib/datetime";
 import { disciplineLabel } from "@/lib/marketplace";
 import { classLevelLabel, formatPrice } from "@/lib/content";
 import { cn } from "@/lib/utils";
+import { reviewReasons } from "@/lib/review-reasons";
 import { Button } from "@/components/ui/button";
 import { SegmentedTabs } from "@/components/SegmentedTabs";
 
@@ -35,6 +36,8 @@ type Submission = {
   id: string;
   title: string;
   status: "pending" | "rejected";
+  /** The admin's reason, for a rejected class that has one. */
+  reason?: string;
 };
 
 // A published class in the viewer's "teaching" or "enrolled" list.
@@ -132,11 +135,17 @@ export default async function ClassesPage({
       .eq("created_by", user.id)
       .in("status", ["pending", "rejected"])
       .order("created_at", { ascending: false });
+    const reasons = await reviewReasons(
+      supabase,
+      "class",
+      (mine ?? []).filter((c) => c.status === "rejected").map((c) => c.id)
+    );
     for (const c of mine ?? [])
       submissions.push({
         id: c.id,
         title: c.title,
         status: c.status as "pending" | "rejected",
+        reason: reasons.get(c.id),
       });
   }
 
@@ -244,7 +253,7 @@ export default async function ClassesPage({
               </h2>
               <ul className="mt-3 flex flex-col gap-2">
                 {submissions.map((s) => (
-                  <li key={s.id} className="flex items-center gap-2">
+                  <li key={s.id} className="flex flex-wrap items-center gap-2">
                     <Link
                       href={`/classes/${s.id}`}
                       className="flex min-w-0 flex-1 items-center gap-3 rounded-lg border border-border bg-card px-3 py-2.5 transition-colors hover:border-brand"
@@ -264,6 +273,11 @@ export default async function ClassesPage({
                       </span>
                     </Link>
                     {s.status === "pending" && <EditLink classId={s.id} />}
+                    {s.reason && (
+                      <p className="basis-full px-3 text-sm whitespace-pre-wrap text-muted-foreground">
+                        Reviewer: {s.reason}
+                      </p>
+                    )}
                   </li>
                 ))}
               </ul>

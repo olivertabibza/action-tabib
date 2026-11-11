@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { createClient } from "@/lib/supabase/server";
+import { MAX_REVIEW_REASON, type ReviewItemType } from "@/lib/review-reasons";
 import {
   applicationDecisionSchema,
   autoApproveKindSchema,
@@ -41,6 +42,41 @@ async function requireAdmin() {
   return { supabase };
 }
 
+type AdminClient = Awaited<ReturnType<typeof createClient>>;
+
+/** A reason as typed, trimmed; null for none, false when it's too long. */
+function cleanReason(reason: string | undefined): string | null | false {
+  const trimmed = (reason ?? "").trim();
+  if (!trimmed) return null;
+  return trimmed.length <= MAX_REVIEW_REASON ? trimmed : false;
+}
+
+/**
+ * Keep an item's review reason in step with its latest decision
+ * (supabase/review-reasons.sql): saved when the decision carries one, removed
+ * when it doesn't (including a re-queue), so an old reason never outlives it.
+ */
+async function saveReviewReason(
+  supabase: AdminClient,
+  itemType: ReviewItemType,
+  itemId: string,
+  reason: string | null
+) {
+  const { error } = reason
+    ? await supabase
+        .from("review_reasons")
+        .upsert(
+          { item_type: itemType, item_id: itemId, reason },
+          { onConflict: "item_type,item_id" }
+        )
+    : await supabase
+        .from("review_reasons")
+        .delete()
+        .eq("item_type", itemType)
+        .eq("item_id", itemId);
+  return error;
+}
+
 /**
  * Approve, reject, or re-queue (back to pending) a professional's application.
  * RLS also restricts this to admins; the requireAdmin() check is the in-app
@@ -48,11 +84,16 @@ async function requireAdmin() {
  */
 export async function decideApplication(
   profileId: string,
-  decision: ApplicationDecision
+  decision: ApplicationDecision,
+  reason?: string
 ) {
   const parsed = applicationDecisionSchema.safeParse(decision);
   if (!parsed.success) {
     return { error: "Unknown decision." };
+  }
+  const cleaned = cleanReason(reason);
+  if (cleaned === false) {
+    return { error: `Keep the reason under ${MAX_REVIEW_REASON} characters.` };
   }
 
   const gate = await requireAdmin();
@@ -68,6 +109,16 @@ export async function decideApplication(
     return { error: error.message };
   }
 
+  const reasonError = await saveReviewReason(
+    gate.supabase,
+    "profile",
+    profileId,
+    parsed.data === "pending" ? null : cleaned
+  );
+  if (reasonError) {
+    return { error: `Decision saved, but the reason wasn't: ${reasonError.message}` };
+  }
+
   revalidatePath("/admin");
   return { success: true };
 }
@@ -80,12 +131,17 @@ export async function decideApplication(
 export async function decideContent(
   kind: ContentKind,
   id: string,
-  decision: ContentDecision
+  decision: ContentDecision,
+  reason?: string
 ) {
   const parsedKind = contentKindSchema.safeParse(kind);
   const parsedDecision = contentDecisionSchema.safeParse(decision);
   if (!parsedKind.success || !parsedDecision.success) {
     return { error: "Unknown decision." };
+  }
+  const cleaned = cleanReason(reason);
+  if (cleaned === false) {
+    return { error: `Keep the reason under ${MAX_REVIEW_REASON} characters.` };
   }
 
   const gate = await requireAdmin();
@@ -104,6 +160,16 @@ export async function decideContent(
 
   if (error) {
     return { error: error.message };
+  }
+
+  const reasonError = await saveReviewReason(
+    gate.supabase,
+    parsedKind.data,
+    id,
+    parsedDecision.data === "pending" ? null : cleaned
+  );
+  if (reasonError) {
+    return { error: `Decision saved, but the reason wasn't: ${reasonError.message}` };
   }
 
   revalidatePath("/admin/content");
