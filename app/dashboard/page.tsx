@@ -3,40 +3,29 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
   ArrowRight,
-  Bookmark,
   Briefcase,
-  CircleCheck,
   GraduationCap,
   PartyPopper,
   Rss,
-  Share2,
+  UserPlus,
 } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
 import { viewerTimeZone } from "@/lib/datetime";
 import { cn } from "@/lib/utils";
-import { titleCase, disciplineLabel, DISCIPLINES } from "@/lib/marketplace";
+import { titleCase, disciplineLabel } from "@/lib/marketplace";
 import { Avatar } from "@/components/Avatar";
 import { CallboardCard } from "@/components/CallboardCard";
-import { ConnectionRequestActions } from "@/components/ConnectionRequestActions";
 import { ComposeBox } from "./compose-box";
 import { CommentThread } from "./comment-thread";
-import { FeedAction } from "./feed-action";
 import { ConnectPill, type ConnectionState } from "./connect-pill";
 import { CongratulateButton } from "./congratulate-button";
-import {
-  EndorseAction,
-  EndorsePicker,
-  type EndorsableSkill,
-} from "./endorse-picker";
 
 export const metadata: Metadata = { title: "Feed" };
 
 type Actor = {
   display_name: string | null;
   role: string | null;
-  headline: string | null;
-  skills: string[] | null;
   avatar_path: string | null;
 };
 
@@ -97,32 +86,6 @@ function timeAgo(iso: string, tz: string) {
   });
 }
 
-/**
- * What a post's author can be endorsed for: their primary discipline
- * (profiles.role — free text, with legacy title-cased values like "Editor")
- * plus their secondary profiles.skills (discipline slugs). Deduped
- * case-insensitively, first occurrence winning, and each value kept EXACTLY as
- * stored: profile_lists_skill() matches the skills array case-sensitively and
- * endorsement_count() compares exactly, so only the label is prettified.
- */
-function endorsableSkills(actor: Actor | null): EndorsableSkill[] {
-  const seen = new Set<string>();
-  const out: EndorsableSkill[] = [];
-  for (const value of [actor?.role, ...(actor?.skills ?? [])]) {
-    if (!value) continue;
-    const key = value.toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    out.push({
-      value,
-      label: (DISCIPLINES as readonly string[]).includes(key)
-        ? disciplineLabel(value)
-        : titleCase(value),
-    });
-  }
-  return out;
-}
-
 export default async function DashboardPage() {
   const supabase = await createClient();
   const tz = await viewerTimeZone();
@@ -136,10 +99,10 @@ export default async function DashboardPage() {
     redirect("/login");
   }
 
-  // The current user, for the composer avatar and the left-rail profile card.
+  // The current user, for the composer avatar and the "For you" greeting.
   const { data: me } = await supabase
     .from("profiles")
-    .select("display_name, role, headline, avatar_path")
+    .select("display_name, avatar_path")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -148,7 +111,7 @@ export default async function DashboardPage() {
   const { data, error } = await supabase
     .from("activity_events")
     .select(
-      "id, kind, actor_id, body, subject_id, metadata, created_at, actor:profiles!activity_events_actor_id_fkey(display_name, role, headline, skills, avatar_path)"
+      "id, kind, actor_id, body, subject_id, metadata, created_at, actor:profiles!activity_events_actor_id_fkey(display_name, role, avatar_path)"
     )
     .order("created_at", { ascending: false })
     .limit(50);
@@ -193,16 +156,6 @@ export default async function DashboardPage() {
       if (row.actor_id === user.id) congratulatedByMe.add(id);
     }
   }
-
-  // Every endorsement the viewer has given, in ONE query (the SELECT policy is
-  // member-wide). Keyed subject::skill so each post's picker can pre-fill.
-  const { data: myEndorsements } = await supabase
-    .from("endorsements")
-    .select("subject_id, skill")
-    .eq("endorser_id", user.id);
-  const endorsedByMe = new Set(
-    (myEndorsements ?? []).map((e) => `${e.subject_id}::${e.skill}`)
-  );
 
   // Connect suggestions (LIVE) — approved professionals the user doesn't already
   // follow and isn't themselves. Same query shape as app/explore/(tab)/people/page.tsx.
@@ -249,70 +202,35 @@ export default async function DashboardPage() {
     );
   }
 
-  // Incoming requests for the rail card — derived from the SAME rows above
-  // (the viewer is a party to all of them), newest first. Only the requesters'
-  // names need fetching, and that's one .in() query, never one per row.
+  // Incoming requests for "For you" — derived from the SAME rows above, newest
+  // first. Only the first requester's name is shown, so one lookup.
   const incoming = (connectionRows ?? [])
     .filter((c) => c.addressee_id === user.id && c.status === "pending")
     .sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
-  let connectionRequests: ConnectionRequest[] = [];
+  let firstRequester: ConnectionRequest | null = null;
   if (incoming.length > 0) {
-    const { data: requesters } = await supabase
+    const { data: requester } = await supabase
       .from("profiles")
       .select("id, display_name, role, avatar_path")
-      .in(
-        "id",
-        incoming.map((c) => c.requester_id)
-      );
-    const byId = new Map(
-      (requesters ?? []).map((p) => [p.id as string, p as ConnectionRequest])
-    );
-    connectionRequests = incoming
-      .map((c) => byId.get(c.requester_id as string))
-      .filter((p): p is ConnectionRequest => p !== undefined);
+      .eq("id", incoming[0].requester_id as string)
+      .maybeSingle();
+    firstRequester = (requester as ConnectionRequest | null) ?? null;
   }
 
-  // "N mutual connections" — mutual_connection_count IS an RPC on purpose: the
-  // count can't be derived client-side without leaking the graph. Called only
-  // for people actually on screen: deduped post authors + the ≤3 suggestions.
-  const mutualIds = new Set<string>();
-  for (const e of events) {
-    if (e.actor_id !== user.id) mutualIds.add(e.actor_id);
-  }
-  for (const s of suggestions) mutualIds.add(s.id);
+  // "N mutual" for the ≤3 suggestions only. mutual_connection_count IS an RPC
+  // on purpose: the count can't be derived client-side without leaking the
+  // graph.
   const mutualCounts = new Map<string, number>();
   await Promise.all(
-    [...mutualIds].map(async (id) => {
+    suggestions.map(async (s) => {
       const { data: n } = await supabase.rpc("mutual_connection_count", {
-        target: id,
+        target: s.id,
       });
-      mutualCounts.set(id, Number(n ?? 0));
+      mutualCounts.set(s.id, Number(n ?? 0));
     })
   );
 
-  // Rail stats, in parallel. Vouches and classes taken are direct counts (their
-  // SELECT policies already permit them); connection_count is the RPC.
-  const [
-    connectionCountRes,
-    vouchesRes,
-    classesTakenRes,
-    savedRes,
-    enrollmentRes,
-    recentProjectsRes,
-  ] = await Promise.all([
-    supabase.rpc("connection_count", { p_profile_id: user.id }),
-    supabase
-      .from("endorsements")
-      .select("*", { count: "exact", head: true })
-      .eq("subject_id", user.id),
-    supabase
-      .from("class_enrollments")
-      .select("*", { count: "exact", head: true })
-      .eq("user_id", user.id),
-    supabase
-      .from("saved_items")
-      .select("*", { count: "exact", head: true })
-      .eq("user_id", user.id),
+  const [enrollmentRes, recentProjectsRes] = await Promise.all([
     supabase
       .from("class_enrollments")
       .select(
@@ -329,10 +247,6 @@ export default async function DashboardPage() {
       .limit(3),
   ]);
 
-  const connectionCount = Number(connectionCountRes.data ?? 0);
-  const vouches = vouchesRes.count ?? 0;
-  const classesTaken = classesTakenRes.count ?? 0;
-  const savedCount = savedRes.count ?? 0;
   // UX B-21: "Your class" is the NEXT class you're enrolled in, never one that
   // has already ended.
   const nowMs = new Date().getTime();
@@ -349,44 +263,32 @@ export default async function DashboardPage() {
       )[0] ?? null);
   const recentProjects = (recentProjectsRes.data ?? []) as RecentProject[];
 
+  const forYou = (
+    <ForYouCard
+      name={me?.display_name ?? null}
+      projects={recentProjects}
+      enrolledClass={enrolledClass}
+      requestCount={incoming.length}
+      firstRequester={firstRequester}
+      tz={tz}
+    />
+  );
+
+  // UX B-07 / PX F09: updates in the center, ONE side column of things to act
+  // on. The old left rail (profile card and stats) moved to /profile; the
+  // composer's dead post-type buttons, Endorse, Share and the Connect pill on
+  // every post are gone.
   return (
-    <main className="callboard-grid w-full flex-1 pb-11 pt-6 max-sm:pt-3">
+    <main className="mx-auto grid w-full max-w-[1000px] flex-1 items-start gap-6 px-4 pb-11 pt-6 max-sm:px-3 max-sm:pt-3 wide:grid-cols-[minmax(0,1fr)_320px]">
       <h1 className="sr-only">Feed</h1>
 
-      {/* Left rail — drops entirely below the rail breakpoint. */}
-      <div className="flex flex-col gap-4 max-rail:hidden">
-        <ProfileCard
-          name={me?.display_name ?? null}
-          photoPath={me?.avatar_path ?? null}
-          role={me?.role ?? null}
-          headline={me?.headline ?? null}
-          connections={connectionCount}
-          vouches={vouches}
-          classesTaken={classesTaken}
-        />
-        {/* The design's "Saved projects" row. The count is real, but it counts
-            saved_items — whose item_type is constrained to 'event' | 'article'
-            (supabase/saved-items.sql), so projects are not saveable and the
-            label says "items". Not a link: no Pro-side saved-items index exists
-            yet (the only listing is the Fan profile). */}
-        <CallboardCard>
-          <div className="flex items-center gap-2.5 px-4 py-3.5">
-            <Bookmark
-              className="size-[19px] text-text-secondary"
-              strokeWidth={1.5}
-            />
-            <span className="flex-1 text-[14.5px] font-medium text-text-primary">
-              Saved items
-            </span>
-            <span className="font-mono text-[13px] font-semibold text-accent">
-              {savedCount}
-            </span>
-          </div>
-        </CallboardCard>
-      </div>
-
-      {/* Center column. */}
       <div className="flex min-w-0 flex-col gap-4 max-sm:gap-3">
+        {/* Below the wide breakpoint "For you" leads the page. */}
+        <div className="wide:hidden">{forYou}</div>
+
+        <h2 className="mt-1 text-[12px] font-semibold uppercase tracking-[0.08em] text-text-tertiary">
+          Updates
+        </h2>
         <ComposeBox
           displayName={me?.display_name ?? null}
           photoPath={me?.avatar_path ?? null}
@@ -400,33 +302,18 @@ export default async function DashboardPage() {
 
         {!error && events.length > 0 ? (
           <ul className="flex flex-col gap-4 max-sm:gap-3">
-            {events.map((event) => {
-              // No endorsing yourself (the CHECK and the picker agree).
-              const skills =
-                event.actor_id === user.id ? [] : endorsableSkills(event.actor);
-              return (
-                <li key={event.id}>
-                  <FeedItem
-                    event={event}
-                    tz={tz}
-                    currentUserId={user.id}
-                    commentCount={commentCounts.get(event.id) ?? 0}
-                    congratsCount={congratsCounts.get(event.id) ?? 0}
-                    viewerCongratulated={congratulatedByMe.has(event.id)}
-                    mutualCount={mutualCounts.get(event.actor_id) ?? 0}
-                    connectionState={
-                      connectionStates.get(event.actor_id) ?? "none"
-                    }
-                    skills={skills}
-                    endorsedSkills={skills
-                      .filter((s) =>
-                        endorsedByMe.has(`${event.actor_id}::${s.value}`)
-                      )
-                      .map((s) => s.value)}
-                  />
-                </li>
-              );
-            })}
+            {events.map((event) => (
+              <li key={event.id}>
+                <FeedItem
+                  event={event}
+                  tz={tz}
+                  currentUserId={user.id}
+                  commentCount={commentCounts.get(event.id) ?? 0}
+                  congratsCount={congratsCounts.get(event.id) ?? 0}
+                  viewerCongratulated={congratulatedByMe.has(event.id)}
+                />
+              </li>
+            ))}
           </ul>
         ) : (
           !error && (
@@ -447,15 +334,9 @@ export default async function DashboardPage() {
         )}
       </div>
 
-      {/* Right rail — drops below the wide breakpoint. */}
+      {/* The one side column, from the wide breakpoint up. */}
       <div className="flex flex-col gap-4 max-wide:hidden">
-        {enrolledClass && <ClassCard enrolled={enrolledClass} tz={tz} />}
-        {recentProjects.length > 0 && (
-          <RecentProjectsCard projects={recentProjects} />
-        )}
-        {connectionRequests.length > 0 && (
-          <ConnectionRequestsCard requests={connectionRequests} />
-        )}
+        {forYou}
         {suggestions.length > 0 && (
           <CallboardCard className="p-4">
             <h2 className="font-condensed text-[21px] font-semibold leading-tight text-text-primary">
@@ -496,68 +377,117 @@ export default async function DashboardPage() {
   );
 }
 
-/* ── Left rail ─────────────────────────────────────────────────────────── */
+/* ── For you ───────────────────────────────────────────────────────────── */
 
-function ProfileCard({
+/**
+ * The one card of things to act on (PX wireframe 1): newest open projects,
+ * your next class, and connection requests waiting for you. Each row is a
+ * single tap to where you deal with it. Hidden when there's nothing to show.
+ */
+function ForYouCard({
   name,
-  photoPath,
-  role,
-  headline,
-  connections,
-  vouches,
-  classesTaken,
+  projects,
+  enrolledClass,
+  requestCount,
+  firstRequester,
+  tz,
 }: {
   name: string | null;
-  photoPath: string | null;
-  role: string | null;
-  headline: string | null;
-  connections: number;
-  vouches: number;
-  classesTaken: number;
+  projects: RecentProject[];
+  enrolledClass: EnrolledClass | null;
+  requestCount: number;
+  firstRequester: ConnectionRequest | null;
+  tz: string;
 }) {
-  const roleLine = [role ? titleCase(role) : null, headline]
-    .filter(Boolean)
-    .join(" · ");
-  return (
-    <CallboardCard>
-      <div className="h-16 bg-accent-tint" />
-      <div className="px-4 pb-4">
-        <Avatar
-          name={name}
-          photoPath={photoPath}
-          className="-mt-[34px] size-[68px] bg-avatar-fill text-lg text-text-secondary ring-4 ring-surface"
-        />
-        <Link
-          href="/profile"
-          className="mt-2.5 block font-condensed text-[23px] font-semibold leading-tight text-text-primary transition-colors hover:text-accent"
-        >
-          {name || "Your profile"}
-        </Link>
-        {roleLine && (
-          <p className="mt-0.5 text-[13.5px] text-text-secondary">{roleLine}</p>
-        )}
-        <p className="mt-1.5 flex items-center gap-1.5 text-[12.5px] font-semibold text-accent">
-          <CircleCheck className="size-3.5" strokeWidth={1.5} />
-          Verified pro
-          {vouches > 0 && ` · ${vouches} ${vouches === 1 ? "vouch" : "vouches"}`}
-        </p>
-        <div className="mt-3.5 flex flex-col gap-[9px] border-t border-border-hairline pt-3.5">
-          <StatRow label="Connections" value={connections} />
-          <StatRow label="Classes enrolled" value={classesTaken} />
-        </div>
-      </div>
-    </CallboardCard>
-  );
-}
+  const rows: {
+    key: string;
+    icon: React.ReactNode;
+    title: string;
+    detail: string;
+    href: string;
+    action: string;
+  }[] = [];
 
-function StatRow({ label, value }: { label: string; value: number }) {
+  if (projects.length > 0) {
+    const first = projects[0];
+    rows.push({
+      key: "projects",
+      icon: <Briefcase className="size-[18px]" strokeWidth={1.5} />,
+      title: "New on Projects",
+      detail: [first.title, disciplineLabel(first.discipline), first.location]
+        .filter(Boolean)
+        .join(" · "),
+      href: "/projects",
+      action: "See",
+    });
+  }
+  if (enrolledClass) {
+    const when = new Date(enrolledClass.starts_at).toLocaleDateString(
+      undefined,
+      { timeZone: tz, weekday: "long", month: "short", day: "numeric" }
+    );
+    rows.push({
+      key: "class",
+      icon: <GraduationCap className="size-[18px]" strokeWidth={1.5} />,
+      title: enrolledClass.title,
+      detail: `Your class · ${when}`,
+      href: `/classes/${enrolledClass.id}`,
+      action: "Open",
+    });
+  }
+  if (requestCount > 0) {
+    rows.push({
+      key: "requests",
+      icon: <UserPlus className="size-[18px]" strokeWidth={1.5} />,
+      title: `${requestCount} connection request${requestCount === 1 ? "" : "s"}`,
+      detail: firstRequester
+        ? [
+            firstRequester.display_name || "A member",
+            firstRequester.role ? titleCase(firstRequester.role) : null,
+          ]
+            .filter(Boolean)
+            .join(" · ")
+        : "Waiting for your answer",
+      href: "/profile/network",
+      action: "Review",
+    });
+  }
+
+  if (rows.length === 0) return null;
+
+  const firstName = name?.trim().split(/\s+/)[0];
   return (
-    <p className="flex items-center justify-between text-[13.5px]">
-      <span className="text-text-secondary">{label}</span>
-      <span className="font-mono text-[13px] font-semibold text-text-primary">
-        {value}
-      </span>
-    </p>
+    <CallboardCard className="p-4">
+      <h2 className="font-condensed text-[21px] font-semibold leading-tight text-text-primary">
+        {firstName ? `For you, ${firstName}` : "For you"}
+      </h2>
+      <ul className="mt-1">
+        {rows.map((r, i) => (
+          <li key={r.key} className={cn(i > 0 && "border-t border-border-hairline")}>
+            <Link
+              href={r.href}
+              className="focus-ring flex min-h-14 items-center gap-3 rounded-lg py-3 transition-colors hover:text-accent"
+            >
+              <span className="flex size-[38px] shrink-0 items-center justify-center rounded-input border border-border-hairline bg-surface-sunken text-text-secondary">
+                {r.icon}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate font-condensed text-base font-semibold text-text-primary">
+                  {r.title}
+                </span>
+                <span className="block truncate text-[12.5px] text-text-tertiary">
+                  {r.detail}
+                </span>
+              </span>
+              <span className="flex shrink-0 items-center gap-1 text-[13px] font-semibold text-accent">
+                {r.action}
+                <ArrowRight className="size-3.5" strokeWidth={1.5} />
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </CallboardCard>
   );
 }
 
@@ -570,10 +500,6 @@ function FeedItem({
   commentCount,
   congratsCount,
   viewerCongratulated,
-  mutualCount,
-  connectionState,
-  skills,
-  endorsedSkills,
 }: {
   event: FeedEvent;
   tz: string;
@@ -581,21 +507,10 @@ function FeedItem({
   commentCount: number;
   congratsCount: number;
   viewerCongratulated: boolean;
-  mutualCount: number;
-  connectionState: ConnectionState;
-  skills: EndorsableSkill[];
-  endorsedSkills: string[];
 }) {
   const actorName = event.actor?.display_name || "A creator";
   const isOwnPost = event.actor_id === currentUserId;
-  const subtitle = [
-    event.actor?.role ? titleCase(event.actor.role) : "Creator",
-    mutualCount > 0
-      ? `${mutualCount} mutual connection${mutualCount === 1 ? "" : "s"}`
-      : null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
+  const subtitle = event.actor?.role ? titleCase(event.actor.role) : "Creator";
 
   const proofLine =
     congratsCount > 0
@@ -631,9 +546,6 @@ function FeedItem({
               {subtitle}
             </p>
           </div>
-          {!isOwnPost && (
-            <ConnectPill targetId={event.actor_id} initialState={connectionState} />
-          )}
         </div>
 
         {/* Every status_update renders in the design's single text-post shape:
@@ -676,177 +588,20 @@ function FeedItem({
           <div className="pb-3.5" />
         )}
 
-        {/* EndorsePicker wraps the bar so its trigger (inside the bar) and its
-            panel (below it) share one open state; without endorsable skills it
-            is absent and EndorseAction renders nothing. */}
-        <EndorsePicker
-          subjectId={event.actor_id}
-          skills={skills}
-          endorsed={endorsedSkills}
-        >
-          <CommentThread
-            eventId={event.id}
-            currentUserId={currentUserId}
-            actionsBefore={
-              /* Congratulating your own post is hidden, matching the design. */
-              !isOwnPost && (
-                <CongratulateButton
-                  eventId={event.id}
-                  initialOn={viewerCongratulated}
-                />
-              )
-            }
-            actionsAfter={
-              <>
-                {/* Endorse drops on mobile per the design's three-up bar. */}
-                <EndorseAction className="max-sm:hidden" />
-                {/* Share stays non-interactive: there is no per-post permalink
-                    route in this app, so it would have nothing to copy. */}
-                <FeedAction>
-                  <Share2 className="size-[17px]" strokeWidth={1.5} />
-                  Share
-                </FeedAction>
-              </>
-            }
-          />
-        </EndorsePicker>
-      </article>
-    </CallboardCard>
-  );
-}
-
-/* ── Right rail ────────────────────────────────────────────────────────── */
-
-/** Incoming pending requests. Without this card a request is only discoverable
- * if that person happens to post. Capped at 5 with a plain count line — there
- * is no requests route to link to. */
-function ConnectionRequestsCard({ requests }: { requests: ConnectionRequest[] }) {
-  const shown = requests.slice(0, 5);
-  const extra = requests.length - shown.length;
-  return (
-    <CallboardCard className="p-4">
-      <h2 className="font-condensed text-[21px] font-semibold leading-tight text-text-primary">
-        Connection requests
-      </h2>
-      <ul className="mt-3 flex flex-col gap-3.5">
-        {shown.map((r) => (
-          <li key={r.id} className="flex gap-3">
-            <Avatar
-              name={r.display_name}
-              photoPath={r.avatar_path}
-              className="size-11 bg-avatar-fill text-text-secondary"
-            />
-            <div className="min-w-0 flex-1">
-              <Link
-                href={`/profile/${r.id}`}
-                className="block truncate font-condensed text-[17px] font-semibold leading-tight text-text-primary transition-colors hover:text-accent"
-              >
-                {r.display_name || "Unnamed creator"}
-              </Link>
-              <p className="truncate text-[12.5px] text-text-tertiary">
-                {r.role ? titleCase(r.role) : "Pro"}
-              </p>
-              <ConnectionRequestActions requesterId={r.id} className="mt-2" />
-            </div>
-          </li>
-        ))}
-      </ul>
-      {extra > 0 && (
-        <p className="mt-3 text-[12.5px] text-text-tertiary">+{extra} more</p>
-      )}
-    </CallboardCard>
-  );
-}
-
-/** Rendered only when the user has a real enrollment. The design's session
- * progress bar is omitted rather than faked — there is no session tracking. */
-function ClassCard({
-  enrolled,
-  tz,
-}: {
-  enrolled: EnrolledClass;
-  tz: string;
-}) {
-  const when = new Date(enrolled.starts_at).toLocaleDateString(undefined, {
-    timeZone: tz,
-    weekday: "long",
-    month: "short",
-    day: "numeric",
-  });
-  return (
-    <CallboardCard className="p-4">
-      <p className="flex items-center gap-1.5 text-[13px] font-semibold uppercase tracking-[0.06em] text-text-tertiary">
-        <GraduationCap className="size-4" strokeWidth={1.5} />
-        Your class
-      </p>
-      <h2 className="mt-2 font-condensed text-[21px] font-semibold leading-tight text-text-primary">
-        {enrolled.title}
-      </h2>
-      <p className="mt-1 text-[13.5px] text-text-secondary">
-        {[enrolled.instructor?.display_name, when].filter(Boolean).join(" · ")}
-      </p>
-      <Link
-        href={`/classes/${enrolled.id}`}
-        className="focus-ring mt-3.5 block rounded-full bg-accent px-4 py-2.5 text-center text-[13.5px] font-semibold text-on-accent transition-opacity hover:opacity-90"
-      >
-        View class
-      </Link>
-    </CallboardCard>
-  );
-}
-
-/** Honest replacement for the design's "Auditions matched to you": there is
- * no matching logic, so this lists the newest open projects with no invented
- * match reasons or rates. */
-function RecentProjectsCard({ projects }: { projects: RecentProject[] }) {
-  return (
-    <CallboardCard className="p-4">
-      <div className="flex items-baseline justify-between gap-3">
-        <h2 className="font-condensed text-[21px] font-semibold leading-tight text-text-primary">
-          New on Projects
-        </h2>
-        <Link
-          href="/projects"
-          className="flex shrink-0 items-center gap-1 text-[12.5px] font-semibold text-accent hover:underline"
-        >
-          See all
-          <ArrowRight className="size-3.5" strokeWidth={1.5} />
-        </Link>
-      </div>
-      <ul className="mt-1">
-        {projects.map((p, i) => (
-          <li
-            key={p.id}
-            className={cn(
-              "flex items-center gap-3 py-3",
-              i > 0 && "border-t border-border-hairline"
-            )}
-          >
-            <span className="flex size-[42px] shrink-0 items-center justify-center rounded-input border border-border-hairline bg-surface-sunken">
-              <Briefcase
-                className="size-[19px] text-text-secondary"
-                strokeWidth={1.5}
+        <CommentThread
+          eventId={event.id}
+          currentUserId={currentUserId}
+          actionsBefore={
+            /* Congratulating your own post is hidden, matching the design. */
+            !isOwnPost && (
+              <CongratulateButton
+                eventId={event.id}
+                initialOn={viewerCongratulated}
               />
-            </span>
-            <div className="min-w-0 flex-1">
-              <Link
-                href={`/projects/${p.id}`}
-                className="block truncate font-condensed text-base font-semibold text-text-primary transition-colors hover:text-accent"
-              >
-                {p.title}
-              </Link>
-              <p className="truncate text-[12.5px] text-text-tertiary">
-                {[disciplineLabel(p.discipline), p.location]
-                  .filter(Boolean)
-                  .join(" · ")}
-              </p>
-            </div>
-            <span className="shrink-0 text-[13px] font-semibold text-accent">
-              {titleCase(p.compensation)}
-            </span>
-          </li>
-        ))}
-      </ul>
+            )
+          }
+        />
+      </article>
     </CallboardCard>
   );
 }

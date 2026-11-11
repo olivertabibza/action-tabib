@@ -11,6 +11,10 @@ import { MessageButton } from "@/app/messages/message-button";
 import { FollowButton } from "@/app/explore/(tab)/people/follow-button";
 import { FanFollowButton } from "@/app/fan/explore/follow-button";
 import {
+  ConnectPill,
+  type ConnectionState,
+} from "@/app/dashboard/connect-pill";
+import {
   Card,
   CardContent,
   CardHeader,
@@ -141,6 +145,29 @@ export default async function PublicProfilePage({
     isFollowing = !!follow;
   }
 
+  // Connect lives here too: the Feed no longer puts a Connect pill on every
+  // post (UX B-07), and on phones this is where you'd look for it. The viewer
+  // is a party to any connection row with this person, so RLS returns it.
+  let connectionState: ConnectionState = "none";
+  if (canFollow && viewerIsApprovedPro) {
+    const { data: rows } = await supabase
+      .from("connections")
+      .select("requester_id, addressee_id, status")
+      .or(
+        `and(requester_id.eq.${user.id},addressee_id.eq.${profile.id}),and(requester_id.eq.${profile.id},addressee_id.eq.${user.id})`
+      )
+      .limit(1);
+    const c = rows?.[0];
+    if (c) {
+      connectionState =
+        c.status === "accepted"
+          ? "connected"
+          : c.requester_id === user.id
+            ? "pending_outgoing"
+            : "pending_incoming";
+    }
+  }
+
   const workSamples = (workSampleRows ?? []).map((sample) => ({
     id: sample.id,
     title: sample.title,
@@ -204,6 +231,10 @@ export default async function PublicProfilePage({
                 initialFollowing={isFollowing}
               />
               <MessageButton otherId={profile.id} variant="outline" />
+              <ConnectPill
+                targetId={profile.id}
+                initialState={connectionState}
+              />
             </>
           ) : (
             <FanFollowButton

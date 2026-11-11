@@ -4,14 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import {
-  Briefcase,
-  GraduationCap,
-  Image as ImageIcon,
-  Loader2,
-  Star,
-  type LucideIcon,
-} from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 import { Avatar } from "@/components/Avatar";
 import { CallboardCard } from "@/components/CallboardCard";
@@ -19,18 +12,6 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { statusUpdateSchema, type StatusUpdateValues } from "./schema";
 import { postStatusUpdate } from "./actions";
-
-// STUBBED post-kind chips (design: Still · Milestone · Project · Class note).
-// activity_events.kind (supabase/social-feed.sql) is CHECK-constrained and its
-// INSERT policy only permits 'status_update' and 'started_following', so these
-// render per the design but stay aria-disabled — a new post kind needs a
-// migration in supabase/social-feed.sql before any chip can go live.
-const KIND_CHIPS: { icon: LucideIcon; label: string }[] = [
-  { icon: ImageIcon, label: "Still" },
-  { icon: Star, label: "Milestone" },
-  { icon: Briefcase, label: "Project" },
-  { icon: GraduationCap, label: "Class note" },
-];
 
 export function ComposeBox({
   displayName,
@@ -98,20 +79,9 @@ export function ComposeBox({
             {serverError}
           </p>
         )}
-        <div className="flex items-center gap-2">
-          {KIND_CHIPS.map(({ icon: Icon, label }) => (
-            <button
-              key={label}
-              type="button"
-              aria-disabled
-              tabIndex={-1}
-              className="pointer-events-none flex items-center gap-1.5 rounded-full border border-border px-3.5 py-2 text-[13px] font-semibold text-text-secondary max-sm:hidden"
-            >
-              <Icon className="size-4" strokeWidth={1.5} />
-              {label}
-            </button>
-          ))}
-          <span className="flex-1" />
+        {/* UX B-07: the Still · Milestone · Project · Class note chips were
+            disabled placeholders (only text posts exist), so they're gone. */}
+        <div className="flex items-center justify-end">
           <Button
             type="submit"
             disabled={pending}

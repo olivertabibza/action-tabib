@@ -6,7 +6,6 @@ import { AlignLeft, Calendar, Search, User } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { LogoutButton } from "@/components/LogoutButton";
-import { ThemeToggle } from "@/components/ThemeToggle";
 
 // Single source of truth for the Fan app's destinations — shared by the
 // desktop top nav and the mobile bottom tab bar so the two can't drift apart.
@@ -18,9 +17,21 @@ const navItems = [
 ] as const;
 
 // Feed lives at the index route, so it must match exactly — every other tab's
-// path startsWith "/fan" too.
+// path startsWith "/fan" too. Event, article and creator pages are shown in
+// this shell too (UX B-03), so they light the tab they're reached from.
 function isActive(pathname: string, href: string) {
-  return href === "/fan" ? pathname === "/fan" : pathname.startsWith(href);
+  if (href === "/fan") return pathname === "/fan";
+  if (href === "/fan/events" && pathname.startsWith("/explore/events/")) {
+    return true;
+  }
+  if (
+    href === "/fan/explore" &&
+    (pathname.startsWith("/explore/articles/") ||
+      pathname.startsWith("/profile/"))
+  ) {
+    return true;
+  }
+  return pathname.startsWith(href);
 }
 
 function Wordmark() {
@@ -29,13 +40,9 @@ function Wordmark() {
       <span className="flex size-9 items-center justify-center rounded-[11px] bg-accent font-condensed text-[19px] font-bold text-on-accent">
         A
       </span>
-      <span className="flex flex-col leading-none">
-        <span className="font-condensed text-[21px] font-bold tracking-[0.01em] text-text-primary">
-          ACTION
-        </span>
-        <span className="font-mono text-[9.5px] font-medium tracking-[0.18em] text-text-tertiary">
-          FAN
-        </span>
+      {/* UX B-16: the 9.5px sub-label under the name was unreadable on phones. */}
+      <span className="font-condensed text-[21px] font-bold leading-none tracking-[0.01em] text-text-primary">
+        ACTION
       </span>
     </span>
   );
@@ -108,7 +115,6 @@ export function FanShell({ children }: { children: React.ReactNode }) {
 
           {/* Right cluster — mobile logout lives on the Profile page instead. */}
           <div className="flex items-center gap-3.5 border-l border-border-hairline pl-[18px] max-sm:border-l-0 max-sm:pl-0">
-            <ThemeToggle />
             <LogoutButton
               className="focus-ring hidden items-center gap-2 rounded-full text-[13px] font-medium text-text-secondary transition-colors hover:text-text-primary disabled:opacity-50 sm:flex"
               iconClassName="size-[21px]"

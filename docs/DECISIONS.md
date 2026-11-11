@@ -2,6 +2,32 @@
 
 A running log of significant decisions. Newest entries go at the top.
 
+## 2026-11-11 — Structural redesigns approved and built (Step 4)
+
+**Decision:** Oliver approved all five redesign rows and three small items. B-17 (merge Connect into Follow) is deferred until after the playtest.
+- **One layout (UX B-03, PX F11).** Event, article and public profile pages render in the viewer's own app: ProShell for approved pros, FanShell for fans, the public top nav for everyone else (`components/ViewerShell.tsx`). Each shell lights the tab the page belongs to.
+- **Feed (UX B-07, PX F09).**
+  - Updates sit in the center, with one "For you" card: the newest projects, your next class, waiting connection requests. On phones it sits at the top; on wide screens it's the side column, with "Pros you may know".
+  - The left rail's stats (connections, vouches, classes, saved) moved to `/profile`.
+  - The composer's dead Still / Milestone / Project / Class note buttons are gone, and so are Endorse (with its picker and action), Share, and the Connect pill on every post.
+  - Connect now also appears on pros' profile pages.
+- **Classes (PX F20, §E).** Browse and My classes tabs (`?tab=mine`). My classes holds Enrolled, Teaching and Submissions.
+- **Fan Explore (PX F10).** Three picks (a creator you don't follow, the next event, the newest article), then People, Events and Articles tabs.
+- **Projects (UX B-06, B-22, PX F01, F02).**
+  - Browse, Applications and My postings tabs. `/projects/mine` redirects to My postings.
+  - Search stays visible, and the other filters sit behind a "Filters" button, using 16px inputs on phones.
+  - Cards have one View button: no per-role Apply pills, and Copy link moved to the project page.
+- **Small items.**
+  - B-10: pro Explore lists events first, and its people preview rows just open the profile.
+  - B-16: no "PRO NETWORK" / "FAN" label under the logo.
+  - B-19: the theme switch left the top bar for a labeled Appearance setting on both Profile pages: Light, Dark or Match my device. The public nav keeps its toggle.
+
+All views switch through the URL (`components/SegmentedTabs.tsx`), so every tab is shareable and works without JavaScript.
+
+**Reasoning:** These are the wireframes from the PX audit and the in-house audit's top problem screens, which Oliver approved row by row on the redesign canvas.
+
+**Alternatives considered:** Merging Connect into Follow now, deferred because it changes the data model and four screens.
+
 ## Template
 
 ```markdown
