@@ -59,6 +59,7 @@ type ProjectRole = {
   age_max: number | null;
   description: string;
   status: string;
+  discipline: string | null;
 };
 type MyApplication = { id: string; status: string; role_id: string | null };
 type Applicant = Person & {
@@ -104,7 +105,9 @@ export default async function ProjectDetailPage({
   // audience of the parent project, so a plain select is the right read.
   const { data: roleRows } = await supabase
     .from("project_roles")
-    .select("id, name, billing, gender, age_min, age_max, description, status")
+    .select(
+      "id, name, billing, gender, age_min, age_max, description, status, discipline"
+    )
     .eq("project_id", id)
     .order("sort_order", { ascending: true });
   const roles = (roleRows ?? []) as ProjectRole[];
@@ -478,7 +481,9 @@ function RolesCard({
       <CardContent>
         <ul className="flex flex-col gap-3">
           {roles.map((role) => {
-            const qualifier = roleQualifier(role);
+            const qualifier = [disciplineLabel(role.discipline), roleQualifier(role)]
+              .filter(Boolean)
+              .join(" · ");
             const applied = appliedRoleIds.has(role.id);
             return (
               <li

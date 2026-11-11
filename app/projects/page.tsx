@@ -208,7 +208,7 @@ export default async function ProjectsPage({
   if (allIds.length > 0) {
     const { data: roleRows } = await supabase
       .from("project_roles")
-      .select("id, project_id, name, billing, gender, age_min, age_max")
+      .select("id, project_id, name, billing, gender, age_min, age_max, discipline")
       .in("project_id", allIds)
       .eq("status", "open")
       .order("sort_order", { ascending: true });
@@ -221,6 +221,15 @@ export default async function ProjectsPage({
       else rolesByProject.set(role.project_id, [role]);
     }
     totalRoles = shownRoles.length;
+    // With a Job type filter on, each card lists the roles of that type first
+    // (UX B-08). sort() is stable, so sort_order holds within each group.
+    if (params.discipline) {
+      const wanted = (r: RoleRow) =>
+        r.discipline === params.discipline || r.discipline === "any";
+      for (const list of rolesByProject.values()) {
+        list.sort((a, b) => Number(wanted(b)) - Number(wanted(a)));
+      }
+    }
   }
 
   // ── Circle counts (ONE batched RPC) and the caller's role applications ───

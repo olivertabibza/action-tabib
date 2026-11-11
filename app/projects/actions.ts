@@ -50,11 +50,14 @@ export async function createProject(values: ProjectFormValues) {
   const { roles, tags, ...project } = parsed.data;
 
   // "any" is mutually exclusive with specific disciplines (the form enforces
-  // this too, but never trust the client). The legacy single-value column keeps
-  // being written as the first entry for backward compatibility.
+  // this too, but never trust the client). Otherwise every role's job type is
+  // added, so the Job type filter (an overlaps on this array) finds the project
+  // when any role matches (UX B-08); an "any" project already matches every
+  // filter. The legacy single-value column keeps being written as the first
+  // entry for backward compatibility.
   const disciplines = project.disciplines.includes("any")
     ? ["any"]
-    : project.disciplines;
+    : [...new Set([...project.disciplines, ...roles.map((r) => r.discipline)])];
 
   // Unpaid and deferred projects have NO pay range — the browse card renders no
   // pay line at all for them. The form hides the inputs and clears them; this

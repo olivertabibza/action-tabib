@@ -2,11 +2,13 @@ import { z } from "zod";
 
 import {
   COMPENSATION,
+  DISCIPLINES,
   PAY_UNITS,
   PROJECT_DISCIPLINES,
   PROJECT_TYPES,
   ROLE_BILLINGS,
   ROLE_GENDERS,
+  type Discipline,
 } from "@/lib/marketplace";
 
 /**
@@ -49,6 +51,8 @@ export const projectRoleSchema = z
       .trim()
       .min(1, "Every role needs a name.")
       .max(120, "Keep the role name under 120 characters."),
+    // The role's job type (UX B-08). A specific discipline: a role is one job.
+    discipline: z.enum(DISCIPLINES, { error: "Pick a job type." }),
     billing: z.enum(ROLE_BILLINGS),
     gender: z.enum(ROLE_GENDERS),
     age_min: optionalAge,
@@ -68,15 +72,28 @@ export const projectRoleSchema = z
 
 export type ProjectRoleFormValues = z.infer<typeof projectRoleSchema>;
 
-/** A blank role row, for the "Add a role" button and the first render. */
-export const emptyRole: ProjectRoleFormValues = {
-  name: "",
-  billing: "supporting",
-  gender: "any",
-  age_min: null,
-  age_max: null,
-  description: "",
-};
+/**
+ * A blank role row, for the "Add a role" button. Its job type starts as the
+ * project's first chosen discipline; when that's "any" (or none is chosen yet)
+ * it starts blank, which validation turns into "Pick a job type."
+ */
+export function emptyRole(
+  projectDisciplines: readonly string[]
+): ProjectRoleFormValues {
+  const first = projectDisciplines[0];
+  const discipline = (DISCIPLINES as readonly string[]).includes(first)
+    ? (first as Discipline)
+    : ("" as Discipline);
+  return {
+    name: "",
+    discipline,
+    billing: "supporting",
+    gender: "any",
+    age_min: null,
+    age_max: null,
+    description: "",
+  };
+}
 
 export const MAX_TAGS = 8;
 export const MAX_TAG_LENGTH = 24;

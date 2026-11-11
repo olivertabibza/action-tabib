@@ -145,6 +145,27 @@ create table if not exists public.project_roles (
 create index if not exists project_roles_project_id_sort_order_idx
   on public.project_roles (project_id, sort_order);
 
+-- A role's job type (UX B-08), so a "director" project with an actor role is
+-- found by someone filtering for actors: createProject also adds every role's
+-- discipline to projects.disciplines. Nullable: roles made before this column
+-- have none and behave as before. Same vocabulary as projects_disciplines_check
+-- (multi-discipline.sql) and PROJECT_DISCIPLINES in lib/marketplace.ts.
+alter table public.project_roles
+  add column if not exists discipline text;
+
+alter table public.project_roles
+  drop constraint if exists project_roles_discipline_check;
+alter table public.project_roles
+  add constraint project_roles_discipline_check
+  check (
+    discipline is null
+    or discipline in (
+      'actor','writer','director','producer','cinematographer','videographer',
+      'editor','composer','sound_designer','sound_operator',
+      'costume_designer','makeup_artist','any'
+    )
+  );
+
 
 -- ── 4. applications: role-level applications ────────────────────────────────
 -- role_id is NULLABLE: existing rows are whole-project applications ("reach out

@@ -507,3 +507,30 @@ describe("circle-applied counts", () => {
     expect(Number(row.applied_count)).toBe(1);
   });
 });
+
+describe("role job type (project_roles_discipline_check)", () => {
+  // Throwaway "[TEST]" roles on the owner's own project; clearTestRoles()
+  // deletes them in afterAll. (A throwaway PROJECT can't be deleted: projects
+  // has no DELETE policy, deliberately.)
+  test("l) a role with a valid job type is inserted", async () => {
+    const { data, error } = await owner
+      .from("project_roles")
+      .insert({
+        project_id: openProjectId,
+        name: "[TEST] Discipline Role",
+        discipline: "actor",
+      })
+      .select("discipline");
+    expect(error).toBeNull();
+    expect(data?.[0]?.discipline).toBe("actor");
+  });
+
+  test("m) an invalid job type is rejected", async () => {
+    const { error } = await owner.from("project_roles").insert({
+      project_id: openProjectId,
+      name: "[TEST] Bad Discipline Role",
+      discipline: "astronaut",
+    });
+    expect(error?.code).toBe("23514");
+  });
+});

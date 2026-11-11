@@ -42,6 +42,8 @@ export type RoleRow = {
   gender: string;
   age_min: number | null;
   age_max: number | null;
+  /** Job type (UX B-08); null for roles made before it existed. */
+  discipline: string | null;
 };
 
 /** How many role rows the rail shows before "+ N more roles →". */
@@ -188,7 +190,9 @@ export function ProjectRow({
         ) : (
           <ul className="mt-3 flex flex-col gap-3">
             {roles.slice(0, RAIL_ROLES).map((role) => {
-              const qualifier = roleQualifier(role);
+              const qualifier = [disciplineLabel(role.discipline), roleQualifier(role)]
+                .filter(Boolean)
+                .join(" · ");
               const applied = appliedRoleIds.has(role.id);
               return (
                 <li key={role.id} className="flex items-center gap-2.5">

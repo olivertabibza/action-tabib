@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { NativeSelect } from "@/components/ui/native-select";
 import {
   COMPENSATION,
+  DISCIPLINES,
   PAY_UNITS,
   PROJECT_DISCIPLINES,
   PROJECT_TYPES,
@@ -490,6 +491,34 @@ export function ProjectForm() {
             <div className="flex flex-wrap gap-3">
               <div className="flex flex-col gap-2">
                 <Label
+                  htmlFor={`role-discipline-${index}`}
+                  className="text-xs text-muted-foreground"
+                >
+                  Job type
+                </Label>
+                <NativeSelect
+                  id={`role-discipline-${index}`}
+                  className="w-44"
+                  aria-invalid={!!errors.roles?.[index]?.discipline}
+                  aria-describedby={
+                    errors.roles?.[index]?.discipline
+                      ? `role-${index}-discipline-error`
+                      : undefined
+                  }
+                  {...register(`roles.${index}.discipline`)}
+                >
+                  <option value="" disabled>
+                    Choose…
+                  </option>
+                  {DISCIPLINES.map((d) => (
+                    <option key={d} value={d}>
+                      {disciplineLabel(d)}
+                    </option>
+                  ))}
+                </NativeSelect>
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label
                   htmlFor={`role-billing-${index}`}
                   className="text-xs text-muted-foreground"
                 >
@@ -601,6 +630,14 @@ export function ProjectForm() {
               </>
               )}
             </div>
+            {errors.roles?.[index]?.discipline && (
+              <p
+                id={`role-${index}-discipline-error`}
+                className="text-sm text-destructive"
+              >
+                {errors.roles[index]?.discipline?.message}
+              </p>
+            )}
             {(errors.roles?.[index]?.age_min ||
               errors.roles?.[index]?.age_max) && (
               <p
@@ -647,7 +684,7 @@ export function ProjectForm() {
           <Button
             type="button"
             variant="outline"
-            onClick={() => appendRole(emptyRole)}
+            onClick={() => appendRole(emptyRole(disciplines))}
           >
             <Plus className="size-4" />
             {roleFields.length === 0 ? "Add a role" : "Add another role"}
