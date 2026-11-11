@@ -18,6 +18,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { SegmentedTabs } from "@/components/SegmentedTabs";
 import { FanFollowButton } from "./follow-button";
 
 export const metadata: Metadata = { title: "Explore" };
@@ -50,9 +51,13 @@ type ArticleRow = {
 export default async function FanExplorePage({
   searchParams,
 }: {
-  searchParams: Promise<{ search?: string }>;
+  searchParams: Promise<{ search?: string; tab?: string }>;
 }) {
-  const { search } = await searchParams;
+  const { search, tab: tabParam } = await searchParams;
+  // PX F10 (wireframe 3): three picks up top, then one list at a time instead
+  // of 12 creators, every event and every article in one long scroll.
+  const tab =
+    tabParam === "events" || tabParam === "articles" ? tabParam : "people";
   const supabase = await createClient();
   const tz = await viewerTimeZone();
   const nowIso = new Date().toISOString();
@@ -84,14 +89,14 @@ export default async function FanExplorePage({
     (myFollows ?? []).map((f) => f.following_id as string)
   );
 
-  // A short strip of upcoming published events.
+  // Upcoming published events (the Events tab; the first is a pick).
   const { data: eventData, error: eventError } = await supabase
     .from("events")
     .select("id, title, venue, event_type, starts_at")
     .eq("status", "published")
     .gte("starts_at", nowIso)
     .order("starts_at", { ascending: true })
-    .limit(3);
+    .limit(20);
   if (eventError) throw new Error(`Events load failed: ${eventError.message}`);
   const events = (eventData ?? []) as EventRow[];
 
@@ -114,6 +119,11 @@ export default async function FanExplorePage({
     author: authors.get(a.created_by) ?? null,
   })) as ArticleRow[];
 
+  const pickCreator =
+    creators.find((c) => !followingSet.has(c.id)) ?? creators[0] ?? null;
+  const pickEvent = events[0] ?? null;
+  const pickArticle = articles[0] ?? null;
+
   return (
     <main className="flex flex-1 flex-col px-4 py-6">
       <h1 className="text-2xl font-bold tracking-tight">Explore</h1>
@@ -127,66 +137,161 @@ export default async function FanExplorePage({
         autoFocus={search === "1"}
       />
 
-      {/* Filmmakers to follow (LIVE) */}
-      <h2 className="mt-8 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-        Filmmakers to follow
-      </h2>
-      {creators.length > 0 ? (
-        <div className="mt-3 flex flex-col gap-3">
-          {creators.map((c) => {
-            const name = c.display_name || "Unnamed filmmaker";
-            return (
-              <Card key={c.id} className="p-2">
-                <CardHeader className="flex items-center gap-3">
-                  <Avatar
-                    name={name}
-                    photoPath={c.avatar_path}
-                    className="size-10"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <CardTitle className="text-base leading-snug">
-                      <Link
-                        href={`/profile/${c.id}`}
-                        className="transition-colors hover:text-brand"
-                      >
-                        {name}
-                      </Link>
-                    </CardTitle>
-                    {c.role && (
-                      <p className="text-sm text-muted-foreground">
-                        {titleCase(c.role)}
-                      </p>
-                    )}
-                  </div>
-                  <FanFollowButton
-                    targetId={c.id}
-                    initialFollowing={followingSet.has(c.id)}
-                  />
-                </CardHeader>
-                {c.headline && (
-                  <CardContent>
-                    <p className="line-clamp-2 text-sm text-foreground/80">
-                      {c.headline}
-                    </p>
-                  </CardContent>
-                )}
-              </Card>
-            );
-          })}
-        </div>
-      ) : (
-        <p className="mt-3 text-sm text-muted-foreground">
-          No filmmakers to follow yet — check back soon.
-        </p>
-      )}
-
-      {/* Happening soon (LIVE) */}
-      {events.length > 0 && (
+      {/* Picked for you: one creator you don't follow yet, the next event, the
+          newest article. */}
+      {(pickCreator || pickEvent || pickArticle) && (
         <>
           <h2 className="mt-8 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-            Happening soon
+            Picked for you
           </h2>
-          <ul className="mt-3 flex flex-col gap-3">
+          <div className="mt-3 flex flex-col gap-2.5">
+            {pickCreator && (
+              <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-3.5">
+                <Avatar
+                  name={pickCreator.display_name}
+                  photoPath={pickCreator.avatar_path}
+                  className="size-11"
+                />
+                <Link
+                  href={`/profile/${pickCreator.id}`}
+                  className="min-w-0 flex-1"
+                >
+                  <span className="block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Creator
+                  </span>
+                  <span className="block truncate font-semibold">
+                    {pickCreator.display_name || "Unnamed filmmaker"}
+                  </span>
+                  {pickCreator.role && (
+                    <span className="block truncate text-sm text-muted-foreground">
+                      {titleCase(pickCreator.role)}
+                    </span>
+                  )}
+                </Link>
+                <FanFollowButton
+                  targetId={pickCreator.id}
+                  initialFollowing={followingSet.has(pickCreator.id)}
+                />
+              </div>
+            )}
+            {pickEvent && (
+              <Link
+                href={`/explore/events/${pickEvent.id}`}
+                className="block rounded-xl border border-border bg-card p-3.5 transition-colors hover:border-brand"
+              >
+                <span className="block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Event ·{" "}
+                  {new Date(pickEvent.starts_at).toLocaleDateString(undefined, {
+                    timeZone: tz,
+                    weekday: "short",
+                    month: "short",
+                    day: "numeric",
+                  })}
+                </span>
+                <span className="block font-semibold">{pickEvent.title}</span>
+                {pickEvent.venue && (
+                  <span className="block truncate text-sm text-muted-foreground">
+                    {pickEvent.venue}
+                  </span>
+                )}
+              </Link>
+            )}
+            {pickArticle && (
+              <Link
+                href={`/explore/articles/${pickArticle.id}`}
+                className="block rounded-xl border border-border bg-card p-3.5 transition-colors hover:border-brand"
+              >
+                <span className="block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Article · {articleCategoryLabel(pickArticle.category)}
+                </span>
+                <span className="block font-semibold">{pickArticle.title}</span>
+                {pickArticle.excerpt && (
+                  <span className="line-clamp-1 block text-sm text-muted-foreground">
+                    {pickArticle.excerpt}
+                  </span>
+                )}
+              </Link>
+            )}
+          </div>
+        </>
+      )}
+
+      <SegmentedTabs
+        label="Browse"
+        className="mt-8"
+        tabs={[
+          { href: "/fan/explore", label: "People", active: tab === "people" },
+          {
+            href: "/fan/explore?tab=events",
+            label: "Events",
+            active: tab === "events",
+          },
+          {
+            href: "/fan/explore?tab=articles",
+            label: "Articles",
+            active: tab === "articles",
+          },
+        ]}
+      />
+
+      {tab === "people" && (
+        <>
+          {/* People: filmmakers to follow (LIVE) */}
+          {creators.length > 0 ? (
+            <div className="mt-4 flex flex-col gap-3">
+              {creators.map((c) => {
+                const name = c.display_name || "Unnamed filmmaker";
+                return (
+                  <Card key={c.id} className="p-2">
+                    <CardHeader className="flex items-center gap-3">
+                      <Avatar
+                        name={name}
+                        photoPath={c.avatar_path}
+                        className="size-10"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <CardTitle className="text-base leading-snug">
+                          <Link
+                            href={`/profile/${c.id}`}
+                            className="transition-colors hover:text-brand"
+                          >
+                            {name}
+                          </Link>
+                        </CardTitle>
+                        {c.role && (
+                          <p className="text-sm text-muted-foreground">
+                            {titleCase(c.role)}
+                          </p>
+                        )}
+                      </div>
+                      <FanFollowButton
+                        targetId={c.id}
+                        initialFollowing={followingSet.has(c.id)}
+                      />
+                    </CardHeader>
+                    {c.headline && (
+                      <CardContent>
+                        <p className="line-clamp-2 text-sm text-foreground/80">
+                          {c.headline}
+                        </p>
+                      </CardContent>
+                    )}
+                  </Card>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="mt-4 text-sm text-muted-foreground">
+              No filmmakers to follow yet — check back soon.
+            </p>
+          )}
+        </>
+      )}
+      {tab === "events" && (
+        <>
+          {/* Events: upcoming (LIVE) */}
+          {events.length > 0 ? (
+            <ul className="mt-4 flex flex-col gap-3">
             {events.map((e) => {
               const d = new Date(e.starts_at);
               const month = d
@@ -218,52 +323,57 @@ export default async function FanExplorePage({
                 </li>
               );
             })}
-          </ul>
+            </ul>
+          ) : (
+            <p className="mt-4 text-sm text-muted-foreground">
+              No upcoming events yet — check back soon.
+            </p>
+          )}
         </>
       )}
-
-      {/* Articles & interviews (LIVE) */}
-      <h2 className="mt-8 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-        Articles &amp; interviews
-      </h2>
-      {articles.length > 0 ? (
-        <ul className="mt-3 flex flex-col gap-3">
-          {articles.map((a) => {
-            const author = a.author?.display_name || "the Action desk";
-            return (
-              <li key={a.id}>
-                <Link
-                  href={`/explore/articles/${a.id}`}
-                  className="block rounded-xl border border-border bg-card p-4 transition-colors hover:border-brand"
-                >
-                  <span className="text-xs font-medium text-brand">
-                    {articleCategoryLabel(a.category)}
-                  </span>
-                  <h3 className="mt-1 font-semibold leading-snug">{a.title}</h3>
-                  {a.excerpt && (
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {a.excerpt}
-                    </p>
-                  )}
-                  <div className="mt-3 flex items-center gap-2">
-                    <Avatar
-                      name={author}
-                      photoPath={a.author?.avatar_path}
-                      className="size-7 text-xs"
-                    />
-                    <span className="text-xs text-muted-foreground">
-                      By {author}
-                    </span>
-                  </div>
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-      ) : (
-        <p className="mt-3 text-sm text-muted-foreground">
-          No articles published yet — check back soon.
-        </p>
+      {tab === "articles" && (
+        <>
+          {/* Articles & interviews (LIVE) */}
+          {articles.length > 0 ? (
+            <ul className="mt-4 flex flex-col gap-3">
+              {articles.map((a) => {
+                const author = a.author?.display_name || "the Action desk";
+                return (
+                  <li key={a.id}>
+                    <Link
+                      href={`/explore/articles/${a.id}`}
+                      className="block rounded-xl border border-border bg-card p-4 transition-colors hover:border-brand"
+                    >
+                      <span className="text-xs font-medium text-brand">
+                        {articleCategoryLabel(a.category)}
+                      </span>
+                      <h3 className="mt-1 font-semibold leading-snug">{a.title}</h3>
+                      {a.excerpt && (
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          {a.excerpt}
+                        </p>
+                      )}
+                      <div className="mt-3 flex items-center gap-2">
+                        <Avatar
+                          name={author}
+                          photoPath={a.author?.avatar_path}
+                          className="size-7 text-xs"
+                        />
+                        <span className="text-xs text-muted-foreground">
+                          By {author}
+                        </span>
+                      </div>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <p className="mt-4 text-sm text-muted-foreground">
+              No articles published yet — check back soon.
+            </p>
+          )}
+        </>
       )}
     </main>
   );
