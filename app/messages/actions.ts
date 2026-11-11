@@ -70,8 +70,19 @@ export async function openConversation(otherUserId: string) {
  * Send a message. We let the RLS insert policy be the one thing that stops an
  * ignored sender (the other party's participant row is gone). If the insert is
  * rejected we return a neutral error — never crash, never reveal the ignore.
+ *
+ * `clientId` is the composer's id for this send (reused on a retry of the same
+ * text). A unique index on (sender_id, client_id) makes a second copy fail, and
+ * that failure means "already sent", so a double tap or a retry after a dropped
+ * connection never posts twice (audit ENG F08).
  */
-export async function sendMessage(conversationId: string, body: string) {
+const CLIENT_ID = /^[0-9a-f-]{36}$/i;
+
+export async function sendMessage(
+  conversationId: string,
+  body: string,
+  clientId?: string
+) {
   const parsed = messageSchema.safeParse({ body });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Write a message first." };
@@ -89,10 +100,19 @@ export async function sendMessage(conversationId: string, body: string) {
     conversation_id: conversationId,
     sender_id: user.id,
     body: parsed.data.body,
+    client_id: clientId && CLIENT_ID.test(clientId) ? clientId : null,
   });
-  if (error) {
+  // 23505 = this exact send is already saved (see above): treat as sent.
+  if (error && error.code !== "23505") {
     return { error: "You can't reply to this conversation." };
   }
+
+  // Replying counts as reading: everything before my message has been seen.
+  await supabase
+    .from("conversation_participants")
+    .update({ last_read_at: new Date().toISOString() })
+    .eq("conversation_id", conversationId)
+    .eq("user_id", user.id);
 
   revalidatePath(`/messages/${conversationId}`);
   revalidatePath("/messages");
@@ -166,5 +186,5 @@ export async function getUnreadCount(): Promise<number> {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return 0;
-  return getUnreadChatCount(supabase, user.id);
+  return getUnreadChatCount(supabase);
 }

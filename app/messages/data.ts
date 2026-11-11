@@ -30,9 +30,9 @@ const INBOX_ERROR = "Couldn't load your messages. Refresh to try again.";
  * (for just the count) the unread badge. No realtime this pass: plain queries +
  * a JS reduce for "last message per conversation", which is fine at MVP scale.
  *
- * A conversation is UNREAD when its last message is from the OTHER person and is
- * newer than my last_read_at (or I've never read it). We deliberately exclude my
- * own last message so sending never makes my own thread look unread to me.
+ * Which conversations are UNREAD comes from public.my_unread_conversations()
+ * (supabase/messages.sql §7), the same rule the nav badge uses, so the two can't
+ * disagree (audit ENG F09/F10).
  */
 export async function getInbox(
   supabase: ServerClient,
@@ -81,17 +81,29 @@ export async function getInbox(
     (profiles ?? []).map((p) => [p.id as string, p])
   );
 
-  // All messages in my conversations, newest first; reduce to the last one per
-  // conversation.
-  const { data: msgs, error: msgsError } = await supabase
-    .from("messages")
-    .select("conversation_id, sender_id, body, created_at")
-    .in("conversation_id", convIds)
-    .order("created_at", { ascending: false });
+  // The newest message in each of my conversations, one row each
+  // (public.my_last_messages, supabase/messages.sql §7).
+  const { data: msgs, error: msgsError } = await supabase.rpc(
+    "my_last_messages"
+  );
   if (msgsError) {
     console.error("getInbox: messages failed:", msgsError);
     return { chats: [], requests: [], unreadChats: 0, error: INBOX_ERROR };
   }
+  // One unread rule for the inbox and the badge (see getUnreadChatCount).
+  const { data: unreadRows, error: unreadError } = await supabase.rpc(
+    "my_unread_conversations"
+  );
+  if (unreadError) {
+    console.error("getInbox: unread lookup failed:", unreadError);
+    return { chats: [], requests: [], unreadChats: 0, error: INBOX_ERROR };
+  }
+  const unreadIds = new Set(
+    ((unreadRows ?? []) as { conversation_id: string }[]).map(
+      (r) => r.conversation_id
+    )
+  );
+
   const lastByConv = new Map<
     string,
     { sender_id: string; body: string; created_at: string }
@@ -115,11 +127,7 @@ export async function getInbox(
     if (!otherId) continue; // other side ignored/removed — nothing to show
     const prof = profileById.get(otherId);
     const last = lastByConv.get(cid);
-    const lastReadAt = row.last_read_at as string | null;
-    const unread =
-      !!last &&
-      last.sender_id !== userId &&
-      (lastReadAt === null || last.created_at > lastReadAt);
+    const unread = unreadIds.has(cid);
 
     const summary: ConversationSummary = {
       conversationId: cid,
@@ -146,53 +154,16 @@ export async function getInbox(
 }
 
 /**
- * Just the unread number for the ProShell nav badge. This exists separately from
- * getInbox — NOT as a duplicate — because the shell renders on EVERY page and
- * getInbox runs four queries and pulls every message body in every conversation
- * to build summaries. That's fine once on /messages, wasteful per navigation to
- * produce one integer.
- *
- * The unread rule is the same as getInbox's and the two must be changed
- * together: accepted conversations only (pending requests have their own tab),
- * and the other party's newest message must be newer than my last_read_at.
- * getInbox drops my own messages in JS; here it's `.neq("sender_id", userId)` in
- * the query — equivalent, and it fetches less.
+ * Just the unread number for the ProShell nav badge: accepted conversations
+ * (requests have their own tab) that public.my_unread_conversations() reports
+ * as unread. One cheap call, and the same rule getInbox uses for its dots, so
+ * the badge and the inbox always agree (audit ENG F09/F10).
  */
 export async function getUnreadChatCount(
-  supabase: ServerClient,
-  userId: string
+  supabase: ServerClient
 ): Promise<number> {
-  const { data: myRows } = await supabase
-    .from("conversation_participants")
-    .select("conversation_id, last_read_at")
-    .eq("user_id", userId)
-    .eq("accepted", true);
-
-  const mine = myRows ?? [];
-  if (mine.length === 0) return 0;
-
-  const convIds = mine.map((r) => r.conversation_id as string);
-
-  const { data: msgs } = await supabase
-    .from("messages")
-    .select("conversation_id, created_at")
-    .in("conversation_id", convIds)
-    .neq("sender_id", userId)
-    .order("created_at", { ascending: false });
-
-  // Newest other-party message per conversation.
-  const lastByConv = new Map<string, string>();
-  for (const m of msgs ?? []) {
-    const cid = m.conversation_id as string;
-    if (!lastByConv.has(cid)) lastByConv.set(cid, m.created_at as string);
-  }
-
-  let unread = 0;
-  for (const row of mine) {
-    const last = lastByConv.get(row.conversation_id as string);
-    if (!last) continue;
-    const lastReadAt = row.last_read_at as string | null;
-    if (lastReadAt === null || last > lastReadAt) unread += 1;
-  }
-  return unread;
+  const { data, error } = await supabase.rpc("my_unread_conversations");
+  if (error) return 0;
+  const rows = (data ?? []) as { accepted: boolean }[];
+  return rows.filter((r) => r.accepted).length;
 }

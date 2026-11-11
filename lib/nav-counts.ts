@@ -51,7 +51,7 @@ export async function getNavCounts(): Promise<NavCounts> {
       .select("*", { count: "exact", head: true })
       .eq("addressee_id", user.id)
       .eq("status", "pending"),
-    getUnreadChatCount(supabase, user.id),
+    getUnreadChatCount(supabase),
     supabase
       .from("profiles")
       .select("is_admin, avatar_path")
