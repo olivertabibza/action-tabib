@@ -14,8 +14,9 @@ export type ProjectCardData = {
 };
 
 /**
- * Summary card linking to a project's detail page. `meta` renders an optional
- * footer line (used on the "mine" page for applicant counts / status).
+ * Summary card linking to a project's detail page (or `href`, e.g. straight to
+ * its applicants). `meta` renders an optional footer line (used on My postings
+ * for applicant counts).
  *
  * Sole consumer is the My postings tab (app/projects/my-lists.tsx): the browse screen moved to the Callboard
  * split card (app/projects/project-row.tsx) in Phase 4b, and /mine keeps this
@@ -26,14 +27,16 @@ export function ProjectCard({
   posterName,
   posterRole,
   meta,
+  href,
 }: {
   project: ProjectCardData;
+  href?: string;
   posterName?: string | null;
   posterRole?: string | null;
   meta?: React.ReactNode;
 }) {
   return (
-    <Link href={`/projects/${project.id}`} className="group">
+    <Link href={href ?? `/projects/${project.id}`} className="group">
       <Card className="h-full p-2 transition-colors group-hover:border-brand">
         <CardHeader>
           <CardTitle className="flex items-start justify-between gap-2 text-lg">

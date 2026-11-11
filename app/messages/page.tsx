@@ -115,7 +115,7 @@ function TabLink({
     <Link
       href={href}
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium transition-colors",
+        "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium transition-colors pointer-coarse:min-h-11 pointer-coarse:px-4",
         active
           ? "bg-brand text-brand-foreground"
           : "bg-muted text-muted-foreground hover:text-foreground"

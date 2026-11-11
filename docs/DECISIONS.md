@@ -2,6 +2,26 @@
 
 A running log of significant decisions. Newest entries go at the top.
 
+## 2026-11-11 — Saved page for pros, a next step on applicants, touch targets, CI takes turns
+
+**Decision:** The audit fixes that need no SQL.
+- **Saved (PX F03).** Pros get `/profile/saved`, a third tab beside Profile and Network, and the Saved stat on `/profile` links there. It lists saved projects, events and articles newest-first, and each row has its bookmark so it can be removed in place. The fan profile's Saved section uses the same list (`app/explore/saved/saved-list.tsx`).
+- **Applicants (PX F08).**
+  - Each applicant has a "Message <name>" button and View profile. The email moved to a quieter "Or email …" line under them.
+  - A project with applicants shows "N people have applied · Review applicants" near the top, which jumps to the list.
+  - On My postings, a card with applicants opens straight on them.
+  - Applications still have no owner-set status (shortlist, decline). That needs an UPDATE policy, so it goes with the SQL batch.
+- **Touch targets and focus (PX F22).**
+  - On touch screens (`pointer: coarse`), every shadcn button, input and select is at least 44px tall, and icon buttons are 44px wide. The pill tabs (Profile, Messages, Admin) are 44px too.
+  - The icon-only bookmark and copy-link buttons get a 44px target while keeping their 32px footprint (a negative margin).
+  - Desktop sizes are unchanged.
+  - The project search, filter and sort boxes hide their inputs' own outline, so the box now shows focus instead.
+- **CI.** The test workflow has a `concurrency` group, so a PR run and the main run after its merge take turns instead of both signing in as the seed accounts at once. Taking turns wasn't enough on its own: run #47 hit the same limit running alone, because each test file signed every account in again (about 45 password sign-ins a run). **`tests/helpers/auth.ts` now caches sessions in a file in the OS temp folder** (test-project seed accounts only, owner-read-only, and only sessions with 5+ minutes left are reused), so each account signs in once per run. A rate-limited sign-in waits 5, 10 and 20 seconds before giving up, with a message that says it's the rate limit. `hookTimeout` is 90 seconds to cover the waits.
+
+**Reasoning:** These were the leftover audit findings that don't touch the database.
+
+**Alternatives considered:** Invisible hit-area extensions for every button, kept only for the two icon buttons: visible 44px controls on phones are the platform norm and can't overlap a neighbour's target.
+
 ## 2026-11-11 — Structural redesigns approved and built (Step 4)
 
 **Decision:** Oliver approved all five redesign rows and three small items. B-17 (merge Connect into Follow) is deferred until after the playtest.

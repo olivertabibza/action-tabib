@@ -39,7 +39,7 @@ export function ProjectSearchCard({ params }: { params: BrowseParams }) {
         {sort && <input type="hidden" name="sort" value={sort} />}
 
         <div className="flex flex-wrap items-stretch gap-[11px]">
-          <div className="flex min-w-[220px] flex-1 items-center gap-2.5 rounded-input border border-border bg-surface-sunken px-3.5">
+          <div className="flex min-w-[220px] flex-1 items-center gap-2.5 rounded-input border border-border bg-surface-sunken px-3.5 focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/30">
             <Search
               className="size-[18px] shrink-0 text-text-tertiary"
               strokeWidth={1.5}
@@ -171,7 +171,7 @@ function Field({
   return (
     <label
       className={cn(
-        "flex min-w-0 shrink-0 flex-col justify-center gap-0.5 rounded-input border border-border bg-surface px-3 py-2",
+        "flex min-w-0 shrink-0 flex-col justify-center gap-0.5 rounded-input border border-border bg-surface px-3 py-2 focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/30",
         className
       )}
     >
