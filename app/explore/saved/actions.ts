@@ -52,6 +52,8 @@ export async function toggleSave(
 
   revalidatePath(`/explore/${itemType}s/${itemId}`);
   revalidatePath("/fan/profile");
+  revalidatePath("/profile/saved");
+  revalidatePath("/profile"); // the Saved count
   // The Callboard browse screen renders a bookmark on every card and a
   // "★ Saved (N)" count in its header, both of which this changes.
   revalidatePath("/projects");

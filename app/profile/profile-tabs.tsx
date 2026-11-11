@@ -2,9 +2,13 @@ import Link from "next/link";
 
 import { cn } from "@/lib/utils";
 
-// Profile / Network sub-tabs, shown to approved pros only. Same pill styling as
+// Profile / Network / Saved sub-tabs, shown to approved pros only. Same pill styling as
 // the Chats / Requests tabs in app/messages/page.tsx.
-export function ProfileTabs({ active }: { active: "profile" | "network" }) {
+export function ProfileTabs({
+  active,
+}: {
+  active: "profile" | "network" | "saved";
+}) {
   return (
     <div className="mb-6 flex gap-1">
       <TabLink href="/profile" label="Profile" active={active === "profile"} />
@@ -13,6 +17,7 @@ export function ProfileTabs({ active }: { active: "profile" | "network" }) {
         label="Network"
         active={active === "network"}
       />
+      <TabLink href="/profile/saved" label="Saved" active={active === "saved"} />
     </div>
   );
 }

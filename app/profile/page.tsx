@@ -113,7 +113,7 @@ export default async function ProfilePage() {
       },
       { label: "Vouches", value: vouches.count ?? 0 },
       { label: "Classes enrolled", value: enrolled.count ?? 0, href: "/classes" },
-      { label: "Saved", value: saved.count ?? 0 },
+      { label: "Saved", value: saved.count ?? 0, href: "/profile/saved" },
     ];
   }
 

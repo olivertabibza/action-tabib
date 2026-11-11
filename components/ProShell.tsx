@@ -51,7 +51,11 @@ function navAriaLabel(label: string, count: number, noun: string | null) {
 // live under /explore, so they keep Explore lit.
 function isActive(pathname: string, href: string) {
   if (href === "/profile") {
-    return pathname === "/profile" || pathname.startsWith("/profile/network");
+    return (
+      pathname === "/profile" ||
+      pathname.startsWith("/profile/network") ||
+      pathname.startsWith("/profile/saved")
+    );
   }
   return pathname.startsWith(href);
 }
