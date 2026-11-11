@@ -80,6 +80,15 @@ create table if not exists public.messages (
 create index if not exists messages_conversation_created_idx
   on public.messages (conversation_id, created_at);
 
+-- Duplicate-send guard (audit ENG F08, server half). The composer gives each
+-- send a random client_id and reuses it when retrying the same text, so a
+-- double tap or a retry after a dropped connection hits this unique index
+-- instead of posting twice; the app treats that conflict as "already sent".
+-- Older rows have no client_id (NULLs never conflict).
+alter table public.messages add column if not exists client_id uuid;
+create unique index if not exists messages_sender_client_id_key
+  on public.messages (sender_id, client_id);
+
 
 -- ── 4. Security-definer helper ──────────────────────────────────────────────
 -- Is the current user a participant in conv_id? security definer so it can read
@@ -286,6 +295,71 @@ $$;
 
 revoke execute on function public.open_conversation(uuid) from public, anon;
 grant execute on function public.open_conversation(uuid) to authenticated;
+
+-- ── 7. Which of my conversations are unread (audit ENG F09/F10) ────────────
+-- ONE rule for the inbox and the nav badge (they used to compute it separately
+-- and could disagree): a conversation is unread when the other person is still
+-- in it, its newest message is theirs, and that message is newer than my
+-- last_read_at. Sending a message also moves my last_read_at forward (the app
+-- does this), so replying counts as reading.
+-- security invoker: RLS already limits me to my own participant rows and to
+-- messages in my conversations.
+create or replace function public.my_unread_conversations()
+returns table (conversation_id uuid, accepted boolean)
+language sql
+stable
+security invoker
+set search_path = ''
+as $$
+  select p.conversation_id, p.accepted
+  from public.conversation_participants p
+  cross join lateral (
+    select m.sender_id, m.created_at
+    from public.messages m
+    where m.conversation_id = p.conversation_id
+    order by m.created_at desc
+    limit 1
+  ) last
+  where p.user_id = auth.uid()
+    and last.sender_id <> auth.uid()
+    and (p.last_read_at is null or last.created_at > p.last_read_at)
+    and exists (
+      select 1 from public.conversation_participants o
+      where o.conversation_id = p.conversation_id
+        and o.user_id <> auth.uid()
+    );
+$$;
+
+revoke execute on function public.my_unread_conversations() from public, anon;
+grant execute on function public.my_unread_conversations() to authenticated;
+
+-- The newest message in each of my conversations, for the inbox list. Before
+-- this the inbox downloaded every message in every conversation just to keep
+-- the last one (audit ENG F09). DISTINCT ON uses the (conversation_id,
+-- created_at) index. security invoker, like §7.
+create or replace function public.my_last_messages()
+returns table (
+  conversation_id uuid,
+  sender_id uuid,
+  body text,
+  created_at timestamptz
+)
+language sql
+stable
+security invoker
+set search_path = ''
+as $$
+  select distinct on (m.conversation_id)
+    m.conversation_id, m.sender_id, m.body, m.created_at
+  from public.messages m
+  join public.conversation_participants p
+    on p.conversation_id = m.conversation_id
+   and p.user_id = auth.uid()
+  order by m.conversation_id, m.created_at desc;
+$$;
+
+revoke execute on function public.my_last_messages() from public, anon;
+grant execute on function public.my_last_messages() to authenticated;
 
 -- reset_seed_conversation() (test-only) moved to
 -- supabase/test-only/reset-seed-conversation.sql on 2026-11-10. It exists only

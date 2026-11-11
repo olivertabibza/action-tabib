@@ -342,4 +342,55 @@ describe("messages RLS", () => {
     });
     expect(resetErr?.code).toBe("42501");
   });
+
+  // (m) ENG F08: the same send arriving twice (same client_id) is stored once.
+  test("m) a repeated send with the same client_id is stored once", async () => {
+    const convId = await freshConversation(FpA, fpBId);
+    const clientId = crypto.randomUUID();
+    const row = {
+      conversation_id: convId,
+      sender_id: await getProfileId(FP_SENDER),
+      body: "[TEST] sent once",
+      client_id: clientId,
+    };
+    const first = await FpA.from("messages").insert(row);
+    expect(first.error).toBeNull();
+    const second = await FpA.from("messages").insert(row);
+    expect(second.error?.code).toBe("23505");
+
+    const { data } = await FpA.from("messages")
+      .select("id")
+      .eq("conversation_id", convId);
+    expect(data ?? []).toHaveLength(1);
+  });
+
+  // (n) ENG F09/F10: one unread rule. B sees the thread as unread until B
+  // reads it or replies; the sender never sees their own message as unread.
+  test("n) my_unread_conversations: unread for the recipient until read", async () => {
+    const convId = await freshConversation(FpA, fpBId);
+    const FpB = B; // FP_RECIP and RECIP are both actor-1
+    const send = await FpA.from("messages").insert({
+      conversation_id: convId,
+      sender_id: await getProfileId(FP_SENDER),
+      body: "[TEST] unread check",
+    });
+    expect(send.error).toBeNull();
+
+    const ids = async (client: SupabaseClient) => {
+      const { data, error } = await client.rpc("my_unread_conversations");
+      expect(error).toBeNull();
+      return ((data ?? []) as { conversation_id: string }[]).map(
+        (r) => r.conversation_id
+      );
+    };
+    expect(await ids(FpB)).toContain(convId);
+    expect(await ids(FpA)).not.toContain(convId);
+
+    const read = await FpB.from("conversation_participants")
+      .update({ last_read_at: new Date(Date.now() + 1000).toISOString() })
+      .eq("conversation_id", convId)
+      .eq("user_id", fpBId);
+    expect(read.error).toBeNull();
+    expect(await ids(FpB)).not.toContain(convId);
+  });
 });
