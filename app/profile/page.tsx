@@ -86,6 +86,37 @@ export default async function ProfilePage() {
     workSamples = data ?? [];
   }
 
+  // The stats that used to sit in the Feed's left rail (UX B-07: the Feed is
+  // for updates now). Approved pros only; these are their network numbers.
+  let stats: { label: string; value: number; href?: string }[] = [];
+  if (isApprovedPro) {
+    const [connections, vouches, enrolled, saved] = await Promise.all([
+      supabase.rpc("connection_count", { p_profile_id: user.id }),
+      supabase
+        .from("endorsements")
+        .select("*", { count: "exact", head: true })
+        .eq("subject_id", user.id),
+      supabase
+        .from("class_enrollments")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id),
+      supabase
+        .from("saved_items")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id),
+    ]);
+    stats = [
+      {
+        label: "Connections",
+        value: Number(connections.data ?? 0),
+        href: "/profile/network",
+      },
+      { label: "Vouches", value: vouches.count ?? 0 },
+      { label: "Classes enrolled", value: enrolled.count ?? 0, href: "/classes" },
+      { label: "Saved", value: saved.count ?? 0 },
+    ];
+  }
+
   const initial = {
     display_name: profile?.display_name ?? "",
     role: profile?.role ?? "",
@@ -105,6 +136,38 @@ export default async function ProfilePage() {
           {accountLabel(profile?.account_type)}
         </span>
       </div>
+
+      {stats.length > 0 && (
+        <ul className="-mt-2 mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {stats.map((s) => {
+            const body = (
+              <>
+                <span className="block text-xs text-muted-foreground">
+                  {s.label}
+                </span>
+                <span className="mt-1 block font-mono text-xl font-semibold">
+                  {s.value}
+                </span>
+              </>
+            );
+            const box = "block rounded-xl border border-border bg-card px-4 py-3";
+            return (
+              <li key={s.label}>
+                {s.href ? (
+                  <Link
+                    href={s.href}
+                    className={`${box} transition-colors hover:border-brand`}
+                  >
+                    {body}
+                  </Link>
+                ) : (
+                  <div className={box}>{body}</div>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
 
       <div className="flex flex-col gap-6">
         {/* Editable details */}
