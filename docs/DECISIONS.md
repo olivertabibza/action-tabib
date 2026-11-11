@@ -16,7 +16,7 @@ A running log of significant decisions. Newest entries go at the top.
   - The icon-only bookmark and copy-link buttons get a 44px target while keeping their 32px footprint (a negative margin).
   - Desktop sizes are unchanged.
   - The project search, filter and sort boxes hide their inputs' own outline, so the box now shows focus instead.
-- **CI.** The test workflow has a `concurrency` group, so a PR run and the main run after its merge take turns instead of both signing in as the seed accounts at once. On 2026-11-11 run #44 failed only on the test project's sign-in rate limit for that reason.
+- **CI.** The test workflow has a `concurrency` group, so a PR run and the main run after its merge take turns instead of both signing in as the seed accounts at once. Taking turns wasn't enough on its own: run #47 hit the same limit running alone, because each test file signed every account in again (about 45 password sign-ins a run). **`tests/helpers/auth.ts` now caches sessions in a file in the OS temp folder** (test-project seed accounts only, owner-read-only, and only sessions with 5+ minutes left are reused), so each account signs in once per run. A rate-limited sign-in waits 5, 10 and 20 seconds before giving up, with a message that says it's the rate limit. `hookTimeout` is 90 seconds to cover the waits.
 
 **Reasoning:** These were the leftover audit findings that don't touch the database.
 

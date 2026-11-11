@@ -15,6 +15,7 @@ export default defineConfig({
     exclude: ["tests/e2e/**", "node_modules/**"],
     fileParallelism: false,
     testTimeout: 20_000,
-    hookTimeout: 30_000,
+    // Long enough for a rate-limited sign-in's retries (tests/helpers/auth.ts).
+    hookTimeout: 90_000,
   },
 });
