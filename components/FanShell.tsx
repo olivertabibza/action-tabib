@@ -17,9 +17,21 @@ const navItems = [
 ] as const;
 
 // Feed lives at the index route, so it must match exactly — every other tab's
-// path startsWith "/fan" too.
+// path startsWith "/fan" too. Event, article and creator pages are shown in
+// this shell too (UX B-03), so they light the tab they're reached from.
 function isActive(pathname: string, href: string) {
-  return href === "/fan" ? pathname === "/fan" : pathname.startsWith(href);
+  if (href === "/fan") return pathname === "/fan";
+  if (href === "/fan/events" && pathname.startsWith("/explore/events/")) {
+    return true;
+  }
+  if (
+    href === "/fan/explore" &&
+    (pathname.startsWith("/explore/articles/") ||
+      pathname.startsWith("/profile/"))
+  ) {
+    return true;
+  }
+  return pathname.startsWith(href);
 }
 
 function Wordmark() {

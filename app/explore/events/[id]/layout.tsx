@@ -1,19 +1,14 @@
-import { SiteNav } from "@/components/SiteNav";
+import { ViewerShell } from "@/components/ViewerShell";
 
 /**
- * The event detail page is PUBLIC (open to anon readers), so it gets the
- * global top nav instead of a shell. Scoped to [id] on purpose:
- * /explore/events/new renders inside ProShell and must not get a second bar.
+ * The event page is PUBLIC (open to anon readers). Members see it inside
+ * their own app, visitors get the public top nav (components/ViewerShell.tsx).
+ * Scoped to [id] on purpose: /explore/events/new has its own shell.
  */
 export default function EventDetailLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return (
-    <>
-      <SiteNav />
-      {children}
-    </>
-  );
+  return <ViewerShell>{children}</ViewerShell>;
 }

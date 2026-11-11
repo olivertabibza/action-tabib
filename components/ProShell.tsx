@@ -45,9 +45,14 @@ function navAriaLabel(label: string, count: number, noun: string | null) {
   return count > 0 && noun ? `${label}, ${count} ${noun}` : undefined;
 }
 
-// None of these routes is an index-of-the-others (unlike "/fan"), so a simple
-// prefix match is correct for each tab.
+// None of these routes is an index-of-the-others (unlike "/fan"), so a prefix
+// match works, except Profile: someone else's profile (/profile/<id>, shown in
+// this shell since UX B-03) isn't "your" Profile tab. Event and article pages
+// live under /explore, so they keep Explore lit.
 function isActive(pathname: string, href: string) {
+  if (href === "/profile") {
+    return pathname === "/profile" || pathname.startsWith("/profile/network");
+  }
   return pathname.startsWith(href);
 }
 
