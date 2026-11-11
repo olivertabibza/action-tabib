@@ -54,10 +54,13 @@ export function ArticleForm() {
           id="title"
           placeholder="e.g. On the set of an indie feature"
           aria-invalid={!!errors.title}
+          aria-describedby={errors.title ? "article-title-error" : undefined}
           {...register("title")}
         />
         {errors.title && (
-          <p className="text-sm text-destructive">{errors.title.message}</p>
+          <p id="article-title-error" className="text-sm text-destructive">
+            {errors.title.message}
+          </p>
         )}
       </div>
 
@@ -66,6 +69,9 @@ export function ArticleForm() {
         <NativeSelect
           id="category"
           aria-invalid={!!errors.category}
+          aria-describedby={
+            errors.category ? "article-category-error" : undefined
+          }
           {...register("category")}
         >
           {ARTICLE_CATEGORIES.map((c) => (
@@ -75,7 +81,9 @@ export function ArticleForm() {
           ))}
         </NativeSelect>
         {errors.category && (
-          <p className="text-sm text-destructive">{errors.category.message}</p>
+          <p id="article-category-error" className="text-sm text-destructive">
+            {errors.category.message}
+          </p>
         )}
       </div>
 
@@ -85,10 +93,15 @@ export function ArticleForm() {
           id="excerpt"
           placeholder="A one-line teaser shown on the Explore card"
           aria-invalid={!!errors.excerpt}
+          aria-describedby={
+            errors.excerpt ? "article-excerpt-error" : undefined
+          }
           {...register("excerpt")}
         />
         {errors.excerpt && (
-          <p className="text-sm text-destructive">{errors.excerpt.message}</p>
+          <p id="article-excerpt-error" className="text-sm text-destructive">
+            {errors.excerpt.message}
+          </p>
         )}
       </div>
 
@@ -99,10 +112,13 @@ export function ArticleForm() {
           rows={12}
           placeholder="Write the full piece here."
           aria-invalid={!!errors.body}
+          aria-describedby={errors.body ? "article-body-error" : undefined}
           {...register("body")}
         />
         {errors.body && (
-          <p className="text-sm text-destructive">{errors.body.message}</p>
+          <p id="article-body-error" className="text-sm text-destructive">
+            {errors.body.message}
+          </p>
         )}
       </div>
 

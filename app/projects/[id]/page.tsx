@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import {
@@ -25,6 +26,23 @@ import { Button } from "@/components/ui/button";
 import { disciplineLabel, roleQualifier, titleCase } from "@/lib/marketplace";
 import { ApplyForm } from "./apply-form";
 import { OwnerControls } from "./owner-controls";
+
+// Tab and history title: the project's own name (UX B-32). RLS applies, so
+// anything the viewer can't see falls back to "Project".
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("projects")
+    .select("title")
+    .eq("id", id)
+    .maybeSingle();
+  return { title: data?.title || "Project" };
+}
 
 type Person = { display_name: string | null; role: string | null };
 type ProjectRole = {
@@ -198,6 +216,7 @@ export default async function ProjectDetailPage({
             isOpen={project.status === "open"}
             role={selectedRole}
             wholeApplication={wholeApplication}
+            hasOpenRoles={roles.some((r) => r.status === "open")}
           />
         )}
       </div>
@@ -367,10 +386,14 @@ function RolesCard({
   return (
     <Card className="mt-8 p-2">
       <CardHeader>
-        <CardTitle className="text-xl">Roles open ({open.length})</CardTitle>
+        {/* UX B-09: the count matches what's listed, and there's one way to
+            apply (per role). B-26: the owner doesn't see apply instructions. */}
+        <CardTitle className="text-xl">Roles ({roles.length})</CardTitle>
         <CardDescription>
-          Apply for a specific role, or use the form below to apply to the
-          production as a whole.
+          {open.length === roles.length
+            ? `All ${roles.length} open.`
+            : `${open.length} of ${roles.length} still open.`}
+          {!isOwner && isOpen && open.length > 0 && " Pick a role to apply."}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -444,11 +467,13 @@ async function ApplicantView({
   isOpen,
   role,
   wholeApplication,
+  hasOpenRoles,
 }: {
   projectId: string;
   isOpen: boolean;
   role: ProjectRole | null;
   wholeApplication: MyApplication | null;
+  hasOpenRoles: boolean;
 }) {
   // Role-scoped apply (?role=…). has_applied_to_role() is the security-definer
   // check the schema provides for exactly this state — one role, one call.
@@ -524,6 +549,11 @@ async function ApplicantView({
       </p>
     );
   }
+
+  // UX B-09: when the project has open roles, applying happens per role in the
+  // Roles card above, so a second, production-level Apply form would just
+  // compete with it. Projects without roles (crew calls) keep this form.
+  if (hasOpenRoles) return null;
 
   return (
     <Card className="p-2">

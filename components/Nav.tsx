@@ -70,18 +70,23 @@ export function Nav({
   // Projects (the marketplace) is Pro-only — never shown to consumers (fans).
   // Dashboard + Explore are only for approved professionals; Admin only for
   // admins. All are appended to the base Home/Profile links.
-  const links = [
-    { href: "/home", label: "Home" },
-    ...(!consumer ? [{ href: "/projects", label: "Projects" }] : []),
-    { href: "/profile", label: "Profile" },
-    ...(isApprovedPro
-      ? [
-          { href: "/dashboard", label: "Dashboard" },
-          { href: "/explore", label: "Explore" },
-        ]
-      : []),
-    ...(isAdmin ? [{ href: "/admin", label: "Admin" }] : []),
-  ];
+  // UX B-18: one name for one page. Approved pros get "Feed" (what the tab
+  // bar calls it) instead of both "Home" and "Dashboard", which went to the
+  // same place.
+  const links = isApprovedPro
+    ? [
+        { href: "/dashboard", label: "Feed" },
+        { href: "/projects", label: "Projects" },
+        { href: "/explore", label: "Explore" },
+        { href: "/profile", label: "Profile" },
+        ...(isAdmin ? [{ href: "/admin", label: "Admin" }] : []),
+      ]
+    : [
+        { href: "/home", label: "Home" },
+        ...(!consumer ? [{ href: "/projects", label: "Projects" }] : []),
+        { href: "/profile", label: "Profile" },
+        ...(isAdmin ? [{ href: "/admin", label: "Admin" }] : []),
+      ];
 
   async function handleLogout() {
     setLoggingOut(true);
@@ -183,10 +188,10 @@ export function Nav({
                   </Link>
                 );
               })}
+              {/* No untyped "Sign up" here (UX B-04): visitors join from the
+                  typed buttons on the landing, For Industry Professionals and
+                  For Fans pages, so the form knows which account they want. */}
               <ThemeToggle />
-              <Button asChild size="lg" className="px-5">
-                <Link href="/signup">Sign up</Link>
-              </Button>
             </>
           )}
         </div>
@@ -239,13 +244,7 @@ export function Nav({
               <LogOut className="size-4" />
               {loggingOut ? "Logging out…" : "Log out"}
             </Button>
-          ) : (
-            <Button asChild size="lg" className="mt-2 w-full">
-              <Link href="/signup" onClick={() => setOpen(false)}>
-                Sign up
-              </Link>
-            </Button>
-          )}
+          ) : null}
         </div>
       </div>
     </header>

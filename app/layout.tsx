@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Barlow, Barlow_Condensed, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+import { TimeZoneCookie } from "@/components/TimeZoneCookie";
 
 const barlow = Barlow({
   variable: "--font-barlow",
@@ -25,7 +26,11 @@ const jetbrainsMono = JetBrains_Mono({
 const themeInitScript = `(function(){try{var t=localStorage.getItem("theme");if(t==="dark"||(t!=="light"&&window.matchMedia("(prefers-color-scheme: dark)").matches)){document.documentElement.classList.add("dark")}}catch(e){}})();`;
 
 export const metadata: Metadata = {
-  title: "Action — Where the next generation of film gets made",
+  // Each page sets its own short title (UX B-32), shown as "Projects · Action".
+  title: {
+    default: "Action — Where the next generation of film gets made",
+    template: "%s · Action",
+  },
   description:
     "A private network for pre-union actors, writers, and filmmakers — and the fans who follow them.",
 };
@@ -48,7 +53,10 @@ export default function RootLayout({
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <TimeZoneCookie />
+        {children}
+      </body>
     </html>
   );
 }

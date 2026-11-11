@@ -85,13 +85,5 @@ alter table public.classes
 
 
 -- ── 4. public_profiles view: expose skills ──────────────────────────────────
--- Same shape as supabase/public-profiles.sql with `skills` appended (create or
--- replace view only allows appending columns). Same fixed filter, same public-
--- safe column set, same grants — email etc. stay private.
-create or replace view public.public_profiles as
-  select id, display_name, role, headline, bio, portfolio_files, skills
-  from public.profiles
-  where account_type = 'professional'
-    and application_status = 'approved';
-
-grant select on public.public_profiles to anon, authenticated;
+-- Moved: the view (with `skills`) is now defined only in
+-- supabase/public-profiles.sql. Re-running this file leaves it alone.

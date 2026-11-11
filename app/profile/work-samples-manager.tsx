@@ -117,16 +117,24 @@ export function WorkSamplesManager({
     setError(null);
     setDeletingId(sample.id);
 
-    const { error: storageError } = await supabase.storage
-      .from("work_samples")
-      .remove([sample.storage_path]);
+    // Row first, then the file (ENG F13): if the row delete fails, the clip
+    // still plays; the other order left a row pointing at a deleted file.
     const { error: rowError } = await supabase
       .from("work_samples")
       .delete()
       .eq("id", sample.id);
+    if (!rowError) {
+      const { error: storageError } = await supabase.storage
+        .from("work_samples")
+        .remove([sample.storage_path]);
+      // The clip is already off the profile; a leftover file is only clutter.
+      if (storageError) {
+        console.error("[work-samples] file left behind:", storageError);
+      }
+    }
 
-    if (storageError || rowError) {
-      console.error("[work-samples] delete failed:", storageError ?? rowError);
+    if (rowError) {
+      console.error("[work-samples] delete failed:", rowError);
       setError("Removing the clip failed. Please try again.");
       setDeletingId(null);
       return;

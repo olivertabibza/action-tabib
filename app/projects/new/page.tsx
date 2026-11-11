@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
@@ -9,6 +10,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { ProjectForm } from "./project-form";
+
+export const metadata: Metadata = { title: "Post a project" };
 
 // Access (approved professional) is enforced by app/projects/layout.tsx.
 export default function NewProjectPage() {

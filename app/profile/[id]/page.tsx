@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft, ExternalLink, FileText, UserRound } from "lucide-react";
 
@@ -5,13 +6,33 @@ import { createClient } from "@/lib/supabase/server";
 import { resolveBackLink } from "@/lib/back-link";
 import { signedPortfolioUrls } from "@/lib/portfolio";
 import { disciplineLabel } from "@/lib/marketplace";
+import { Avatar } from "@/components/Avatar";
 import { MessageButton } from "@/app/messages/message-button";
+import { FollowButton } from "@/app/explore/(tab)/people/follow-button";
+import { FanFollowButton } from "@/app/fan/explore/follow-button";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+
+// Tab and history title: the profile's own name (UX B-32). RLS applies, so
+// anything the viewer can't see falls back to "Profile".
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("public_profiles")
+    .select("display_name")
+    .eq("id", id)
+    .maybeSingle();
+  return { title: data?.display_name || "Profile" };
+}
 
 /**
  * Public, read-only view of one industry professional. Distinct from
@@ -35,7 +56,9 @@ export default async function PublicProfilePage({
   const supabase = await createClient();
   const { data: profile } = await supabase
     .from("public_profiles")
-    .select("id, display_name, role, headline, bio, portfolio_files, skills")
+    .select(
+      "id, display_name, role, headline, bio, portfolio_files, skills, avatar_path"
+    )
     .eq("id", id)
     .maybeSingle();
 
@@ -51,6 +74,7 @@ export default async function PublicProfilePage({
   let fallbackHref = "/";
   let fallbackLabel = "Back";
   let viewerIsApprovedPro = false;
+  let viewerIsFan = false;
   if (user) {
     const { data: viewer } = await supabase
       .from("profiles")
@@ -65,6 +89,7 @@ export default async function PublicProfilePage({
       fallbackHref = "/explore";
       fallbackLabel = "Back to Explore";
     } else {
+      viewerIsFan = viewer?.account_type === "consumer";
       fallbackHref = "/fan/explore";
       fallbackLabel = "Back to Explore";
     }
@@ -100,6 +125,22 @@ export default async function PublicProfilePage({
     .select("id, title, storage_path")
     .eq("profile_id", profile.id)
     .order("created_at", { ascending: false });
+  // Follow lives on the profile too (UX B-25), so nobody has to go back to a
+  // list to follow someone they just read about. Pros and fans each keep their
+  // own button: the pro one also posts to the Feed.
+  const canFollow =
+    !!user && user.id !== profile.id && (viewerIsApprovedPro || viewerIsFan);
+  let isFollowing = false;
+  if (canFollow) {
+    const { data: follow } = await supabase
+      .from("follows")
+      .select("following_id")
+      .eq("follower_id", user.id)
+      .eq("following_id", profile.id)
+      .maybeSingle();
+    isFollowing = !!follow;
+  }
+
   const workSamples = (workSampleRows ?? []).map((sample) => ({
     id: sample.id,
     title: sample.title,
@@ -118,6 +159,11 @@ export default async function PublicProfilePage({
       </Link>
 
       <div className="flex flex-wrap items-center gap-3">
+        <Avatar
+          name={profile.display_name}
+          photoPath={profile.avatar_path}
+          className="size-16 text-xl"
+        />
         <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
           {profile.display_name || "A member"}
         </h1>
@@ -149,9 +195,22 @@ export default async function PublicProfilePage({
       )}
 
       {/* Message: only an approved pro can DM, and never yourself. */}
-      {viewerIsApprovedPro && user && user.id !== profile.id && (
-        <div className="mt-5">
-          <MessageButton otherId={profile.id} variant="default" />
+      {canFollow && (
+        <div className="mt-5 flex flex-wrap items-start gap-2">
+          {viewerIsApprovedPro ? (
+            <>
+              <FollowButton
+                targetId={profile.id}
+                initialFollowing={isFollowing}
+              />
+              <MessageButton otherId={profile.id} variant="outline" />
+            </>
+          ) : (
+            <FanFollowButton
+              targetId={profile.id}
+              initialFollowing={isFollowing}
+            />
+          )}
         </div>
       )}
 

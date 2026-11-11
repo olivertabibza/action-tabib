@@ -1,21 +1,40 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
+import { viewerTimeZone } from "@/lib/datetime";
 import { resolveBackLink } from "@/lib/back-link";
+import { publicPeople } from "@/lib/public-people";
 import { titleCase } from "@/lib/marketplace";
 import { articleCategoryLabel } from "@/lib/content";
 import { Avatar } from "@/components/Avatar";
 import { SaveButton } from "../../saved/save-button";
 import { ArticleGateCard, FreeArticleBanner } from "../meter";
+import { MeterStamp } from "../meter-stamp";
+
+// Tab and history title: the article's own name (UX B-32). RLS applies, so
+// anything the viewer can't see falls back to "Article".
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("articles")
+    .select("title")
+    .eq("id", id)
+    .maybeSingle();
+  return { title: data?.title || "Article" };
+}
 
 // PUBLIC page — no shell, no auth redirect. Published articles are open-access
 // (RLS exposes published rows to anon), so logged-out fans can read them. We
 // still fetch the viewer (if any) to allow the author/admin to preview a draft.
-
-type Person = { display_name: string | null; role: string | null };
 
 /**
  * The teaser shown above the gate. Cut after the second paragraph, or at a
@@ -68,15 +87,17 @@ export default async function ArticleDetailPage({
       fallbackLabel = "Back to Explore";
     }
   }
-  const { href: backHref, label: backLabel } = await resolveBackLink(
-    `/explore/articles/${id}`,
-    { href: fallbackHref, label: fallbackLabel }
-  );
+  // A logged-out visitor always goes back to the landing page: the referer can
+  // be a members-only page (or /login), which would send them to log in (UX B-28).
+  const fallback = { href: fallbackHref, label: fallbackLabel };
+  const { href: backHref, label: backLabel } = user
+    ? await resolveBackLink(`/explore/articles/${id}`, fallback)
+    : fallback;
 
   const { data: article } = await supabase
     .from("articles")
     .select(
-      "id, title, category, excerpt, body, created_at, status, created_by, author:profiles!articles_created_by_fkey(display_name, role)"
+      "id, title, category, excerpt, body, created_at, status, created_by"
     )
     .eq("id", id)
     .maybeSingle();
@@ -114,12 +135,11 @@ export default async function ArticleDetailPage({
     initialSaved = !!mySave;
   }
 
-  // Article meter (logged-out readers only): proxy.ts stamps the FIRST article
-  // an anon visitor opens into the `article_meter` cookie. That article stays
-  // fully readable on every visit; any other id gets a server-side teaser and
-  // the gate. A missing cookie means this IS the first view (the proxy set it
-  // on this very request), so it's the free article. Logged-in viewers never
-  // gate.
+  // Article meter (logged-out readers only): MeterStamp records the FIRST
+  // article a visitor opens in the `article_meter` cookie (stampArticleMeter).
+  // That article stays fully readable on every visit; any other id gets a
+  // server-side teaser and the gate. A missing cookie means this IS the first
+  // view, so it's the free article. Logged-in viewers never gate.
   let isFreeArticle = false;
   let gated = false;
   if (!user) {
@@ -128,10 +148,13 @@ export default async function ArticleDetailPage({
     gated = !isFreeArticle;
   }
 
-  // Supabase types embedded relations as arrays; this FK is to-one at runtime.
-  const author = article.author as unknown as Person | null;
+  const author = (await publicPeople(supabase, [article.created_by])).get(
+    article.created_by
+  );
   const authorName = author?.display_name || "the Action desk";
+  const tz = await viewerTimeZone();
   const published = new Date(article.created_at).toLocaleDateString(undefined, {
+    timeZone: tz,
     year: "numeric",
     month: "long",
     day: "numeric",
@@ -155,7 +178,11 @@ export default async function ArticleDetailPage({
       </h1>
 
       <div className="mt-5 flex items-center gap-3">
-        <Avatar name={authorName} className="size-9" />
+        <Avatar
+          name={authorName}
+          photoPath={author?.avatar_path}
+          className="size-9"
+        />
         <div className="min-w-0 flex-1 text-sm">
           <p className="font-medium">
             {authorName}
@@ -163,15 +190,23 @@ export default async function ArticleDetailPage({
           </p>
           <p className="text-muted-foreground">{published}</p>
         </div>
-        <SaveButton
-          itemType="article"
-          itemId={article.id}
-          initialSaved={initialSaved}
-          loggedIn={!!user}
-        />
+        {/* Visitors have nowhere to save to; Save only sent them to log in. */}
+        {user && (
+          <SaveButton
+            itemType="article"
+            itemId={article.id}
+            initialSaved={initialSaved}
+            loggedIn
+          />
+        )}
       </div>
 
-      {isFreeArticle && <FreeArticleBanner />}
+      {isFreeArticle && (
+        <>
+          <MeterStamp articleId={article.id} />
+          <FreeArticleBanner />
+        </>
+      )}
 
       {gated ? (
         <>

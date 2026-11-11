@@ -46,3 +46,50 @@ export async function updateProfile(values: ProfileFormValues) {
 
   return { success: true };
 }
+
+const AVATAR_FILE = /^[0-9a-f-]{36}\/[0-9a-f-]{36}\.(jpg|png|webp)$/;
+
+/**
+ * Point the signed-in member's profile at a new photo, or remove it (null).
+ * The browser uploads the file first (supabase/avatars.sql lets members write
+ * only to their own folder); this saves the path and deletes the previous
+ * file so old photos don't pile up (ENG F13). Fans use it too.
+ */
+export async function setAvatarPath(path: string | null) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { error: "Your session has expired. Please log in again." };
+  }
+  const ownFile =
+    path !== null && AVATAR_FILE.test(path) && path.startsWith(`${user.id}/`);
+  if (path !== null && !ownFile) {
+    return { error: "That photo couldn't be saved. Try again." };
+  }
+
+  const { data: before } = await supabase
+    .from("profiles")
+    .select("avatar_path")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({ avatar_path: path })
+    .eq("id", user.id);
+  if (error) {
+    return { error: "That photo couldn't be saved. Try again." };
+  }
+
+  const old = before?.avatar_path as string | null | undefined;
+  if (old && old !== path) {
+    // Best effort: a leftover file is harmless, a failed save isn't.
+    await supabase.storage.from("avatars").remove([old]);
+  }
+
+  // The photo shows in the header and on lists across the app.
+  revalidatePath("/", "layout");
+  return { success: true };
+}

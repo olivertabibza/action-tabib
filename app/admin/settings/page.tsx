@@ -1,7 +1,10 @@
+import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { AdminNav } from "../admin-nav";
 import type { AutoApproveKind } from "../schema";
 import { AutoApproveRow } from "./auto-approve-row";
+
+export const metadata: Metadata = { title: "Settings · Admin" };
 
 const ROWS: {
   kind: AutoApproveKind;
@@ -13,7 +16,7 @@ const ROWS: {
     kind: "pro_applications",
     label: "Pro applications",
     noun: "applications",
-    note: "While this is on, anyone who signs up as a professional is approved instantly. Turn it off after the demo.",
+    note: "While this is on, anyone who signs up as a professional is approved instantly.",
   },
   { kind: "classes", label: "Classes", noun: "classes" },
   { kind: "events", label: "Events", noun: "events" },

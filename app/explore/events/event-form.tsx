@@ -56,10 +56,13 @@ export function EventForm() {
           id="title"
           placeholder="e.g. Short film screening + Q&A"
           aria-invalid={!!errors.title}
+          aria-describedby={errors.title ? "event-title-error" : undefined}
           {...register("title")}
         />
         {errors.title && (
-          <p className="text-sm text-destructive">{errors.title.message}</p>
+          <p id="event-title-error" className="text-sm text-destructive">
+            {errors.title.message}
+          </p>
         )}
       </div>
 
@@ -68,6 +71,9 @@ export function EventForm() {
         <NativeSelect
           id="event_type"
           aria-invalid={!!errors.event_type}
+          aria-describedby={
+            errors.event_type ? "event-event-type-error" : undefined
+          }
           {...register("event_type")}
         >
           {EVENT_TYPES.map((t) => (
@@ -77,7 +83,7 @@ export function EventForm() {
           ))}
         </NativeSelect>
         {errors.event_type && (
-          <p className="text-sm text-destructive">
+          <p id="event-event-type-error" className="text-sm text-destructive">
             {errors.event_type.message}
           </p>
         )}
@@ -90,10 +96,13 @@ export function EventForm() {
             id="date"
             type="date"
             aria-invalid={!!errors.date}
+            aria-describedby={errors.date ? "event-date-error" : undefined}
             {...register("date")}
           />
           {errors.date && (
-            <p className="text-sm text-destructive">{errors.date.message}</p>
+            <p id="event-date-error" className="text-sm text-destructive">
+              {errors.date.message}
+            </p>
           )}
         </div>
 
@@ -103,10 +112,13 @@ export function EventForm() {
             id="time"
             type="time"
             aria-invalid={!!errors.time}
+            aria-describedby={errors.time ? "event-time-error" : undefined}
             {...register("time")}
           />
           {errors.time && (
-            <p className="text-sm text-destructive">{errors.time.message}</p>
+            <p id="event-time-error" className="text-sm text-destructive">
+              {errors.time.message}
+            </p>
           )}
         </div>
       </div>
@@ -117,10 +129,13 @@ export function EventForm() {
           id="venue"
           placeholder="Leave blank for virtual"
           aria-invalid={!!errors.venue}
+          aria-describedby={errors.venue ? "event-venue-error" : undefined}
           {...register("venue")}
         />
         {errors.venue && (
-          <p className="text-sm text-destructive">{errors.venue.message}</p>
+          <p id="event-venue-error" className="text-sm text-destructive">
+            {errors.venue.message}
+          </p>
         )}
       </div>
 
@@ -131,10 +146,13 @@ export function EventForm() {
           rows={6}
           placeholder="What's the event, who's it for, and what to expect."
           aria-invalid={!!errors.description}
+          aria-describedby={
+            errors.description ? "event-description-error" : undefined
+          }
           {...register("description")}
         />
         {errors.description && (
-          <p className="text-sm text-destructive">
+          <p id="event-description-error" className="text-sm text-destructive">
             {errors.description.message}
           </p>
         )}

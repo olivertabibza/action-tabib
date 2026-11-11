@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import {
   IdCard,
@@ -15,6 +16,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+
+export const metadata: Metadata = { title: "For Industry Professionals" };
 
 const pillars: { icon: LucideIcon; title: string; blurb: string }[] = [
   {
@@ -37,7 +40,7 @@ const pillars: { icon: LucideIcon; title: string; blurb: string }[] = [
   },
   {
     icon: Users,
-    title: "Network & Messages",
+    title: "Connections & Messages",
     blurb:
       "Build connections across the industry and message collaborators directly.",
   },
@@ -137,27 +140,6 @@ export default function ForCreatorsPage() {
                 <BulletList items={careerBullets} />
               </CardContent>
             </Card>
-          </div>
-
-          {/* Bottom CTA */}
-          <div className="mt-12 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Button
-              asChild
-              size="lg"
-              className="h-12 w-full px-8 text-base sm:w-auto"
-            >
-              <Link href="/signup?type=creator">
-                Apply as an Industry Professional
-              </Link>
-            </Button>
-            <Button
-              asChild
-              size="lg"
-              variant="ghost"
-              className="h-12 w-full px-8 text-base sm:w-auto"
-            >
-              <Link href="/for-fans">Just here to watch? Join as a Fan</Link>
-            </Button>
           </div>
         </div>
       </section>

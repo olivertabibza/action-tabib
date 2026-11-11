@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
@@ -12,6 +13,7 @@ import {
 } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
+import { viewerTimeZone } from "@/lib/datetime";
 import { cn } from "@/lib/utils";
 import { titleCase, disciplineLabel, DISCIPLINES } from "@/lib/marketplace";
 import { Avatar } from "@/components/Avatar";
@@ -28,11 +30,14 @@ import {
   type EndorsableSkill,
 } from "./endorse-picker";
 
+export const metadata: Metadata = { title: "Feed" };
+
 type Actor = {
   display_name: string | null;
   role: string | null;
   headline: string | null;
   skills: string[] | null;
+  avatar_path: string | null;
 };
 
 type FeedEvent = {
@@ -50,12 +55,14 @@ type Suggestion = {
   id: string;
   display_name: string | null;
   role: string | null;
+  avatar_path: string | null;
 };
 
 type ConnectionRequest = {
   id: string;
   display_name: string | null;
   role: string | null;
+  avatar_path: string | null;
 };
 
 type EnrolledClass = {
@@ -74,7 +81,7 @@ type RecentProject = {
 };
 
 /** Compact relative timestamp for post headers ("now", "5m", "2h", "6d"). */
-function timeAgo(iso: string) {
+function timeAgo(iso: string, tz: string) {
   const seconds = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
   if (seconds < 60) return "now";
   const minutes = Math.floor(seconds / 60);
@@ -84,6 +91,7 @@ function timeAgo(iso: string) {
   const days = Math.floor(hours / 24);
   if (days < 7) return `${days}d`;
   return new Date(iso).toLocaleDateString(undefined, {
+    timeZone: tz,
     month: "short",
     day: "numeric",
   });
@@ -117,6 +125,7 @@ function endorsableSkills(actor: Actor | null): EndorsableSkill[] {
 
 export default async function DashboardPage() {
   const supabase = await createClient();
+  const tz = await viewerTimeZone();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -130,7 +139,7 @@ export default async function DashboardPage() {
   // The current user, for the composer avatar and the left-rail profile card.
   const { data: me } = await supabase
     .from("profiles")
-    .select("display_name, role, headline")
+    .select("display_name, role, headline, avatar_path")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -139,7 +148,7 @@ export default async function DashboardPage() {
   const { data, error } = await supabase
     .from("activity_events")
     .select(
-      "id, kind, actor_id, body, subject_id, metadata, created_at, actor:profiles!activity_events_actor_id_fkey(display_name, role, headline, skills)"
+      "id, kind, actor_id, body, subject_id, metadata, created_at, actor:profiles!activity_events_actor_id_fkey(display_name, role, headline, skills, avatar_path)"
     )
     .order("created_at", { ascending: false })
     .limit(50);
@@ -200,7 +209,7 @@ export default async function DashboardPage() {
   // Staff admins are left out of member lists.
   const { data: candidates } = await supabase
     .from("profiles")
-    .select("id, display_name, role")
+    .select("id, display_name, role, avatar_path")
     .eq("account_type", "professional")
     .eq("application_status", "approved")
     .eq("is_admin", false)
@@ -250,7 +259,7 @@ export default async function DashboardPage() {
   if (incoming.length > 0) {
     const { data: requesters } = await supabase
       .from("profiles")
-      .select("id, display_name, role")
+      .select("id, display_name, role, avatar_path")
       .in(
         "id",
         incoming.map((c) => c.requester_id)
@@ -311,8 +320,7 @@ export default async function DashboardPage() {
       )
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
+      .limit(50),
     supabase
       .from("projects")
       .select("id, title, discipline, location, compensation")
@@ -325,8 +333,20 @@ export default async function DashboardPage() {
   const vouches = vouchesRes.count ?? 0;
   const classesTaken = classesTakenRes.count ?? 0;
   const savedCount = savedRes.count ?? 0;
+  // UX B-21: "Your class" is the NEXT class you're enrolled in, never one that
+  // has already ended.
+  const nowMs = new Date().getTime();
   const enrolledClass =
-    (enrollmentRes.data?.class as unknown as EnrolledClass | null) ?? null;
+    ((enrollmentRes.data ?? [])
+      .map((e) => e.class as unknown as EnrolledClass | null)
+      .filter(
+        (c): c is EnrolledClass =>
+          !!c && new Date(c.starts_at).getTime() >= nowMs
+      )
+      .sort(
+        (a, b) =>
+          new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime()
+      )[0] ?? null);
   const recentProjects = (recentProjectsRes.data ?? []) as RecentProject[];
 
   return (
@@ -337,6 +357,7 @@ export default async function DashboardPage() {
       <div className="flex flex-col gap-4 max-rail:hidden">
         <ProfileCard
           name={me?.display_name ?? null}
+          photoPath={me?.avatar_path ?? null}
           role={me?.role ?? null}
           headline={me?.headline ?? null}
           connections={connectionCount}
@@ -366,7 +387,10 @@ export default async function DashboardPage() {
 
       {/* Center column. */}
       <div className="flex min-w-0 flex-col gap-4 max-sm:gap-3">
-        <ComposeBox displayName={me?.display_name ?? null} />
+        <ComposeBox
+          displayName={me?.display_name ?? null}
+          photoPath={me?.avatar_path ?? null}
+        />
 
         {error && (
           <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
@@ -384,6 +408,7 @@ export default async function DashboardPage() {
                 <li key={event.id}>
                   <FeedItem
                     event={event}
+                    tz={tz}
                     currentUserId={user.id}
                     commentCount={commentCounts.get(event.id) ?? 0}
                     congratsCount={congratsCounts.get(event.id) ?? 0}
@@ -424,7 +449,7 @@ export default async function DashboardPage() {
 
       {/* Right rail — drops below the wide breakpoint. */}
       <div className="flex flex-col gap-4 max-wide:hidden">
-        {enrolledClass && <ClassCard enrolled={enrolledClass} />}
+        {enrolledClass && <ClassCard enrolled={enrolledClass} tz={tz} />}
         {recentProjects.length > 0 && (
           <RecentProjectsCard projects={recentProjects} />
         )}
@@ -441,6 +466,7 @@ export default async function DashboardPage() {
                 <li key={s.id} className="flex items-center gap-3">
                   <Avatar
                     name={s.display_name}
+                    photoPath={s.avatar_path}
                     className="size-11 bg-avatar-fill text-text-secondary"
                   />
                   <div className="min-w-0 flex-1">
@@ -474,6 +500,7 @@ export default async function DashboardPage() {
 
 function ProfileCard({
   name,
+  photoPath,
   role,
   headline,
   connections,
@@ -481,6 +508,7 @@ function ProfileCard({
   classesTaken,
 }: {
   name: string | null;
+  photoPath: string | null;
   role: string | null;
   headline: string | null;
   connections: number;
@@ -496,6 +524,7 @@ function ProfileCard({
       <div className="px-4 pb-4">
         <Avatar
           name={name}
+          photoPath={photoPath}
           className="-mt-[34px] size-[68px] bg-avatar-fill text-lg text-text-secondary ring-4 ring-surface"
         />
         <Link
@@ -514,7 +543,7 @@ function ProfileCard({
         </p>
         <div className="mt-3.5 flex flex-col gap-[9px] border-t border-border-hairline pt-3.5">
           <StatRow label="Connections" value={connections} />
-          <StatRow label="Classes taken" value={classesTaken} />
+          <StatRow label="Classes enrolled" value={classesTaken} />
         </div>
       </div>
     </CallboardCard>
@@ -536,6 +565,7 @@ function StatRow({ label, value }: { label: string; value: number }) {
 
 function FeedItem({
   event,
+  tz,
   currentUserId,
   commentCount,
   congratsCount,
@@ -546,6 +576,7 @@ function FeedItem({
   endorsedSkills,
 }: {
   event: FeedEvent;
+  tz: string;
   currentUserId: string;
   commentCount: number;
   congratsCount: number;
@@ -581,6 +612,7 @@ function FeedItem({
         <div className="flex items-start gap-3.5 p-[18px] pb-0">
           <Avatar
             name={actorName}
+            photoPath={event.actor?.avatar_path}
             className="size-[50px] bg-avatar-fill text-text-secondary"
           />
           <div className="min-w-0 flex-1">
@@ -592,7 +624,7 @@ function FeedItem({
                 {actorName}
               </Link>
               <span className="shrink-0 text-[13px] text-text-tertiary">
-                · {timeAgo(event.created_at)}
+                · {timeAgo(event.created_at, tz)}
               </span>
             </p>
             <p className="truncate text-[13.5px] text-text-secondary">
@@ -701,6 +733,7 @@ function ConnectionRequestsCard({ requests }: { requests: ConnectionRequest[] })
           <li key={r.id} className="flex gap-3">
             <Avatar
               name={r.display_name}
+              photoPath={r.avatar_path}
               className="size-11 bg-avatar-fill text-text-secondary"
             />
             <div className="min-w-0 flex-1">
@@ -727,8 +760,15 @@ function ConnectionRequestsCard({ requests }: { requests: ConnectionRequest[] })
 
 /** Rendered only when the user has a real enrollment. The design's session
  * progress bar is omitted rather than faked — there is no session tracking. */
-function ClassCard({ enrolled }: { enrolled: EnrolledClass }) {
+function ClassCard({
+  enrolled,
+  tz,
+}: {
+  enrolled: EnrolledClass;
+  tz: string;
+}) {
   const when = new Date(enrolled.starts_at).toLocaleDateString(undefined, {
+    timeZone: tz,
     weekday: "long",
     month: "short",
     day: "numeric",

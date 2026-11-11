@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Users } from "lucide-react";
@@ -10,8 +11,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { titleCase } from "@/lib/marketplace";
+import { Avatar } from "@/components/Avatar";
 import { MessageButton } from "@/app/messages/message-button";
 import { FollowButton } from "./follow-button";
+
+export const metadata: Metadata = { title: "People" };
 
 // The "Discover creators" grid, moved from the old /network page. Access (auth +
 // approved pro) and the ProShell come from the (tab) route group's layout.
@@ -29,7 +33,7 @@ export default async function PeoplePage() {
   // Fans, staff admins and the current user are excluded.
   const { data: creators, error } = await supabase
     .from("profiles")
-    .select("id, display_name, role, headline")
+    .select("id, display_name, role, headline, avatar_path")
     .eq("account_type", "professional")
     .eq("application_status", "approved")
     .eq("is_admin", false)
@@ -66,20 +70,27 @@ export default async function PeoplePage() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {creators.map((c) => (
             <Card key={c.id} className="h-full p-2">
-              <CardHeader>
-                <CardTitle className="text-lg">
-                  <Link
-                    href={`/profile/${c.id}`}
-                    className="transition-colors hover:text-brand"
-                  >
-                    {c.display_name || "Unnamed creator"}
-                  </Link>
-                </CardTitle>
-                {c.role && (
-                  <p className="text-sm text-muted-foreground">
-                    {titleCase(c.role)}
-                  </p>
-                )}
+              <CardHeader className="flex items-center gap-3">
+                <Avatar
+                  name={c.display_name}
+                  photoPath={c.avatar_path}
+                  className="size-11"
+                />
+                <div className="min-w-0 flex-1">
+                  <CardTitle className="text-lg">
+                    <Link
+                      href={`/profile/${c.id}`}
+                      className="transition-colors hover:text-brand"
+                    >
+                      {c.display_name || "Unnamed creator"}
+                    </Link>
+                  </CardTitle>
+                  {c.role && (
+                    <p className="text-sm text-muted-foreground">
+                      {titleCase(c.role)}
+                    </p>
+                  )}
+                </div>
               </CardHeader>
               <CardContent className="flex flex-col gap-4">
                 {c.headline && (

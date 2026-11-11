@@ -1,11 +1,15 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { GraduationCap, Plus, Star } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
+import { viewerTimeZone } from "@/lib/datetime";
 import { disciplineLabel } from "@/lib/marketplace";
-import { classLevelLabel, classFormatLabel, formatPrice } from "@/lib/content";
+import { classLevelLabel, formatPrice } from "@/lib/content";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+
+export const metadata: Metadata = { title: "Classes" };
 
 // Access (auth + approved pro) is gated in app/classes/layout.tsx, which also
 // renders the ProShell around this page. Classes are professional-only, so —
@@ -62,6 +66,7 @@ export default async function ClassesPage({
 }) {
   const { submitted } = await searchParams;
   const supabase = await createClient();
+  const tz = await viewerTimeZone();
   const nowIso = new Date().toISOString();
   const {
     data: { user },
@@ -160,6 +165,11 @@ export default async function ClassesPage({
     );
   }
 
+  // UX B-20: classes you teach or take are already listed above, so Upcoming
+  // shows everyone else's instead of listing yours a second time.
+  const mine = new Set([...teaching, ...enrolledIn].map((c) => c.id));
+  const others = classes.filter((c) => !mine.has(c.id));
+
   return (
     <main className="flex flex-1 flex-col px-4 py-6">
       <div className="flex items-center justify-between gap-3">
@@ -242,11 +252,11 @@ export default async function ClassesPage({
 
       {/* Upcoming classes */}
       <h2 className="mt-8 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-        Upcoming classes
+        {mine.size > 0 ? "More upcoming classes" : "Upcoming classes"}
       </h2>
-      {classes.length > 0 ? (
+      {others.length > 0 ? (
         <ul className="mt-3 flex flex-col gap-3">
-          {classes.map((c) => (
+          {others.map((c) => (
             <li key={c.id}>
               <Link href={`/classes/${c.id}`} className="block">
                 <ClassCard
@@ -256,6 +266,7 @@ export default async function ClassesPage({
                     c.capacity - (enrolledByClass.get(c.id) ?? 0)
                   )}
                   rating={ratingByClass.get(c.id) ?? null}
+                  tz={tz}
                 />
               </Link>
             </li>
@@ -334,16 +345,18 @@ function ClassCard({
   klass,
   spotsLeft,
   rating,
+  tz,
 }: {
   klass: ClassRow;
   spotsLeft: number;
   rating: { sum: number; count: number } | null;
+  tz: string;
 }) {
   const d = new Date(klass.starts_at);
   const month = d
-    .toLocaleDateString(undefined, { month: "short" })
+    .toLocaleDateString(undefined, { month: "short", timeZone: tz })
     .toUpperCase();
-  const day = d.toLocaleDateString(undefined, { day: "numeric" });
+  const day = d.toLocaleDateString(undefined, { day: "numeric", timeZone: tz });
   const instructor = klass.instructor?.display_name || "the Action team";
   const location =
     klass.format === "virtual" ? "Virtual" : klass.venue || "In person";
@@ -379,16 +392,15 @@ function ClassCard({
           <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
             {classLevelLabel(klass.level)}
           </span>
-          <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-            {classFormatLabel(klass.format)}
-          </span>
+          {/* No format chip: the line above already says Virtual or the venue
+              (UX B-20 found "Virtual" printed twice). */}
         </div>
       </div>
       <div className="shrink-0 text-right">
         <p className="font-semibold">{formatPrice(klass.price_cents)}</p>
         <p className="mt-1 text-xs text-muted-foreground">
           {spotsLeft > 0
-            ? `${spotsLeft} of ${klass.capacity} spots left`
+            ? `${spotsLeft} ${spotsLeft === 1 ? "spot" : "spots"} left`
             : "Full"}
         </p>
       </div>

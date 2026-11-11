@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import {
   Heart,
@@ -14,6 +15,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+
+export const metadata: Metadata = { title: "For Fans" };
 
 const features: { icon: LucideIcon; title: string; blurb: string }[] = [
   {
@@ -122,27 +125,6 @@ export default function ForFansPage() {
                 <BulletList items={fanBullets} />
               </CardContent>
             </Card>
-          </div>
-
-          {/* Bottom CTA */}
-          <div className="mt-12 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Button
-              asChild
-              size="lg"
-              className="h-12 w-full px-8 text-base sm:w-auto"
-            >
-              <Link href="/signup?type=fan">Join as a Fan</Link>
-            </Button>
-            <Button
-              asChild
-              size="lg"
-              variant="ghost"
-              className="h-12 w-full px-8 text-base sm:w-auto"
-            >
-              <Link href="/for-creators">
-                Work in the industry? Apply for a Pro account
-              </Link>
-            </Button>
           </div>
         </div>
       </section>

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -8,10 +9,13 @@ import { CallboardCard } from "@/components/CallboardCard";
 import { ConnectionRequestActions } from "@/components/ConnectionRequestActions";
 import { ProfileTabs } from "../profile-tabs";
 
+export const metadata: Metadata = { title: "Network" };
+
 type Requester = {
   id: string;
   display_name: string | null;
   role: string | null;
+  avatar_path: string | null;
 };
 
 type Person = Requester & { account_type: string | null };
@@ -98,7 +102,7 @@ export default async function ProfileNetworkPage() {
   if (allIds.length > 0) {
     const { data: people } = await supabase
       .from("profiles")
-      .select("id, display_name, role, account_type")
+      .select("id, display_name, role, account_type, avatar_path")
       .in("id", allIds);
     for (const p of people ?? []) byId.set(p.id as string, p as Person);
   }
@@ -126,6 +130,7 @@ export default async function ProfileNetworkPage() {
                 <li key={r.id} className="flex gap-3">
                   <Avatar
                     name={r.display_name}
+                    photoPath={r.avatar_path}
                     className="size-11 bg-avatar-fill text-text-secondary"
                   />
                   <div className="min-w-0 flex-1">
@@ -207,6 +212,7 @@ function PersonRow({ person }: { person: Person }) {
     <li className="flex items-center gap-3">
       <Avatar
         name={person.display_name}
+        photoPath={person.avatar_path}
         className="size-11 bg-avatar-fill text-text-secondary"
       />
       <div className="min-w-0 flex-1">

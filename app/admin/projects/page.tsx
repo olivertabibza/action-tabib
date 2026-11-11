@@ -1,15 +1,20 @@
+import type { Metadata } from "next";
 import { FolderOpen } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
+import { viewerTimeZone } from "@/lib/datetime";
 import { disciplineLabel } from "@/lib/marketplace";
 import { cn } from "@/lib/utils";
 import { AdminNav } from "../admin-nav";
 import { CloseButton } from "./close-button";
 
+export const metadata: Metadata = { title: "Projects · Admin" };
+
 type Owner = { display_name: string | null };
 
 export default async function AdminProjectsPage() {
   const supabase = await createClient();
+  const tz = await viewerTimeZone();
 
   const { data: projects, error } = await supabase
     .from("projects")
@@ -38,6 +43,7 @@ export default async function AdminProjectsPage() {
           {projects.map((p) => {
             const owner = p.owner as unknown as Owner | null;
             const created = new Date(p.created_at).toLocaleDateString(undefined, {
+              timeZone: tz,
               year: "numeric",
               month: "short",
               day: "numeric",

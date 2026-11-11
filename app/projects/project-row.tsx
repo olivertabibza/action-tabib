@@ -13,7 +13,11 @@ import {
 } from "@/lib/marketplace";
 import { ShareButton } from "./share-button";
 
-export type Poster = { display_name: string | null; role: string | null };
+export type Poster = {
+  display_name: string | null;
+  role: string | null;
+  avatar_path?: string | null;
+};
 
 export type ProjectRowData = {
   id: string;
@@ -27,6 +31,7 @@ export type ProjectRowData = {
   tags: string[] | null;
   staff_pick: boolean;
   posted_at: string;
+  created_by: string;
   poster: Poster | null;
 };
 
@@ -54,16 +59,23 @@ export function ProjectRow({
   circleApplied,
   saved,
   appliedRoleIds,
+  isOwn = false,
+  tz,
 }: {
   project: ProjectRowData;
   roles: RoleRow[];
   circleApplied: number;
   saved: boolean;
   appliedRoleIds: Set<string>;
+  /** The viewer posted this project: no Apply pills (UX B-26). */
+  isOwn?: boolean;
+  /** Viewer's time zone (lib/datetime.ts). */
+  tz: string;
 }) {
   const href = `/projects/${project.id}`;
   const pay = formatPayRange(project.pay_min, project.pay_max, project.pay_unit);
   const posted = new Date(project.posted_at).toLocaleDateString(undefined, {
+    timeZone: tz,
     month: "short",
     day: "numeric",
   });
@@ -150,7 +162,7 @@ export function ProjectRow({
             href={href}
             className="focus-ring rounded-pill bg-accent px-[22px] py-[11px] text-sm font-semibold text-on-accent transition-opacity hover:opacity-90 max-sm:w-full max-sm:text-center"
           >
-            View details &amp; apply
+            {isOwn ? "View your project" : <>View details &amp; apply</>}
           </Link>
           {circleApplied > 0 && (
             // No avatar stack: circle_applied_counts() returns a bare count and
@@ -195,7 +207,7 @@ export function ProjectRow({
                       </p>
                     )}
                   </div>
-                  {applied ? (
+                  {isOwn ? null : applied ? (
                     <span className="shrink-0 rounded-pill bg-accent-tint px-3 py-1 text-[12.5px] font-semibold text-accent-text">
                       Applied
                     </span>
@@ -225,6 +237,7 @@ export function ProjectRow({
         <div className="mt-4 flex items-center gap-2.5 border-t border-border-hairline pt-3.5">
           <Avatar
             name={project.poster?.display_name}
+            photoPath={project.poster?.avatar_path}
             className="size-7 bg-avatar-fill text-[11px] text-text-secondary"
           />
           <div className="min-w-0">

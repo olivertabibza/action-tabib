@@ -18,9 +18,20 @@ export type NavCounts = {
   classes: number;
   network: number;
   messages: number;
+  /** Shows the Admin link in the shell (UX B-14: admin had no way in). */
+  isAdmin: boolean;
+  /** The viewer's photo on the header's Profile button (UX B-01). */
+  avatarPath: string | null;
 };
 
-const ZERO: NavCounts = { projects: 0, classes: 0, network: 0, messages: 0 };
+const ZERO: NavCounts = {
+  projects: 0,
+  classes: 0,
+  network: 0,
+  messages: 0,
+  isAdmin: false,
+  avatarPath: null,
+};
 
 export async function getNavCounts(): Promise<NavCounts> {
   const supabase = await createClient();
@@ -32,7 +43,7 @@ export async function getNavCounts(): Promise<NavCounts> {
 
   // Independent reads, and the shell renders on every page — running them
   // sequentially would add a round trip to every navigation in the app.
-  const [pending, messages] = await Promise.all([
+  const [pending, messages, me] = await Promise.all([
     // "Parties read own connections" covers this — the viewer is the addressee
     // of every row counted, so no RPC is needed.
     supabase
@@ -41,7 +52,18 @@ export async function getNavCounts(): Promise<NavCounts> {
       .eq("addressee_id", user.id)
       .eq("status", "pending"),
     getUnreadChatCount(supabase, user.id),
+    supabase
+      .from("profiles")
+      .select("is_admin, avatar_path")
+      .eq("id", user.id)
+      .maybeSingle(),
   ]);
 
-  return { ...ZERO, network: pending.count ?? 0, messages };
+  return {
+    ...ZERO,
+    network: pending.count ?? 0,
+    messages,
+    isAdmin: me.data?.is_admin === true,
+    avatarPath: (me.data?.avatar_path as string | null) ?? null,
+  };
 }

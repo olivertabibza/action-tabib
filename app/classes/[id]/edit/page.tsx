@@ -1,8 +1,10 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
+import { utcToZoned, viewerTimeZone } from "@/lib/datetime";
 import {
   Card,
   CardContent,
@@ -13,19 +15,8 @@ import {
 import { ClassForm } from "../../class-form";
 import type { ClassFormValues } from "../../schema";
 
-/**
- * The exact inverse of createClass's `new Date(`${date}T${time}`)`: both run on
- * the server, so reading the server's local date and time back out gives the
- * same inputs, and saving unchanged leaves starts_at unchanged.
- */
-function toDateAndTime(startsAt: string) {
-  const d = new Date(startsAt);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return {
-    date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`,
-    time: `${pad(d.getHours())}:${pad(d.getMinutes())}`,
-  };
-}
+export const metadata: Metadata = { title: "Edit class" };
+
 
 // Access (auth + approved pro) and the ProShell come from app/classes/layout.tsx.
 // On top of that, only the class's instructor may edit it.
@@ -64,7 +55,9 @@ export default async function EditClassPage({
     venue: klass.venue ?? "",
     price: klass.price_cents / 100,
     capacity: klass.capacity,
-    ...toDateAndTime(klass.starts_at),
+    // The inverse of createClass/updateClass (lib/datetime.ts): the same zone
+    // in and out, so saving unchanged leaves starts_at unchanged.
+    ...utcToZoned(klass.starts_at, await viewerTimeZone()),
     description: klass.description ?? "",
   };
 

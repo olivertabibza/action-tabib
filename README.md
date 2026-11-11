@@ -219,7 +219,9 @@ from the secret key. Apply these files in the Supabase SQL editor:
 | `fix-profiles-policy.sql` | Explicit self-insert / self-update policies on `profiles` |
 | `marketplace.sql` | `projects` and `applications` tables, indexes, and marketplace RLS; `is_approved_pro()` / `has_applied()` helpers |
 | `social-feed.sql` | `follows` and `activity_events` tables + RLS; `is_following()` helper |
-| `public-profiles.sql` | `public_profiles` view and storage policy so anon visitors can read approved pros |
+| `public-profiles.sql` | `public_profiles` view (approved pros, admins left out, with `avatar_path`) and storage policy so anon visitors can read approved pros. Run after `avatars.sql` |
+| `avatars.sql` | `profiles.avatar_path`, the public `avatars` bucket and its own-folder upload/delete policies |
+| `portfolios.sql` | Who can upload, read and delete files in the private `portfolios` bucket (owner, admins); the approved-pros public read is in `public-profiles.sql` |
 | `admin.sql` | `profiles.is_admin` flag, `is_admin()` helper, admin RLS, and the one-time admin bootstrap note |
 
 ### Core tables
@@ -239,6 +241,9 @@ from the secret key. Apply these files in the Supabase SQL editor:
   by anon.
 
 ### Storage
+
+Profile photos live in a **public** `avatars` bucket under `<user_id>/<random>.<ext>`
+(`avatars.sql`); members write only to their own folder.
 
 Portfolio files live in a **private** `portfolios` bucket under `<user_id>/…`.
 Pages mint short-lived signed URLs with the anon key; storage RLS lets owners,
@@ -266,6 +271,13 @@ source of truth.
 **Every SQL change runs on the test project first.** Apply it there (SQL editor
 or `psql "$TEST_DB_URL" -v ON_ERROR_STOP=1 -f supabase/<file>.sql`), run
 `npm test` until it passes, and only then run it on production.
+
+Two folders are exceptions:
+
+- `supabase/test-only/` is applied **only** to the test project. It holds
+  helpers the tests need that must never exist on production.
+- `supabase/one-off/` holds one-time production scripts, such as the
+  2026-11-10 cleanup. Each one says in its header where it may run.
 
 ---
 

@@ -17,7 +17,7 @@ import {
   ComboboxList,
 } from "@/components/ui/combobox";
 
-type Step = "choose" | "professional" | "consumer";
+export type Step = "choose" | "professional" | "consumer";
 
 const ROLES = [
   "Actor",
@@ -80,11 +80,13 @@ const CONSUMER_OPTIONS: {
 export function OnboardingFlow({
   userId,
   email,
+  initialStep = "choose",
 }: {
   userId: string;
   email: string;
+  initialStep?: Step;
 }) {
-  const [step, setStep] = useState<Step>("choose");
+  const [step, setStep] = useState<Step>(initialStep);
 
   return (
     <div className="w-full max-w-3xl">
@@ -216,15 +218,18 @@ function ProfessionalStep({
 
     setSubmitting(true);
     const supabase = createClient();
+    const portfolioPaths: string[] = [];
 
     try {
-      const portfolioPaths: string[] = [];
-
       for (const file of files) {
-        const path = `${userId}/${file.name}`;
+        // ENG F12: each file gets its own random folder, so two files with the
+        // same name never overwrite each other. The last segment stays the
+        // original name, which is what the Profile page shows.
+        const safeName = file.name.replace(/[^A-Za-z0-9._-]+/g, "-");
+        const path = `${userId}/${crypto.randomUUID()}/${safeName}`;
         const { error: uploadError } = await supabase.storage
           .from("portfolios")
-          .upload(path, file, { upsert: true });
+          .upload(path, file);
 
         if (uploadError) throw uploadError;
         portfolioPaths.push(path);
@@ -244,6 +249,11 @@ function ProfessionalStep({
 
       router.push("/home");
     } catch (err) {
+      // ENG F13: nothing points at files from a failed application, so remove
+      // them rather than leave orphans. Best effort.
+      if (portfolioPaths.length > 0) {
+        await supabase.storage.from("portfolios").remove(portfolioPaths);
+      }
       console.error(
         "[onboarding] Professional application failed:",
         JSON.stringify(err),

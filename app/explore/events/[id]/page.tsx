@@ -1,20 +1,38 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, CalendarDays, Clock, MapPin } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
+import { viewerTimeZone } from "@/lib/datetime";
 import { resolveBackLink } from "@/lib/back-link";
+import { publicPeople } from "@/lib/public-people";
 import { titleCase } from "@/lib/marketplace";
 import { eventTypeLabel } from "@/lib/content";
 import { Avatar } from "@/components/Avatar";
 import { RsvpButton } from "../rsvp-button";
 import { SaveButton } from "../../saved/save-button";
 
+// Tab and history title: the event's own name (UX B-32). RLS applies, so
+// anything the viewer can't see falls back to "Event".
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("events")
+    .select("title")
+    .eq("id", id)
+    .maybeSingle();
+  return { title: data?.title || "Event" };
+}
+
 // PUBLIC page — no shell, no auth redirect. Published events are open-access
 // (RLS exposes published rows to anon), so logged-out fans can view them. We
 // still fetch the viewer (if any) to allow the host/admin to preview a draft.
-
-type Person = { display_name: string | null; role: string | null };
 
 export default async function EventDetailPage({
   params,
@@ -61,7 +79,7 @@ export default async function EventDetailPage({
   const { data: event } = await supabase
     .from("events")
     .select(
-      "id, title, description, venue, event_type, starts_at, status, created_by, host:profiles!events_created_by_fkey(display_name, role)"
+      "id, title, description, venue, event_type, starts_at, status, created_by"
     )
     .eq("id", id)
     .maybeSingle();
@@ -116,17 +134,21 @@ export default async function EventDetailPage({
     initialSaved = !!mySave;
   }
 
-  // Supabase types embedded relations as arrays; this FK is to-one at runtime.
-  const host = event.host as unknown as Person | null;
+  const host = (await publicPeople(supabase, [event.created_by])).get(
+    event.created_by
+  );
   const hostName = host?.display_name || "the Action team";
+  const tz = await viewerTimeZone();
   const starts = new Date(event.starts_at);
   const dateLine = starts.toLocaleDateString(undefined, {
+    timeZone: tz,
     weekday: "long",
     year: "numeric",
     month: "long",
     day: "numeric",
   });
   const timeLine = starts.toLocaleTimeString(undefined, {
+    timeZone: tz,
     hour: "numeric",
     minute: "2-digit",
   });
@@ -164,7 +186,11 @@ export default async function EventDetailPage({
       </div>
 
       <div className="mt-6 flex items-center gap-3">
-        <Avatar name={hostName} className="size-9" />
+        <Avatar
+          name={hostName}
+          photoPath={host?.avatar_path}
+          className="size-9"
+        />
         <p className="text-sm">
           <span className="text-muted-foreground">Hosted by </span>
           <span className="font-medium">{hostName}</span>

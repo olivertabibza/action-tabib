@@ -1,9 +1,13 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Rss } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
+import { viewerTimeZone } from "@/lib/datetime";
 import { titleCase } from "@/lib/marketplace";
 import { Avatar } from "@/components/Avatar";
+
+export const metadata: Metadata = { title: "Feed" };
 
 // The Fan home is the follow-only Feed tab. Auth + account gating live in
 // app/fan/layout.tsx, not here.
@@ -13,7 +17,11 @@ import { Avatar } from "@/components/Avatar";
 // names/roles from the public_profiles security-definer view separately and join
 // them in memory.
 
-type Actor = { display_name: string | null; role: string | null };
+type Actor = {
+  display_name: string | null;
+  role: string | null;
+  avatar_path: string | null;
+};
 
 type FeedEvent = {
   id: string;
@@ -27,6 +35,7 @@ type FeedEvent = {
 
 export default async function FanFeedPage() {
   const supabase = await createClient();
+  const tz = await viewerTimeZone();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -60,12 +69,13 @@ export default async function FanFeedPage() {
     const actorIds = [...new Set(events.map((e) => e.actor_id))];
     const { data: actors } = await supabase
       .from("public_profiles")
-      .select("id, display_name, role")
+      .select("id, display_name, role, avatar_path")
       .in("id", actorIds);
     for (const a of actors ?? []) {
       actorById.set(a.id as string, {
         display_name: a.display_name as string | null,
         role: a.role as string | null,
+        avatar_path: a.avatar_path as string | null,
       });
     }
   }
@@ -83,7 +93,11 @@ export default async function FanFeedPage() {
         <ul className="mt-6 flex flex-col gap-4">
           {events.map((event) => (
             <li key={event.id}>
-              <FeedItem event={event} actor={actorById.get(event.actor_id)} />
+              <FeedItem
+                event={event}
+                actor={actorById.get(event.actor_id)}
+                tz={tz}
+              />
             </li>
           ))}
         </ul>
@@ -92,14 +106,34 @@ export default async function FanFeedPage() {
           <span className="flex size-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
             <Rss className="size-5" strokeWidth={1.75} />
           </span>
-          <p className="mt-4 font-medium">Your feed will appear here</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Follow filmmakers from{" "}
-            <Link href="/fan/explore" className="text-brand hover:underline">
-              Explore
-            </Link>{" "}
-            and their posts will show up here.
-          </p>
+          {/* PX F16: a fan who already follows people was told to go follow
+              people. Say what's actually true for them. */}
+          {followingIds.length > 0 ? (
+            <>
+              <p className="mt-4 font-medium">No posts yet</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {followingIds.length === 1
+                  ? "The filmmaker you follow hasn't posted yet."
+                  : "The filmmakers you follow haven't posted yet."}{" "}
+                Find more to follow in{" "}
+                <Link href="/fan/explore" className="text-brand hover:underline">
+                  Explore
+                </Link>
+                .
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="mt-4 font-medium">Your feed will appear here</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Follow filmmakers from{" "}
+                <Link href="/fan/explore" className="text-brand hover:underline">
+                  Explore
+                </Link>{" "}
+                and their posts will show up here.
+              </p>
+            </>
+          )}
         </div>
       )}
     </main>
@@ -109,12 +143,15 @@ export default async function FanFeedPage() {
 function FeedItem({
   event,
   actor,
+  tz,
 }: {
   event: FeedEvent;
   actor: Actor | undefined;
+  tz: string;
 }) {
   const actorName = actor?.display_name || "A filmmaker";
   const when = new Date(event.created_at).toLocaleDateString(undefined, {
+    timeZone: tz,
     month: "short",
     day: "numeric",
   });
@@ -123,9 +160,15 @@ function FeedItem({
   return (
     <article className="rounded-xl border border-border bg-card p-4">
       <div className="flex gap-3">
-        <Avatar name={actorName} />
+        <Avatar name={actorName} photoPath={actor?.avatar_path} />
         <div className="min-w-0 flex-1">
-          <p className="truncate font-semibold">{actorName}</p>
+          {/* UX B-25: names open the profile, where Follow now lives too. */}
+          <Link
+            href={`/profile/${event.actor_id}`}
+            className="block truncate font-semibold transition-colors hover:text-brand"
+          >
+            {actorName}
+          </Link>
           <p className="text-xs text-muted-foreground">{subtitle}</p>
 
           {event.kind === "status_update" ? (

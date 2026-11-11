@@ -1,8 +1,11 @@
+import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ExternalLink, FileText } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
 import { LogoutButton } from "@/components/LogoutButton";
+import { AvatarUploader } from "@/components/AvatarUploader";
 import {
   Card,
   CardContent,
@@ -13,6 +16,8 @@ import {
 import { ProfileForm } from "./profile-form";
 import { WorkSamplesManager, type WorkSample } from "./work-samples-manager";
 import { ProfileTabs } from "./profile-tabs";
+
+export const metadata: Metadata = { title: "Your profile" };
 
 function accountLabel(accountType: string | null | undefined) {
   if (accountType === "professional") return "Industry Professional";
@@ -36,10 +41,17 @@ export default async function ProfilePage() {
   const { data: profile } = await supabase
     .from("profiles")
     .select(
-      "account_type, application_status, portfolio_files, display_name, role, headline, bio, skills"
+      "account_type, application_status, portfolio_files, display_name, role, headline, bio, skills, is_admin, avatar_path"
     )
     .eq("id", user.id)
     .maybeSingle();
+
+  // UX B-13: a fan's own profile lives at /fan/profile (name only). This page's
+  // form asks for a film role and headline, which fans don't have. Only the
+  // owner's page redirects; /profile/[id] stays public.
+  if (profile?.account_type === "consumer") {
+    redirect("/fan/profile");
+  }
 
   // The "portfolios" bucket is PRIVATE, so a plain public URL won't load. We
   // mint a short-lived signed URL on the server for each uploaded file.
@@ -98,9 +110,17 @@ export default async function ProfilePage() {
         <Card className="p-2">
           <CardHeader>
             <CardTitle className="text-xl">Details</CardTitle>
-            <CardDescription>How you show up on Action.</CardDescription>
+            <CardDescription>
+              How you show up on Action: your photo, name and role.
+            </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex flex-col gap-6">
+            {/* UX B-01: there was no way to add a photo anywhere. */}
+            <AvatarUploader
+              userId={user.id}
+              name={profile?.display_name ?? null}
+              photoPath={profile?.avatar_path ?? null}
+            />
             <ProfileForm initial={initial} showSkills={isProfessional} />
           </CardContent>
         </Card>
@@ -174,6 +194,15 @@ export default async function ProfilePage() {
       {/* Phone only, approved pros only: ProShell's header hides Log out below
           `sm` and the bottom tab bar has no room for it (same pattern as the
           fan Profile page). Everyone else here gets SiteNav, which has its own. */}
+      {/* Phone only: the header's Admin link is hidden below `sm` (UX B-14). */}
+      {profile?.is_admin && (
+        <Link
+          href="/admin"
+          className="mt-8 inline-flex w-full items-center justify-center rounded-lg border border-border px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted sm:hidden"
+        >
+          Admin tools
+        </Link>
+      )}
       {isApprovedPro && (
         <LogoutButton className="mt-8 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-border px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50 sm:hidden" />
       )}

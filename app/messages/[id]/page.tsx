@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
@@ -9,6 +10,8 @@ import { Avatar } from "@/components/Avatar";
 import { Composer } from "../composer";
 import { RequestButtons } from "../request-buttons";
 import { MarkRead } from "../mark-read";
+
+export const metadata: Metadata = { title: "Messages" };
 
 // Gated + shelled by app/messages/layout.tsx. The thread between me and the
 // other party: header links to their profile, messages oldest→newest, composer
@@ -60,7 +63,7 @@ export default async function ThreadPage({
 
   const { data: other } = await supabase
     .from("profiles")
-    .select("display_name, role")
+    .select("display_name, role, avatar_path")
     .eq("id", otherId)
     .maybeSingle();
   const otherName = other?.display_name || "A member";
@@ -89,7 +92,11 @@ export default async function ThreadPage({
           <ArrowLeft className="size-5" />
         </Link>
         <Link href={`/profile/${otherId}`} className="flex items-center gap-3">
-          <Avatar name={otherName} className="size-9" />
+          <Avatar
+            name={otherName}
+            photoPath={other?.avatar_path}
+            className="size-9"
+          />
           <span>
             <span className="font-semibold">{otherName}</span>
             {other?.role ? (

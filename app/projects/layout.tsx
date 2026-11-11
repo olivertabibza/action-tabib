@@ -1,15 +1,17 @@
 import { redirect } from "next/navigation";
-import { Clock, Lock } from "lucide-react";
+import { Lock } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
 import { ProShellServer } from "@/components/ProShellServer";
+import { FanShell } from "@/components/FanShell";
 
 /**
  * Access gate for the whole marketplace. The project pages below assume an
  * approved industry professional; this layout enforces that in one place:
  *   - logged-out          → /login (the proxy also guards this)
- *   - consumer ("fan")    → "this is for professionals" message
- *   - pending professional→ "under review" message
+ *   - consumer ("fan")    → "this is for professionals" message, in the FAN
+ *                           shell (UX B-37: not the pro tabs)
+ *   - pending/rejected pro→ /apply/pending, the one waiting screen (UX B-12)
  *   - approved pro        → the actual page
  */
 export default async function ProjectsLayout({
@@ -34,26 +36,18 @@ export default async function ProjectsLayout({
 
   if (profile?.account_type !== "professional") {
     return (
-      <ProShellServer>
+      <FanShell>
         <Gate
           icon={<Lock className="size-5 text-brand" />}
           title="The project marketplace is for industry professionals"
-          body="Projects and auditions are posted by and for people working in film. Your account is set up as a member of the community, so this section isn't available to you."
+          body="Projects and auditions are posted by and for people working in film. Your account is set up as a fan, so this section isn't available to you."
         />
-      </ProShellServer>
+      </FanShell>
     );
   }
 
   if (profile?.application_status !== "approved") {
-    return (
-      <ProShellServer>
-        <Gate
-          icon={<Clock className="size-5 text-brand" />}
-          title="Your application is under review"
-          body="We review every industry professional personally. We'll email you when you're approved — then the project marketplace will open up here."
-        />
-      </ProShellServer>
-    );
+    redirect("/apply/pending");
   }
 
   // `wide` gives the marketplace the full Callboard canvas the Projects screen

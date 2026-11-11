@@ -36,10 +36,10 @@ test("/classes renders at least one published class card", async ({ page }) => {
   await expect(classLinks.first()).toBeVisible();
 });
 
-test("/messages renders the Chats and Requests tabs", async ({ page }) => {
+test("/messages renders the Chats and Message requests tabs", async ({ page }) => {
   await page.goto("/messages");
   await expect(page.getByRole("link", { name: "Chats" })).toBeVisible();
-  await expect(page.getByRole("link", { name: /Requests/ })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Message requests/ })).toBeVisible();
 });
 
 test("the ProShell messages nav item shows an unread badge", async ({ page }) => {

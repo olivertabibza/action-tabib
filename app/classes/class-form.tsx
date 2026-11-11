@@ -76,10 +76,13 @@ export function ClassForm({
           id="title"
           placeholder="e.g. Scene study intensive"
           aria-invalid={!!errors.title}
+          aria-describedby={errors.title ? "class-title-error" : undefined}
           {...register("title")}
         />
         {errors.title && (
-          <p className="text-sm text-destructive">{errors.title.message}</p>
+          <p id="class-title-error" className="text-sm text-destructive">
+            {errors.title.message}
+          </p>
         )}
       </div>
 
@@ -89,6 +92,9 @@ export function ClassForm({
           <NativeSelect
             id="discipline"
             aria-invalid={!!errors.discipline}
+            aria-describedby={
+              errors.discipline ? "class-discipline-error" : undefined
+            }
             {...register("discipline")}
           >
             {PROJECT_DISCIPLINES.map((d) => (
@@ -98,7 +104,7 @@ export function ClassForm({
             ))}
           </NativeSelect>
           {errors.discipline && (
-            <p className="text-sm text-destructive">
+            <p id="class-discipline-error" className="text-sm text-destructive">
               {errors.discipline.message}
             </p>
           )}
@@ -109,6 +115,7 @@ export function ClassForm({
           <NativeSelect
             id="level"
             aria-invalid={!!errors.level}
+            aria-describedby={errors.level ? "class-level-error" : undefined}
             {...register("level")}
           >
             {CLASS_LEVELS.map((l) => (
@@ -118,7 +125,9 @@ export function ClassForm({
             ))}
           </NativeSelect>
           {errors.level && (
-            <p className="text-sm text-destructive">{errors.level.message}</p>
+            <p id="class-level-error" className="text-sm text-destructive">
+              {errors.level.message}
+            </p>
           )}
         </div>
       </div>
@@ -128,6 +137,7 @@ export function ClassForm({
         <NativeSelect
           id="format"
           aria-invalid={!!errors.format}
+          aria-describedby={errors.format ? "class-format-error" : undefined}
           {...register("format")}
         >
           {CLASS_FORMATS.map((f) => (
@@ -137,7 +147,9 @@ export function ClassForm({
           ))}
         </NativeSelect>
         {errors.format && (
-          <p className="text-sm text-destructive">{errors.format.message}</p>
+          <p id="class-format-error" className="text-sm text-destructive">
+            {errors.format.message}
+          </p>
         )}
       </div>
 
@@ -147,10 +159,13 @@ export function ClassForm({
           id="venue"
           placeholder="Leave blank for virtual"
           aria-invalid={!!errors.venue}
+          aria-describedby={errors.venue ? "class-venue-error" : undefined}
           {...register("venue")}
         />
         {errors.venue && (
-          <p className="text-sm text-destructive">{errors.venue.message}</p>
+          <p id="class-venue-error" className="text-sm text-destructive">
+            {errors.venue.message}
+          </p>
         )}
       </div>
 
@@ -163,10 +178,13 @@ export function ClassForm({
             min="0"
             step="1"
             aria-invalid={!!errors.price}
+            aria-describedby={errors.price ? "class-price-error" : undefined}
             {...register("price", { valueAsNumber: true })}
           />
           {errors.price && (
-            <p className="text-sm text-destructive">{errors.price.message}</p>
+            <p id="class-price-error" className="text-sm text-destructive">
+              {errors.price.message}
+            </p>
           )}
         </div>
 
@@ -178,10 +196,13 @@ export function ClassForm({
             min="1"
             step="1"
             aria-invalid={!!errors.capacity}
+            aria-describedby={
+              errors.capacity ? "class-capacity-error" : undefined
+            }
             {...register("capacity", { valueAsNumber: true })}
           />
           {errors.capacity && (
-            <p className="text-sm text-destructive">
+            <p id="class-capacity-error" className="text-sm text-destructive">
               {errors.capacity.message}
             </p>
           )}
@@ -195,10 +216,13 @@ export function ClassForm({
             id="date"
             type="date"
             aria-invalid={!!errors.date}
+            aria-describedby={errors.date ? "class-date-error" : undefined}
             {...register("date")}
           />
           {errors.date && (
-            <p className="text-sm text-destructive">{errors.date.message}</p>
+            <p id="class-date-error" className="text-sm text-destructive">
+              {errors.date.message}
+            </p>
           )}
         </div>
 
@@ -208,10 +232,13 @@ export function ClassForm({
             id="time"
             type="time"
             aria-invalid={!!errors.time}
+            aria-describedby={errors.time ? "class-time-error" : undefined}
             {...register("time")}
           />
           {errors.time && (
-            <p className="text-sm text-destructive">{errors.time.message}</p>
+            <p id="class-time-error" className="text-sm text-destructive">
+              {errors.time.message}
+            </p>
           )}
         </div>
       </div>
@@ -223,10 +250,13 @@ export function ClassForm({
           rows={6}
           placeholder="What you'll cover, who it's for, and what to bring."
           aria-invalid={!!errors.description}
+          aria-describedby={
+            errors.description ? "class-description-error" : undefined
+          }
           {...register("description")}
         />
         {errors.description && (
-          <p className="text-sm text-destructive">
+          <p id="class-description-error" className="text-sm text-destructive">
             {errors.description.message}
           </p>
         )}

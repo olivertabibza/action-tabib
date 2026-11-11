@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowLeft, Plus, Users } from "lucide-react";
@@ -6,6 +7,8 @@ import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { titleCase } from "@/lib/marketplace";
 import { ProjectCard } from "../project-card";
+
+export const metadata: Metadata = { title: "My projects" };
 
 export default async function MyProjectsPage() {
   const supabase = await createClient();

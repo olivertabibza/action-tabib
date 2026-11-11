@@ -7,6 +7,7 @@ export type ConversationSummary = {
   otherId: string;
   otherName: string | null;
   otherRole: string | null;
+  otherAvatarPath: string | null;
   lastBody: string | null;
   lastAt: string | null;
   accepted: boolean;
@@ -73,7 +74,7 @@ export async function getInbox(
   const { data: profiles } = otherIds.length
     ? await supabase
         .from("profiles")
-        .select("id, display_name, role")
+        .select("id, display_name, role, avatar_path")
         .in("id", otherIds)
     : { data: [] };
   const profileById = new Map(
@@ -125,6 +126,7 @@ export async function getInbox(
       otherId,
       otherName: (prof?.display_name as string | null) ?? null,
       otherRole: (prof?.role as string | null) ?? null,
+      otherAvatarPath: (prof?.avatar_path as string | null) ?? null,
       lastBody: last?.body ?? null,
       lastAt: last?.created_at ?? null,
       accepted: !!row.accepted,

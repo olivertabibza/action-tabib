@@ -11,6 +11,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { viewerTimeZone } from "@/lib/datetime";
+import { publicPeople } from "@/lib/public-people";
 import { destinationFor } from "@/lib/auth-dispatch";
 import { articleCategoryLabel } from "@/lib/content";
 import { Button } from "@/components/ui/button";
@@ -94,14 +96,20 @@ export default async function Home() {
   const { data: articleData } = await supabase
     .from("articles")
     .select(
-      "id, title, category, excerpt, author:profiles!articles_created_by_fkey(display_name)"
+      "id, title, category, excerpt, created_by"
     )
     .eq("status", "published")
     .order("created_at", { ascending: false })
     .limit(3);
+  // Names via public_profiles: as anon, a profiles join returns no author, so
+  // every byline read "the Action desk" (UX B-24).
+  const authors = await publicPeople(
+    supabase,
+    (articleData ?? []).map((a) => a.created_by)
+  );
   const latestArticles = (articleData ?? []).map((a) => ({
     ...a,
-    author: a.author as unknown as { display_name: string | null } | null,
+    author: authors.get(a.created_by) ?? null,
   }));
 
   // Happening soon: the next 2 published events that haven't started yet. Same
@@ -113,14 +121,17 @@ export default async function Home() {
     .gte("starts_at", new Date().toISOString())
     .order("starts_at", { ascending: true })
     .limit(2);
+  const tz = await viewerTimeZone();
   const upcomingEvents = (eventData ?? []).map((e) => {
     const d = new Date(e.starts_at);
     return {
       id: e.id,
       title: e.title,
       venue: e.venue,
-      month: d.toLocaleDateString(undefined, { month: "short" }).toUpperCase(),
-      day: d.toLocaleDateString(undefined, { day: "numeric" }),
+      month: d
+        .toLocaleDateString(undefined, { month: "short", timeZone: tz })
+        .toUpperCase(),
+      day: d.toLocaleDateString(undefined, { day: "numeric", timeZone: tz }),
     };
   });
 
@@ -298,7 +309,7 @@ export default async function Home() {
               size="lg"
               className="h-12 w-full px-8 text-base sm:w-auto"
             >
-              <Link href="/login">Already a member? Sign in</Link>
+              <Link href="/login">Already a member? Log in</Link>
             </Button>
           </div>
         </div>
@@ -306,21 +317,8 @@ export default async function Home() {
 
       {/* Footer */}
       <footer className="border-t border-border">
-        <div className="mx-auto flex w-full max-w-6xl flex-col items-center justify-between gap-4 px-4 py-8 text-sm text-muted-foreground sm:flex-row sm:px-6">
-          <div className="flex flex-col items-center gap-2 sm:flex-row sm:gap-3">
-            <span>© 2026 Action</span>
-            <span className="rounded-full border border-border px-2.5 py-0.5 text-xs">
-              Working title — coming soon
-            </span>
-          </div>
-          <a
-            href="https://action-web-kappa.vercel.app"
-            className="font-medium text-foreground transition-colors hover:text-brand"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            View business plan →
-          </a>
+        <div className="mx-auto flex w-full max-w-6xl justify-center px-4 py-8 text-sm text-muted-foreground sm:justify-start sm:px-6">
+          <span>© 2026 Action</span>
         </div>
       </footer>
     </main>

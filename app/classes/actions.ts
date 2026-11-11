@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
+import { viewerTimeZone, zonedToUtc } from "@/lib/datetime";
 import { classSchema, reviewSchema, type ClassFormValues } from "./schema";
 
 /**
@@ -29,7 +30,8 @@ export async function createClass(values: ClassFormValues) {
   }
 
   const { date, time, price, ...rest } = parsed.data;
-  const starts = new Date(`${date}T${time}`);
+  // Typed in the creator's own time zone (ENG F11, lib/datetime.ts).
+  const starts = zonedToUtc(date, time, await viewerTimeZone());
   if (Number.isNaN(starts.getTime())) {
     return { error: "That date and time don't look right." };
   }
@@ -71,7 +73,8 @@ export async function updateClass(classId: string, values: ClassFormValues) {
   }
 
   const { date, time, price, ...rest } = parsed.data;
-  const starts = new Date(`${date}T${time}`);
+  // Typed in the creator's own time zone (ENG F11, lib/datetime.ts).
+  const starts = zonedToUtc(date, time, await viewerTimeZone());
   if (Number.isNaN(starts.getTime())) {
     return { error: "That date and time don't look right." };
   }

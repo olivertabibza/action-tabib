@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import {
   CalendarDays,
@@ -8,6 +9,7 @@ import {
 } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
+import { viewerTimeZone } from "@/lib/datetime";
 import { disciplineLabel } from "@/lib/marketplace";
 import {
   eventTypeLabel,
@@ -20,6 +22,8 @@ import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { AdminNav } from "../admin-nav";
 import { ContentDecisionButtons } from "../content-decision-buttons";
+
+export const metadata: Metadata = { title: "Content · Admin" };
 
 const STATUSES = ["pending", "published", "rejected"] as const;
 type Status = (typeof STATUSES)[number];
@@ -59,8 +63,9 @@ type ClassRow = {
   instructor: { display_name: string | null } | null;
 };
 
-function submittedOn(iso: string) {
+function submittedOn(iso: string, tz: string) {
   return new Date(iso).toLocaleDateString(undefined, {
+    timeZone: tz,
     year: "numeric",
     month: "short",
     day: "numeric",
@@ -73,6 +78,7 @@ export default async function AdminContentPage({
   searchParams: Promise<{ status?: string }>;
 }) {
   const { status: statusParam } = await searchParams;
+  const tz = await viewerTimeZone();
   const status: Status = STATUSES.includes(statusParam as Status)
     ? (statusParam as Status)
     : "pending";
@@ -172,14 +178,15 @@ export default async function AdminContentPage({
                   </div>
 
                   <p className="text-sm text-muted-foreground">
-                    Hosted by {host} · submitted {submittedOn(e.created_at)}
+                    Hosted by {host} · submitted {submittedOn(e.created_at, tz)}
                   </p>
 
                   <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
                     <span className="inline-flex items-center gap-1.5">
                       <CalendarDays className="size-4 text-brand" />
-                      {submittedOn(e.starts_at)}{" "}
+                      {submittedOn(e.starts_at, tz)}{" "}
                       {starts.toLocaleTimeString(undefined, {
+                        timeZone: tz,
                         hour: "numeric",
                         minute: "2-digit",
                       })}
@@ -239,7 +246,7 @@ export default async function AdminContentPage({
                   </div>
 
                   <p className="text-sm text-muted-foreground">
-                    By {author} · submitted {submittedOn(a.created_at)}
+                    By {author} · submitted {submittedOn(a.created_at, tz)}
                   </p>
 
                   {a.excerpt && (
@@ -296,14 +303,15 @@ export default async function AdminContentPage({
 
                   <p className="text-sm text-muted-foreground">
                     Taught by {instructor} · submitted{" "}
-                    {submittedOn(c.created_at)}
+                    {submittedOn(c.created_at, tz)}
                   </p>
 
                   <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
                     <span className="inline-flex items-center gap-1.5">
                       <CalendarDays className="size-4 text-brand" />
-                      {submittedOn(c.starts_at)}{" "}
+                      {submittedOn(c.starts_at, tz)}{" "}
                       {starts.toLocaleTimeString(undefined, {
+                        timeZone: tz,
                         hour: "numeric",
                         minute: "2-digit",
                       })}

@@ -94,3 +94,35 @@ export async function unfollowPro(targetId: string) {
   revalidatePath("/fan/explore");
   return { success: true };
 }
+
+/**
+ * A fan's only editable field: their display name (UX B-13). Writes the
+ * caller's own row; RLS's own-row update policy is the real boundary, and the
+ * profiles_guard_privileged trigger keeps status and admin columns out of reach.
+ */
+export async function updateFanName(rawName: string) {
+  const name = rawName.trim().replace(/\s+/g, " ");
+  if (name.length < 1 || name.length > 80) {
+    return { error: "Use between 1 and 80 characters." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { error: "Your session has expired. Please log in again." };
+  }
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({ display_name: name })
+    .eq("id", user.id);
+  if (error) {
+    return { error: "Couldn't save your name. Try again." };
+  }
+
+  revalidatePath("/fan/profile");
+  revalidatePath("/fan");
+  return { success: true as const };
+}

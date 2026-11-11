@@ -1,7 +1,10 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { CalendarDays, Newspaper, PenLine, Plus } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
+import { viewerTimeZone } from "@/lib/datetime";
+import { publicPeople } from "@/lib/public-people";
 import { eventTypeLabel, articleCategoryLabel } from "@/lib/content";
 import { titleCase } from "@/lib/marketplace";
 import { cn } from "@/lib/utils";
@@ -10,6 +13,8 @@ import { GlobalSearch } from "@/components/GlobalSearch";
 import { Button } from "@/components/ui/button";
 import { MessageButton } from "@/app/messages/message-button";
 import { FollowButton } from "./people/follow-button";
+
+export const metadata: Metadata = { title: "Explore" };
 
 // Access (auth + approved pro) is gated in the (tab) route group's layout, which
 // also renders the ProShell around this page. The article/event DETAIL pages
@@ -28,6 +33,7 @@ type PersonRow = {
   id: string;
   display_name: string | null;
   role: string | null;
+  avatar_path: string | null;
 };
 
 type ArticleRow = {
@@ -36,7 +42,7 @@ type ArticleRow = {
   category: string;
   excerpt: string;
   created_at: string;
-  author: { display_name: string | null } | null;
+  author: { display_name: string | null; avatar_path: string | null } | null;
 };
 
 // A pending/rejected submission the current user authored (event or article).
@@ -54,6 +60,7 @@ export default async function ExplorePage({
 }) {
   const { submitted, search } = await searchParams;
   const supabase = await createClient();
+  const tz = await viewerTimeZone();
   const nowIso = new Date().toISOString();
   const {
     data: { user },
@@ -71,20 +78,24 @@ export default async function ExplorePage({
   if (eventError) throw new Error(`Events load failed: ${eventError.message}`);
   const events = (eventData ?? []) as EventRow[];
 
-  // Published articles — newest first, with the author's name via a profiles
-  // join (same shape as the dashboard feed).
+  // Published articles — newest first, with the author's public name, the
+  // same one fans and visitors see (UX B-24).
   const { data: articleData, error: articleError } = await supabase
     .from("articles")
     .select(
-      "id, title, category, excerpt, created_at, author:profiles!articles_created_by_fkey(display_name)"
+      "id, title, category, excerpt, created_at, created_by"
     )
     .eq("status", "published")
     .order("created_at", { ascending: false });
   if (articleError)
     throw new Error(`Articles load failed: ${articleError.message}`);
+  const authors = await publicPeople(
+    supabase,
+    (articleData ?? []).map((a) => a.created_by)
+  );
   const articles = (articleData ?? []).map((a) => ({
     ...a,
-    author: a.author as unknown as { display_name: string | null } | null,
+    author: authors.get(a.created_by) ?? null,
   })) as ArticleRow[];
 
   // The viewer's own not-yet-published submissions. RLS lets authors read their
@@ -102,7 +113,7 @@ export default async function ExplorePage({
     const excluded = [user.id, ...(myFollows ?? []).map((f) => f.following_id)];
     const { data: peopleData } = await supabase
       .from("profiles")
-      .select("id, display_name, role")
+      .select("id, display_name, role, avatar_path")
       .eq("account_type", "professional")
       .eq("application_status", "approved")
       .eq("is_admin", false)
@@ -214,6 +225,11 @@ export default async function ExplorePage({
               key={p.id}
               className="flex items-center gap-3 rounded-lg border border-border bg-card px-3 py-2.5"
             >
+              <Avatar
+                name={p.display_name}
+                photoPath={p.avatar_path}
+                className="size-9"
+              />
               <div className="min-w-0 flex-1">
                 <Link
                   href={`/profile/${p.id}`}
@@ -253,7 +269,7 @@ export default async function ExplorePage({
           {events.map((e) => (
             <li key={e.id}>
               <Link href={`/explore/events/${e.id}`} className="block">
-                <EventCard event={e} />
+                <EventCard event={e} tz={tz} />
               </Link>
             </li>
           ))}
@@ -299,12 +315,12 @@ export default async function ExplorePage({
   );
 }
 
-function EventCard({ event }: { event: EventRow }) {
+function EventCard({ event, tz }: { event: EventRow; tz: string }) {
   const d = new Date(event.starts_at);
   const month = d
-    .toLocaleDateString(undefined, { month: "short" })
+    .toLocaleDateString(undefined, { month: "short", timeZone: tz })
     .toUpperCase();
-  const day = d.toLocaleDateString(undefined, { day: "numeric" });
+  const day = d.toLocaleDateString(undefined, { day: "numeric", timeZone: tz });
 
   return (
     <article className="flex items-center gap-4 rounded-xl border border-border bg-card p-4 transition-colors hover:border-brand">
@@ -337,7 +353,11 @@ function ArticleCard({ article }: { article: ArticleRow }) {
         <p className="mt-1 text-sm text-muted-foreground">{article.excerpt}</p>
       )}
       <div className="mt-3 flex items-center gap-2">
-        <Avatar name={author} className="size-7 text-xs" />
+        <Avatar
+          name={author}
+          photoPath={article.author?.avatar_path}
+          className="size-7 text-xs"
+        />
         <span className="text-xs text-muted-foreground">By {author}</span>
       </div>
     </article>

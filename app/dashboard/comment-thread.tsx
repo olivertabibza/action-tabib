@@ -17,7 +17,7 @@ type Comment = {
   author_id: string;
   body: string;
   created_at: string;
-  author: { display_name: string | null } | null;
+  author: { display_name: string | null; avatar_path: string | null } | null;
 };
 
 /** Compact relative timestamp for comment rows ("now", "5m", "3h", "6d"). */
@@ -74,7 +74,7 @@ export function CommentThread({
   const supabase = createClient();
 
   const commentSelect =
-    "id, parent_id, author_id, body, created_at, author:profiles!activity_comments_author_id_fkey(display_name)";
+    "id, parent_id, author_id, body, created_at, author:profiles!activity_comments_author_id_fkey(display_name, avatar_path)";
 
   async function toggle() {
     if (open) {
@@ -312,6 +312,7 @@ function CommentRow({
     <div className="flex gap-2.5">
       <Avatar
         name={name}
+        photoPath={comment.author?.avatar_path}
         className="size-9 bg-avatar-fill text-xs text-text-secondary"
       />
       <div className="min-w-0 flex-1">

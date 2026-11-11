@@ -1,11 +1,17 @@
+import type { Metadata } from "next";
 // Fan Profile (F5) — the fan's own account surface: identity header, how many
 // filmmakers they follow, a marketing prompt to upgrade to Pro, and a saved
 // items section. No resume/credits — that's Pro-only. Matched to fan-profile.png.
 import Link from "next/link";
 
 import { createClient } from "@/lib/supabase/server";
+import { viewerTimeZone } from "@/lib/datetime";
 import { Avatar } from "@/components/Avatar";
+import { AvatarUploader } from "@/components/AvatarUploader";
+import { FanNameForm } from "./name-form";
 import { LogoutButton } from "@/components/LogoutButton";
+
+export const metadata: Metadata = { title: "Your profile" };
 
 // The polymorphic saved rows and the two title-lookup shapes they resolve to.
 type SavedRow = { item_type: "event" | "article"; item_id: string };
@@ -13,10 +19,15 @@ type EventLookup = { id: string; title: string; starts_at: string };
 type ArticleLookup = { id: string; title: string; body: string | null };
 
 // "Fri 12th" — short weekday + ordinal day, matching the mockup's subtitle.
-function formatSavedDate(iso: string): string {
+function formatSavedDate(iso: string, tz: string): string {
   const d = new Date(iso);
-  const weekday = d.toLocaleDateString(undefined, { weekday: "short" });
-  const day = d.getDate();
+  const weekday = d.toLocaleDateString(undefined, {
+    weekday: "short",
+    timeZone: tz,
+  });
+  const day = Number(
+    d.toLocaleDateString("en-US", { day: "numeric", timeZone: tz })
+  );
   const suffix =
     day % 10 === 1 && day !== 11
       ? "st"
@@ -36,6 +47,7 @@ function readingMinutes(body: string | null): number {
 
 export default async function FanProfilePage() {
   const supabase = await createClient();
+  const tz = await viewerTimeZone();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -44,11 +56,13 @@ export default async function FanProfilePage() {
   const { data: profile } = user
     ? await supabase
         .from("profiles")
-        .select("display_name")
+        .select("display_name, avatar_path")
         .eq("id", user.id)
         .maybeSingle()
     : { data: null };
-  const name = profile?.display_name || "Your profile";
+  // UX B-31: a fan with no name yet gets an "Add your name" field rather than
+  // a made-up name.
+  const savedName = profile?.display_name?.trim() || null;
 
   // How many filmmakers this fan follows. head + count avoids fetching rows.
   const { count } = user
@@ -100,7 +114,7 @@ export default async function FanProfilePage() {
           key: `event-${s.item_id}`,
           href: `/explore/events/${s.item_id}`,
           title: e.title,
-          subtitle: `Event · ${formatSavedDate(e.starts_at)}`,
+          subtitle: `Event · ${formatSavedDate(e.starts_at, tz)}`,
         },
       ];
     }
@@ -120,9 +134,19 @@ export default async function FanProfilePage() {
     <main className="flex flex-1 flex-col px-4 py-6">
       {/* Identity header */}
       <div className="flex flex-col items-start gap-3">
-        <Avatar name={name} className="size-20 text-2xl" />
+        {user ? (
+          <AvatarUploader
+            userId={user.id}
+            name={savedName}
+            photoPath={profile?.avatar_path ?? null}
+          />
+        ) : (
+          <Avatar name={savedName ?? "?"} className="size-20 text-2xl" />
+        )}
         <div className="flex items-center gap-2">
-          <h1 className="text-2xl font-bold tracking-tight">{name}</h1>
+          <h1 className="text-2xl font-bold tracking-tight">
+            {savedName ?? "Your profile"}
+          </h1>
           <span className="rounded-full bg-brand/10 px-2 py-0.5 text-xs font-semibold text-brand">
             Fan
           </span>
@@ -132,25 +156,7 @@ export default async function FanProfilePage() {
             ? `Following ${followingCount} filmmaker${followingCount === 1 ? "" : "s"}`
             : "Not following anyone yet."}
         </p>
-      </div>
-
-      {/* Upgrade prompt. Links to /for-creators, the established creator-application
-          entry point. NOTE: the real consumer→pro upgrade flow is a separate future
-          step; this is currently just the marketing entry. */}
-      <div className="mt-6 rounded-xl border border-brand/20 bg-brand/5 p-4">
-        <h2 className="font-semibold text-brand">
-          You&rsquo;re an industry professional?
-        </h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Upgrade to a professional account to access classes, projects, and
-          casting.
-        </p>
-        <Link
-          href="/for-creators"
-          className="mt-4 flex items-center justify-center rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-brand-foreground transition-opacity hover:opacity-90"
-        >
-          Apply for a Pro account
-        </Link>
+        <FanNameForm currentName={savedName} />
       </div>
 
       {/* Saved section — the fan's bookmarked events and articles, newest-first. */}
@@ -183,6 +189,25 @@ export default async function FanProfilePage() {
           Nothing saved yet — save events and articles to find them here.
         </p>
       )}
+
+      {/* Upgrade prompt, below Saved (UX B-31): the fan's own things come first. Links to /for-creators, the established creator-application
+          entry point. NOTE: the real consumer→pro upgrade flow is a separate future
+          step; this is currently just the marketing entry. */}
+      <div className="mt-8 rounded-xl border border-brand/20 bg-brand/5 p-4">
+        <h2 className="font-semibold text-brand">
+          You&rsquo;re an industry professional?
+        </h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Upgrade to a professional account to access classes, projects, and
+          casting.
+        </p>
+        <Link
+          href="/for-creators"
+          className="mt-4 flex items-center justify-center rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-brand-foreground transition-opacity hover:opacity-90"
+        >
+          Apply for a Pro account
+        </Link>
+      </div>
 
       {/* Mobile-only logout — desktop has the sidebar control instead. */}
       <LogoutButton className="mt-8 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-border px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50 md:hidden" />

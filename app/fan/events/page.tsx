@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 // Fan Events tab — upcoming published screenings & Q&As to attend, matched to
 // fan-events.png. Events come from the SAME table pros publish to (published
 // rows are readable here); RSVPs are per-viewer. The Fan layout already gates
@@ -6,9 +7,12 @@ import Link from "next/link";
 import { Clock, MapPin } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
+import { viewerTimeZone } from "@/lib/datetime";
 import { eventTypeLabel } from "@/lib/content";
 import { RsvpButton } from "@/app/explore/events/rsvp-button";
 import { Button } from "@/components/ui/button";
+
+export const metadata: Metadata = { title: "Events" };
 
 type EventRow = {
   id: string;
@@ -20,6 +24,7 @@ type EventRow = {
 
 export default async function FanEventsPage() {
   const supabase = await createClient();
+  const tz = await viewerTimeZone();
   const nowIso = new Date().toISOString();
   const {
     data: { user },
@@ -74,10 +79,11 @@ export default async function FanEventsPage() {
           {events.map((e) => {
             const d = new Date(e.starts_at);
             const month = d
-              .toLocaleDateString(undefined, { month: "short" })
+              .toLocaleDateString(undefined, { month: "short", timeZone: tz })
               .toUpperCase();
-            const day = d.toLocaleDateString(undefined, { day: "numeric" });
+            const day = d.toLocaleDateString(undefined, { day: "numeric", timeZone: tz });
             const time = d.toLocaleTimeString(undefined, {
+              timeZone: tz,
               hour: "numeric",
               minute: "2-digit",
             });

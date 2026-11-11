@@ -66,7 +66,9 @@ export default function LoginPage() {
     <main className="flex flex-1 flex-col items-center justify-center px-4 py-20">
       <Card className="w-full max-w-md p-2">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl">Welcome back</CardTitle>
+          <CardTitle className="text-2xl">
+            <h1>Log in</h1>
+          </CardTitle>
           <CardDescription>
             Log in to your Action account to continue.
           </CardDescription>

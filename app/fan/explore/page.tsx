@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 // Fan Explore — the fans' content surface. Articles and events come from the
 // SAME tables pros publish to (published rows are anon-readable, so a normal
 // server query works). The "films/filmmakers to follow" section is still a
@@ -5,6 +6,8 @@
 import Link from "next/link";
 
 import { createClient } from "@/lib/supabase/server";
+import { viewerTimeZone } from "@/lib/datetime";
+import { publicPeople } from "@/lib/public-people";
 import { eventTypeLabel, articleCategoryLabel } from "@/lib/content";
 import { titleCase } from "@/lib/marketplace";
 import { Avatar } from "@/components/Avatar";
@@ -17,11 +20,14 @@ import {
 } from "@/components/ui/card";
 import { FanFollowButton } from "./follow-button";
 
+export const metadata: Metadata = { title: "Explore" };
+
 type CreatorRow = {
   id: string;
   display_name: string | null;
   role: string | null;
   headline: string | null;
+  avatar_path: string | null;
 };
 
 type EventRow = {
@@ -38,7 +44,7 @@ type ArticleRow = {
   category: string;
   excerpt: string;
   created_at: string;
-  author: { display_name: string | null } | null;
+  author: { display_name: string | null; avatar_path: string | null } | null;
 };
 
 export default async function FanExplorePage({
@@ -48,6 +54,7 @@ export default async function FanExplorePage({
 }) {
   const { search } = await searchParams;
   const supabase = await createClient();
+  const tz = await viewerTimeZone();
   const nowIso = new Date().toISOString();
   const {
     data: { user },
@@ -58,7 +65,7 @@ export default async function FanExplorePage({
   // columns for approved pros.
   const { data: creatorData, error: creatorError } = await supabase
     .from("public_profiles")
-    .select("id, display_name, role, headline")
+    .select("id, display_name, role, headline, avatar_path")
     .order("display_name", { nullsFirst: false })
     .limit(12);
   // Failed loads go to app/fan/error.tsx, not the empty states.
@@ -88,19 +95,23 @@ export default async function FanExplorePage({
   if (eventError) throw new Error(`Events load failed: ${eventError.message}`);
   const events = (eventData ?? []) as EventRow[];
 
-  // Published articles, newest first, with the author's name.
+  // Published articles, newest first, with the author's public name (UX B-24).
   const { data: articleData, error: articleError } = await supabase
     .from("articles")
     .select(
-      "id, title, category, excerpt, created_at, author:profiles!articles_created_by_fkey(display_name)"
+      "id, title, category, excerpt, created_at, created_by"
     )
     .eq("status", "published")
     .order("created_at", { ascending: false });
   if (articleError)
     throw new Error(`Articles load failed: ${articleError.message}`);
+  const authors = await publicPeople(
+    supabase,
+    (articleData ?? []).map((a) => a.created_by)
+  );
   const articles = (articleData ?? []).map((a) => ({
     ...a,
-    author: a.author as unknown as { display_name: string | null } | null,
+    author: authors.get(a.created_by) ?? null,
   })) as ArticleRow[];
 
   return (
@@ -127,7 +138,11 @@ export default async function FanExplorePage({
             return (
               <Card key={c.id} className="p-2">
                 <CardHeader className="flex items-center gap-3">
-                  <Avatar name={name} className="size-10" />
+                  <Avatar
+                    name={name}
+                    photoPath={c.avatar_path}
+                    className="size-10"
+                  />
                   <div className="min-w-0 flex-1">
                     <CardTitle className="text-base leading-snug">
                       <Link
@@ -175,9 +190,9 @@ export default async function FanExplorePage({
             {events.map((e) => {
               const d = new Date(e.starts_at);
               const month = d
-                .toLocaleDateString(undefined, { month: "short" })
+                .toLocaleDateString(undefined, { month: "short", timeZone: tz })
                 .toUpperCase();
-              const day = d.toLocaleDateString(undefined, { day: "numeric" });
+              const day = d.toLocaleDateString(undefined, { day: "numeric", timeZone: tz });
               return (
                 <li key={e.id}>
                   <Link
@@ -231,7 +246,11 @@ export default async function FanExplorePage({
                     </p>
                   )}
                   <div className="mt-3 flex items-center gap-2">
-                    <Avatar name={author} className="size-7 text-xs" />
+                    <Avatar
+                      name={author}
+                      photoPath={a.author?.avatar_path}
+                      className="size-7 text-xs"
+                    />
                     <span className="text-xs text-muted-foreground">
                       By {author}
                     </span>

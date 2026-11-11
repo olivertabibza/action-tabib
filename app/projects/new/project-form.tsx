@@ -105,10 +105,22 @@ export function ProjectForm() {
     setValue("tags", [...tags, value], { shouldValidate: true });
   }
 
+  // UX B-11: gender and age don't apply to crew, so a crew role hides those
+  // fields and never sends values typed before switching Billing to Crew.
+  const roleValues = watch("roles");
+
   function onSubmit(values: ProjectFormValues) {
     setServerError(null);
+    const cleaned: ProjectFormValues = {
+      ...values,
+      roles: values.roles.map((r) =>
+        r.billing === "crew"
+          ? { ...r, gender: "any", age_min: null, age_max: null }
+          : r
+      ),
+    };
     startTransition(async () => {
-      const result = await createProject(values);
+      const result = await createProject(cleaned);
       if ("id" in result) {
         router.push(`/projects/${result.id}`);
         return;
@@ -123,12 +135,15 @@ export function ProjectForm() {
         <Label htmlFor="title">Title</Label>
         <Input
           id="title"
-          placeholder="e.g. Lead actor for a short film"
+          placeholder="e.g. Midnight Diner"
           aria-invalid={!!errors.title}
+          aria-describedby={errors.title ? "project-title-error" : undefined}
           {...register("title")}
         />
         {errors.title && (
-          <p className="text-sm text-destructive">{errors.title.message}</p>
+          <p id="project-title-error" className="text-sm text-destructive">
+            {errors.title.message}
+          </p>
         )}
       </div>
 
@@ -138,6 +153,9 @@ export function ProjectForm() {
           id="project_type"
           defaultValue=""
           aria-invalid={!!errors.project_type}
+          aria-describedby={
+            errors.project_type ? "project-project-type-error" : undefined
+          }
           {...register("project_type")}
         >
           <option value="" disabled>
@@ -150,13 +168,21 @@ export function ProjectForm() {
           ))}
         </NativeSelect>
         {errors.project_type && (
-          <p className="text-sm text-destructive">
+          <p
+            id="project-project-type-error"
+            className="text-sm text-destructive"
+          >
             {errors.project_type.message}
           </p>
         )}
       </div>
 
-      <fieldset className="flex flex-col gap-2">
+      <fieldset
+        className="flex flex-col gap-2"
+        aria-describedby={
+          errors.disciplines ? "project-disciplines-error" : undefined
+        }
+      >
         <legend className="mb-2 text-sm font-medium">Disciplines</legend>
         <div className="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-3">
           {PROJECT_DISCIPLINES.map((d) => {
@@ -181,7 +207,10 @@ export function ProjectForm() {
           })}
         </div>
         {errors.disciplines && (
-          <p className="text-sm text-destructive">
+          <p
+            id="project-disciplines-error"
+            className="text-sm text-destructive"
+          >
             {errors.disciplines.message}
           </p>
         )}
@@ -192,6 +221,9 @@ export function ProjectForm() {
         <NativeSelect
           id="compensation"
           aria-invalid={!!errors.compensation}
+          aria-describedby={
+            errors.compensation ? "project-compensation-error" : undefined
+          }
           {...compensationField}
           onChange={(e) => {
             compensationField.onChange(e);
@@ -208,7 +240,10 @@ export function ProjectForm() {
           ))}
         </NativeSelect>
         {errors.compensation && (
-          <p className="text-sm text-destructive">
+          <p
+            id="project-compensation-error"
+            className="text-sm text-destructive"
+          >
             {errors.compensation.message}
           </p>
         )}
@@ -235,6 +270,11 @@ export function ProjectForm() {
                 placeholder="450"
                 className="w-32"
                 aria-invalid={!!errors.pay_min}
+                aria-describedby={
+                  errors.pay_min || errors.pay_max
+                    ? "project-pay-error"
+                    : undefined
+                }
                 {...register("pay_min", { setValueAs: toOptionalInt })}
               />
             </div>
@@ -250,6 +290,11 @@ export function ProjectForm() {
                 placeholder="900"
                 className="w-32"
                 aria-invalid={!!errors.pay_max}
+                aria-describedby={
+                  errors.pay_min || errors.pay_max
+                    ? "project-pay-error"
+                    : undefined
+                }
                 {...register("pay_max", { setValueAs: toOptionalInt })}
               />
             </div>
@@ -271,7 +316,7 @@ export function ProjectForm() {
             </div>
           </div>
           {(errors.pay_min || errors.pay_max) && (
-            <p className="text-sm text-destructive">
+            <p id="project-pay-error" className="text-sm text-destructive">
               {errors.pay_min?.message ?? errors.pay_max?.message}
             </p>
           )}
@@ -284,10 +329,15 @@ export function ProjectForm() {
           id="location"
           placeholder="e.g. Los Angeles, CA or Remote"
           aria-invalid={!!errors.location}
+          aria-describedby={
+            errors.location ? "project-location-error" : undefined
+          }
           {...register("location")}
         />
         {errors.location && (
-          <p className="text-sm text-destructive">{errors.location.message}</p>
+          <p id="project-location-error" className="text-sm text-destructive">
+            {errors.location.message}
+          </p>
         )}
       </div>
 
@@ -298,10 +348,16 @@ export function ProjectForm() {
           rows={6}
           placeholder="What's the project, who are you looking for, dates, and how to stand out."
           aria-invalid={!!errors.description}
+          aria-describedby={
+            errors.description ? "project-description-error" : undefined
+          }
           {...register("description")}
         />
         {errors.description && (
-          <p className="text-sm text-destructive">
+          <p
+            id="project-description-error"
+            className="text-sm text-destructive"
+          >
             {errors.description.message}
           </p>
         )}
@@ -343,6 +399,7 @@ export function ProjectForm() {
         <div className="flex items-center gap-2">
           <Input
             id="tag-draft"
+            aria-describedby={errors.tags ? "project-tags-error" : undefined}
             value={tagDraft}
             maxLength={MAX_TAG_LENGTH}
             disabled={tags.length >= MAX_TAGS}
@@ -371,7 +428,7 @@ export function ProjectForm() {
           </Button>
         </div>
         {errors.tags && (
-          <p className="text-sm text-destructive">
+          <p id="project-tags-error" className="text-sm text-destructive">
             {errors.tags.message ?? "Please check your tags."}
           </p>
         )}
@@ -401,6 +458,11 @@ export function ProjectForm() {
                   id={`role-name-${index}`}
                   placeholder="e.g. Nadia, or Director of Photography"
                   aria-invalid={!!errors.roles?.[index]?.name}
+                  aria-describedby={
+                    errors.roles?.[index]?.name
+                      ? `role-${index}-name-error`
+                      : undefined
+                  }
                   {...register(`roles.${index}.name`)}
                 />
               </div>
@@ -417,7 +479,10 @@ export function ProjectForm() {
               </Button>
             </div>
             {errors.roles?.[index]?.name && (
-              <p className="text-sm text-destructive">
+              <p
+                id={`role-${index}-name-error`}
+                className="text-sm text-destructive"
+              >
                 {errors.roles[index]?.name?.message}
               </p>
             )}
@@ -433,7 +498,19 @@ export function ProjectForm() {
                 <NativeSelect
                   id={`role-billing-${index}`}
                   className="w-36"
-                  {...register(`roles.${index}.billing`)}
+                  {...register(`roles.${index}.billing`, {
+                    // Clear the hidden crew-irrelevant fields so a value typed
+                    // before switching can't fail validation out of sight.
+                    onChange: (e) => {
+                      if (e.target.value === "crew") {
+                        setValue(`roles.${index}.gender`, "any");
+                        setValue(`roles.${index}.age_min`, null);
+                        setValue(`roles.${index}.age_max`, null, {
+                          shouldValidate: true,
+                        });
+                      }
+                    },
+                  })}
                 >
                   {ROLE_BILLINGS.map((b) => (
                     <option key={b} value={b}>
@@ -442,6 +519,8 @@ export function ProjectForm() {
                   ))}
                 </NativeSelect>
               </div>
+              {roleValues?.[index]?.billing !== "crew" && (
+              <>
               <div className="flex flex-col gap-2">
                 <Label
                   htmlFor={`role-gender-${index}`}
@@ -480,6 +559,13 @@ export function ProjectForm() {
                   inputMode="numeric"
                   placeholder="—"
                   className="w-24"
+                  aria-invalid={!!errors.roles?.[index]?.age_min}
+                  aria-describedby={
+                    errors.roles?.[index]?.age_min ||
+                    errors.roles?.[index]?.age_max
+                      ? `role-${index}-age-error`
+                      : undefined
+                  }
                   {...register(`roles.${index}.age_min`, {
                     setValueAs: toOptionalInt,
                   })}
@@ -501,15 +587,26 @@ export function ProjectForm() {
                   placeholder="—"
                   className="w-24"
                   aria-invalid={!!errors.roles?.[index]?.age_max}
+                  aria-describedby={
+                    errors.roles?.[index]?.age_min ||
+                    errors.roles?.[index]?.age_max
+                      ? `role-${index}-age-error`
+                      : undefined
+                  }
                   {...register(`roles.${index}.age_max`, {
                     setValueAs: toOptionalInt,
                   })}
                 />
               </div>
+              </>
+              )}
             </div>
             {(errors.roles?.[index]?.age_min ||
               errors.roles?.[index]?.age_max) && (
-              <p className="text-sm text-destructive">
+              <p
+                id={`role-${index}-age-error`}
+                className="text-sm text-destructive"
+              >
                 {errors.roles[index]?.age_min?.message ??
                   errors.roles[index]?.age_max?.message}
               </p>
@@ -527,10 +624,18 @@ export function ProjectForm() {
                 rows={2}
                 placeholder="A line or two on who this character or position is."
                 aria-invalid={!!errors.roles?.[index]?.description}
+                aria-describedby={
+                  errors.roles?.[index]?.description
+                    ? `role-${index}-description-error`
+                    : undefined
+                }
                 {...register(`roles.${index}.description`)}
               />
               {errors.roles?.[index]?.description && (
-                <p className="text-sm text-destructive">
+                <p
+                  id={`role-${index}-description-error`}
+                  className="text-sm text-destructive"
+                >
                   {errors.roles[index]?.description?.message}
                 </p>
               )}
