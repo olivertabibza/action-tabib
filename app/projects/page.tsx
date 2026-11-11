@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { FolderOpen, FolderPlus, Plus, Star } from "lucide-react";
+import { FolderPlus, Plus, Star } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
 import { viewerTimeZone } from "@/lib/datetime";
@@ -12,6 +12,8 @@ import { hrefWith, type BrowseParams } from "./browse-params";
 import { ProjectSearchCard } from "./project-search";
 import { SortSelect } from "./sort-select";
 import { ProjectRow, type ProjectRowData, type RoleRow } from "./project-row";
+import { MyApplications, MyPostings, myProjectCounts } from "./my-lists";
+import { SegmentedTabs } from "@/components/SegmentedTabs";
 
 export const metadata: Metadata = { title: "Projects" };
 
@@ -40,9 +42,12 @@ function sanitizeQuery(value: string) {
 export default async function ProjectsPage({
   searchParams,
 }: {
-  searchParams: Promise<BrowseParams>;
+  searchParams: Promise<BrowseParams & { tab?: string }>;
 }) {
   const raw = await searchParams;
+  // UX B-06 / PX F01, F02: Browse · Applications · My postings.
+  const tab =
+    raw.tab === "applications" || raw.tab === "postings" ? raw.tab : "browse";
   const params: BrowseParams = {
     q: raw.q?.trim() || undefined,
     location: raw.location?.trim() || undefined,
@@ -69,6 +74,42 @@ export default async function ProjectsPage({
   // the type — the page never renders without a session.
   if (!user) {
     redirect("/login");
+  }
+
+  const counts = await myProjectCounts(user.id);
+  const tabs = (
+    <SegmentedTabs
+      label="Projects views"
+      tabs={[
+        { href: "/projects", label: "Browse", active: tab === "browse" },
+        {
+          href: "/projects?tab=applications",
+          label: "Applications",
+          active: tab === "applications",
+          count: counts.applications,
+        },
+        {
+          href: "/projects?tab=postings",
+          label: "My postings",
+          active: tab === "postings",
+          count: counts.postings,
+        },
+      ]}
+    />
+  );
+
+  if (tab !== "browse") {
+    return (
+      <main className="mx-auto flex w-full max-w-[1248px] flex-1 flex-col gap-[18px] py-[30px] pb-11 max-sm:gap-3 max-sm:py-4">
+        <ProjectsHeader />
+        {tabs}
+        {tab === "applications" ? (
+          <MyApplications userId={user.id} />
+        ) : (
+          <MyPostings userId={user.id} />
+        )}
+      </main>
+    );
   }
 
   // The caller's project saves, in ONE query doing three jobs: the header's
@@ -214,20 +255,7 @@ export default async function ProjectsPage({
 
   return (
     <main className="mx-auto flex w-full max-w-[1248px] flex-1 flex-col gap-[18px] py-[30px] pb-11 max-sm:gap-3 max-sm:py-4">
-      {/* ── Page header ──────────────────────────────────────────────── */}
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="text-[13px] font-semibold uppercase tracking-[0.16em] text-accent-text">
-            Opportunities
-          </p>
-          <h1 className="mt-1.5 font-condensed text-[46px] font-semibold leading-none text-text-primary max-sm:text-[34px]">
-            Projects
-          </h1>
-          <p className="mt-2 text-base text-text-secondary">
-            Find your next role, crew position, or collaboration.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2.5">
+      <ProjectsHeader>
           <Link
             href={hrefWith(params, {
               saved: params.saved ? undefined : "1",
@@ -247,23 +275,8 @@ export default async function ProjectsPage({
             />
             Saved ({savedIds.size})
           </Link>
-          {/* Your applications and postings live on /projects/mine. */}
-          <Link
-            href="/projects/mine"
-            className="focus-ring flex items-center gap-1.5 rounded-pill border-[1.5px] border-accent px-[18px] py-3 text-sm font-semibold text-accent-text transition-colors hover:bg-accent-tint"
-          >
-            <FolderOpen className="size-4" strokeWidth={1.5} />
-            My projects
-          </Link>
-          <Link
-            href="/projects/new"
-            className="focus-ring flex items-center gap-1.5 rounded-pill bg-accent px-[22px] py-3 text-sm font-semibold text-on-accent transition-opacity hover:opacity-90"
-          >
-            <Plus className="size-4" strokeWidth={1.5} />
-            Post a project
-          </Link>
-        </div>
-      </header>
+      </ProjectsHeader>
+      {tabs}
 
       <ProjectSearchCard params={params} />
 
@@ -344,5 +357,34 @@ export default async function ProjectsPage({
         )
       )}
     </main>
+  );
+}
+
+/** Title, intro and Post a project, shared by all three tabs. */
+function ProjectsHeader({ children }: { children?: React.ReactNode }) {
+  return (
+    <header className="flex flex-wrap items-end justify-between gap-4">
+      <div>
+        <p className="text-[13px] font-semibold uppercase tracking-[0.16em] text-accent-text">
+          Opportunities
+        </p>
+        <h1 className="mt-1.5 font-condensed text-[46px] font-semibold leading-none text-text-primary max-sm:text-[34px]">
+          Projects
+        </h1>
+        <p className="mt-2 text-base text-text-secondary">
+          Find your next role, crew position, or collaboration.
+        </p>
+      </div>
+      <div className="flex flex-wrap items-center gap-2.5">
+        {children}
+        <Link
+          href="/projects/new"
+          className="focus-ring flex items-center gap-1.5 rounded-pill bg-accent px-[22px] py-3 text-sm font-semibold text-on-accent transition-opacity hover:opacity-90"
+        >
+          <Plus className="size-4" strokeWidth={1.5} />
+          Post a project
+        </Link>
+      </div>
+    </header>
   );
 }

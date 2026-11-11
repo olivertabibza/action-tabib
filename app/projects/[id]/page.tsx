@@ -25,6 +25,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { disciplineLabel, roleQualifier, titleCase } from "@/lib/marketplace";
 import { ApplyForm } from "./apply-form";
+import { ShareButton } from "../share-button";
 import { OwnerControls } from "./owner-controls";
 
 // Tab and history title: the project's own name (UX B-32). RLS applies, so
@@ -140,9 +141,13 @@ export default async function ProjectDetailPage({
 
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
-            {project.title}
-          </h1>
+          <div className="flex items-start gap-2">
+            <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
+              {project.title}
+            </h1>
+            {/* Copy link lives here, not on every browse card (UX B-06). */}
+            <ShareButton path={`/projects/${project.id}`} title={project.title} />
+          </div>
           {poster && (
             <p className="mt-2 text-muted-foreground">
               Posted by {poster.display_name || "A member"}
@@ -454,7 +459,7 @@ function RolesCard({
 function MyApplicationsLink() {
   return (
     <Link
-      href="/projects/mine"
+      href="/projects?tab=applications"
       className="mt-2 inline-block text-sm font-medium text-brand hover:underline"
     >
       See all your applications in My projects

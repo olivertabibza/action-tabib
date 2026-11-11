@@ -11,7 +11,6 @@ import {
   projectTypeLabel,
   roleQualifier,
 } from "@/lib/marketplace";
-import { ShareButton } from "./share-button";
 
 export type Poster = {
   display_name: string | null;
@@ -112,13 +111,13 @@ export function ProjectRow({
             </Link>
           </h2>
           <div className="flex shrink-0 items-center gap-1">
+            {/* UX B-06: "Copy link" left the card (it's on the project page). */}
             <SaveButton
               variant="icon"
               itemType="project"
               itemId={project.id}
               initialSaved={saved}
             />
-            <ShareButton path={href} title={project.title} />
           </div>
         </div>
 
@@ -162,7 +161,7 @@ export function ProjectRow({
             href={href}
             className="focus-ring rounded-pill bg-accent px-[22px] py-[11px] text-sm font-semibold text-on-accent transition-opacity hover:opacity-90 max-sm:w-full max-sm:text-center"
           >
-            {isOwn ? "View your project" : <>View details &amp; apply</>}
+            {isOwn ? "View your project" : "View project"}
           </Link>
           {circleApplied > 0 && (
             // No avatar stack: circle_applied_counts() returns a bare count and
@@ -184,7 +183,7 @@ export function ProjectRow({
 
         {roles.length === 0 ? (
           <p className="mt-3 text-[13px] text-text-tertiary">
-            No individual roles listed — apply to the production.
+            No individual roles listed.
           </p>
         ) : (
           <ul className="mt-3 flex flex-col gap-3">
@@ -207,17 +206,12 @@ export function ProjectRow({
                       </p>
                     )}
                   </div>
-                  {isOwn ? null : applied ? (
+                  {/* UX B-06: no Apply pill per role (a phone showed 20+);
+                      you pick the role on the project page. */}
+                  {!isOwn && applied && (
                     <span className="shrink-0 rounded-pill bg-accent-tint px-3 py-1 text-[12.5px] font-semibold text-accent-text">
                       Applied
                     </span>
-                  ) : (
-                    <Link
-                      href={`${href}?role=${role.id}`}
-                      className="focus-ring shrink-0 rounded-pill border-[1.5px] border-accent px-3 py-1 text-[12.5px] font-semibold text-accent-text transition-colors hover:bg-accent-tint"
-                    >
-                      Apply
-                    </Link>
                   )}
                 </li>
               );

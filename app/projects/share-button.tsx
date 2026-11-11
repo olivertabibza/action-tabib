@@ -4,7 +4,8 @@ import { useState } from "react";
 import { Check, Share2 } from "lucide-react";
 
 /**
- * The design's share icon on each project card. There is no share target to
+ * The share icon beside a project's title on its page (it left the browse
+ * cards in UX B-06). There is no share target to
  * post to, so this does the one honest thing available: copies the project's
  * URL to the clipboard. It is NOT a dead button.
  */
