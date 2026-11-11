@@ -60,7 +60,7 @@ export async function MyApplications({ userId }: { userId: string }) {
   const { data: applied, error } = await supabase
     .from("applications")
     .select(
-      "id, status, created_at, project:projects(id, title, disciplines, location, compensation, status)"
+      "id, status, created_at, project:projects(id, title, disciplines, location, compensation, status), role:project_roles(name)"
     )
     .eq("applicant_id", userId)
     .order("created_at", { ascending: false });
@@ -77,13 +77,25 @@ export async function MyApplications({ userId }: { userId: string }) {
               status: string;
             } | null;
             if (!project) return null;
+            // Two roles on one production read as two identical rows
+            // without the role's name.
+            const role = a.role as unknown as { name: string } | null;
             return (
               <li key={a.id}>
                 <Link
                   href={`/projects/${project.id}`}
                   className="flex items-center justify-between gap-4 rounded-lg border border-border px-4 py-3 transition-colors hover:border-brand"
                 >
-                  <span className="font-medium">{project.title}</span>
+                  <span className="min-w-0">
+                    <span className="block truncate font-medium">
+                      {project.title}
+                    </span>
+                    {role && (
+                      <span className="block truncate text-sm text-muted-foreground">
+                        {role.name}
+                      </span>
+                    )}
+                  </span>
                   <span className="shrink-0 rounded-full bg-brand/10 px-2.5 py-0.5 text-xs font-medium text-brand">
                     {titleCase(a.status)}
                   </span>
