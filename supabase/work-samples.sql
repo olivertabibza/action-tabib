@@ -40,8 +40,18 @@ create policy "Owners delete own work samples"
     and (storage.foldername(name))[1] = auth.uid()::text
   );
 
+-- Owner reads their own folder. Playback doesn't need it (the bucket is
+-- public), but Storage only deletes rows the caller can also SELECT, so
+-- without it a removed clip's file was never actually deleted (ENG F13).
+drop policy if exists "Owners read own work sample files" on storage.objects;
+create policy "Owners read own work sample files"
+  on storage.objects for select
+  using (
+    bucket_id = 'work_samples'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
 -- No UPDATE policy: replacing a clip = delete + re-upload.
--- No SELECT policy: the bucket is public, so playback bypasses RLS.
 
 
 -- ── 3. work_samples table ───────────────────────────────────────────────────

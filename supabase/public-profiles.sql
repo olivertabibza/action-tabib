@@ -40,3 +40,17 @@ create policy "Public can read approved pros portfolio files"
         and p.application_status = 'approved'
     )
   );
+
+-- Owners delete files in their own portfolio folder. The app uses it only to
+-- clean up after an application that failed to save (ENG F13); before this,
+-- the bucket had no delete rule, so those files could never be removed.
+-- Reading your own folder is already allowed ("Users can read own portfolio
+-- files"), which Storage also requires for a delete.
+drop policy if exists "Users delete own portfolio files" on storage.objects;
+create policy "Users delete own portfolio files"
+  on storage.objects for delete
+  to authenticated
+  using (
+    bucket_id = 'portfolios'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );

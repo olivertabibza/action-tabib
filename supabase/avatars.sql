@@ -63,6 +63,18 @@ create policy "Members upload own avatar"
     and (storage.foldername(name))[1] = auth.uid()::text
   );
 
+-- Owner reads their own folder. Not for showing photos (the bucket is public)
+-- but because Storage only deletes rows the caller can also SELECT: without
+-- this, removing an old photo silently deleted nothing.
+drop policy if exists "Members read own avatar" on storage.objects;
+create policy "Members read own avatar"
+  on storage.objects for select
+  to authenticated
+  using (
+    bucket_id = 'avatars'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
 -- Owner deletes their own old photos.
 drop policy if exists "Members delete own avatar" on storage.objects;
 create policy "Members delete own avatar"
@@ -74,4 +86,3 @@ create policy "Members delete own avatar"
   );
 
 -- No UPDATE policy: a new photo is a new file (see the header).
--- No SELECT policy: the bucket is public, so images load without one.

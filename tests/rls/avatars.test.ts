@@ -57,6 +57,19 @@ describe("profile photos", () => {
     uploaded.push(path);
   });
 
+  test("a2) a member can delete their own old photo", async () => {
+    // Storage only deletes files the caller can also read, so this needs the
+    // "Members read own avatar" policy as well as the delete one.
+    const path = `${meId}/${crypto.randomUUID()}.png`;
+    const up = await me.storage
+      .from("avatars")
+      .upload(path, TINY_PNG, { contentType: "image/png" });
+    expect(up.error).toBeNull();
+    const { data, error } = await me.storage.from("avatars").remove([path]);
+    expect(error).toBeNull();
+    expect(data ?? []).toHaveLength(1);
+  });
+
   test("b) a member can't upload into someone else's folder", async () => {
     const path = `${otherId}/${crypto.randomUUID()}.png`;
     const { error } = await me.storage
