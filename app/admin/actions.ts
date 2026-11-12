@@ -1,8 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 
 import { createClient } from "@/lib/supabase/server";
+import { applicationDecisionEmail, sendEmail } from "@/lib/email";
 import { MAX_REVIEW_REASON, type ReviewItemType } from "@/lib/review-reasons";
 import {
   applicationDecisionSchema,
@@ -119,8 +121,49 @@ export async function decideApplication(
     return { error: `Decision saved, but the reason wasn't: ${reasonError.message}` };
   }
 
+  // Tell the applicant (PX F15). A re-queue sends nothing.
+  if (parsed.data !== "pending") {
+    await emailApplicant(gate.supabase, profileId, parsed.data, cleaned);
+  }
+
   revalidatePath("/admin");
   return { success: true };
+}
+
+/**
+ * The decision email. The login address comes from admin_profile_emails
+ * (admin-only, supabase/profile-privacy.sql). Sending never fails the
+ * decision: lib/email.ts logs and moves on, and skips when email isn't set up.
+ */
+async function emailApplicant(
+  supabase: AdminClient,
+  profileId: string,
+  decision: "approved" | "rejected",
+  reason: string | null
+) {
+  const [{ data: emails }, { data: profile }] = await Promise.all([
+    supabase.rpc("admin_profile_emails", { p_ids: [profileId] }),
+    supabase
+      .from("profiles")
+      .select("display_name")
+      .eq("id", profileId)
+      .maybeSingle(),
+  ]);
+  const to = (emails as { id: string; email: string }[] | null)?.[0]?.email;
+  if (!to) return;
+
+  const h = await headers();
+  const origin =
+    h.get("origin") ?? `https://${h.get("x-forwarded-host") ?? h.get("host")}`;
+  await sendEmail({
+    to,
+    ...applicationDecisionEmail({
+      name: profile?.display_name ?? null,
+      decision,
+      reason,
+      origin,
+    }),
+  });
 }
 
 /**

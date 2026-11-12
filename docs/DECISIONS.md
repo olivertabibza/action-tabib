@@ -2,6 +2,24 @@
 
 A running log of significant decisions. Newest entries go at the top.
 
+## 2026-11-11 — Password reset and decision emails
+
+**Decision:** The email findings (ENG F14, PX F14, F15), in two parts.
+- **Password reset.**
+  - Log in has "Forgot your password?", which leads to `/forgot-password`. That page calls `resetPasswordForEmail` and never says whether an account exists.
+  - The link returns through `/auth/callback` like sign-up confirmations. A one-hour `auth_next=reset-password` cookie, set by the request page, sends it to `/reset-password` instead of `/onboarding`.
+  - Only that exact value is honoured, so the cookie can't redirect anywhere else, and no new redirect URL is needed in Supabase.
+  - `/reset-password` needs the session the link created. Without one it asks for a new link.
+  - `/auth/error?reason=reset` explains an expired link, or one opened in another browser (the code exchange needs the browser that asked).
+- **Decision emails.** Approving or rejecting a pro application emails the applicant through Resend's HTTP API (`lib/email.ts`). A rejection includes the reviewer's reason; a re-queue sends nothing.
+  - The address comes from `admin_profile_emails`, and a failed send never fails the decision.
+  - Configured by `RESEND_API_KEY` and `EMAIL_FROM` (server-only env vars). Without them, sending is skipped with a log line.
+- **Delivery of Supabase's own emails** (sign-up confirmation, reset links) needs custom SMTP. Supabase's built-in sender only delivers to the project's team members. Resend's SMTP, on a verified domain, is set in the Supabase dashboard; there's no code for it.
+
+**Reasoning:** Without these, a member who forgets their password is locked out, and an applicant never hears they were approved.
+
+**Alternatives considered:** A `?next=` parameter on the callback, which would need every variant added to Supabase's redirect allow-list and an open-redirect check. Supabase's token-hash email templates (`/auth/confirm`), which work across browsers but need both email templates edited in the dashboard; a later option.
+
 ## 2026-11-11 — Applicant status, portfolio editing, job type per role, and a better review queue
 
 **Decision:** The last four audit findings, all of which needed SQL.
