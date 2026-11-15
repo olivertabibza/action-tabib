@@ -21,12 +21,15 @@ export function Nav({
   isAdmin,
   isApprovedPro,
   isConsumer,
+  isGuest,
 }: {
   authed: boolean;
   displayName: string | null;
   isAdmin: boolean;
   isApprovedPro: boolean;
   isConsumer: boolean;
+  /** Demo guest (anonymous sign-in): no Log out, since they can't sign back in. */
+  isGuest: boolean;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -158,15 +161,17 @@ export function Nav({
                 </span>
               )}
               <ThemeToggle />
-              <Button
-                variant="outline"
-                size="lg"
-                onClick={handleLogout}
-                disabled={loggingOut}
-              >
-                <LogOut className="size-4" strokeWidth={1.5} />
-                {loggingOut ? "Logging out…" : "Log out"}
-              </Button>
+              {!isGuest && (
+                <Button
+                  variant="outline"
+                  size="lg"
+                  onClick={handleLogout}
+                  disabled={loggingOut}
+                >
+                  <LogOut className="size-4" strokeWidth={1.5} />
+                  {loggingOut ? "Logging out…" : "Log out"}
+                </Button>
+              )}
             </>
           ) : (
             <>
@@ -233,7 +238,7 @@ export function Nav({
               {link.label}
             </Link>
           ))}
-          {authed ? (
+          {authed && !isGuest ? (
             <Button
               variant="outline"
               size="lg"

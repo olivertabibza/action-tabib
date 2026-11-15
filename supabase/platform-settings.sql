@@ -4,7 +4,8 @@
 -- Safe to run more than once (if not exists / drop-then-create / on conflict).
 --
 -- Run this in the Supabase SQL editor AFTER admin.sql (is_admin) and BEFORE
--- status-guards.sql, whose guard triggers call auto_approve_enabled().
+-- demo-guests.sql and status-guards.sql, whose guard triggers call
+-- auto_approve_enabled() and read demo_mode.
 --
 -- One row, four switches — one per thing with a review step: pro
 -- applications, classes, events and articles. When a switch is on, the guard
@@ -30,6 +31,13 @@ create table if not exists public.platform_settings (
 
 insert into public.platform_settings (id) values (true)
 on conflict (id) do nothing;
+
+-- Demo mode (supabase/demo-guests.sql): while on, an anonymous sign-in from
+-- /demo can create an approved "Guest N" profile. Off by default, admin-only
+-- like the switches above (same RLS). Its reader, demo_mode_enabled(), and
+-- everything else about guests lives in demo-guests.sql.
+alter table public.platform_settings
+  add column if not exists demo_mode boolean not null default false;
 
 
 -- ── 2. RLS: admins read and update; nobody inserts or deletes ───────────────

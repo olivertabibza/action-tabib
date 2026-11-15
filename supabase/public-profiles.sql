@@ -10,12 +10,15 @@
 -- Columns can only be APPENDED with create or replace view:
 --   * skills: multi-discipline.sql;
 --   * avatar_path: avatars.sql adds the column, so run that file first.
+--   * is_demo_guest: demo-guests.sql adds the column, so run that file first.
+--     Guests stay in the view, so links to them and their bylines work; lists
+--     for browsing people (People, Explore, search) filter them out.
 -- Admins are staff accounts, not members, so they're left out of everything
 -- that reads this view: public profiles, People, fan Explore, bylines and
 -- global_search (UX B-02).
 create or replace view public.public_profiles as
   select id, display_name, role, headline, bio, portfolio_files, skills,
-         avatar_path
+         avatar_path, is_demo_guest
   from public.profiles
   where account_type = 'professional'
     and application_status = 'approved'

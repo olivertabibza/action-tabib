@@ -38,6 +38,7 @@ export async function SiteNav() {
       isAdmin={isAdmin}
       isApprovedPro={isApprovedPro}
       isConsumer={isConsumer}
+      isGuest={!!user?.is_anonymous}
     />
   );
 }

@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { AdminNav } from "../admin-nav";
 import type { AutoApproveKind } from "../schema";
 import { AutoApproveRow } from "./auto-approve-row";
+import { DemoModeRow } from "./demo-mode-row";
 
 export const metadata: Metadata = { title: "Settings · Admin" };
 
@@ -30,7 +31,7 @@ export default async function AdminSettingsPage() {
     supabase
       .from("platform_settings")
       .select(
-        "auto_approve_pro_applications, auto_approve_classes, auto_approve_events, auto_approve_articles"
+        "auto_approve_pro_applications, auto_approve_classes, auto_approve_events, auto_approve_articles, demo_mode"
       )
       .maybeSingle(),
     supabase
@@ -89,6 +90,7 @@ export default async function AdminSettingsPage() {
               pending={pendingCount[row.kind]}
             />
           ))}
+          <DemoModeRow enabled={settings.demo_mode === true} />
         </div>
       )}
 

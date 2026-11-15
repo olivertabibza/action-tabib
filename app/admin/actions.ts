@@ -277,6 +277,31 @@ export async function setAutoApprove(kind: AutoApproveKind, enabled: boolean) {
 }
 
 /**
+ * Turn demo mode (live-event guest entry at /demo, supabase/demo-guests.sql)
+ * on or off. Admin-only through RLS, with requireAdmin() as the second layer.
+ * Turning it off stops new guests; existing guests keep their accounts until
+ * the cleanup script removes them.
+ */
+export async function setDemoMode(enabled: boolean) {
+  if (typeof enabled !== "boolean") return { error: "Unknown setting." };
+
+  const gate = await requireAdmin();
+  if ("error" in gate) return { error: gate.error };
+
+  const { error } = await gate.supabase
+    .from("platform_settings")
+    .update({ demo_mode: enabled })
+    .eq("id", true);
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath("/admin/settings");
+  return { success: true };
+}
+
+/**
  * Approve everything currently pending of one kind, as the admin through RLS.
  * Pro applications are limited to professional rows: consumers also sit at
  * application_status = 'pending' and must never be approved.

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
 
@@ -12,6 +12,10 @@ import { cn } from "@/lib/utils";
  * (signOut → push("/") → refresh) so every entry point behaves identically.
  * Styling is left to the caller via `className`; it renders the LogOut icon and
  * a label that flips to "Logging out…" while the request is in flight.
+ *
+ * Hidden for demo guests (anonymous sign-ins, supabase/demo-guests.sql): they
+ * have no email or password, so logging out would lose the account for good.
+ * It renders nothing until the session is read, so a guest never sees it.
  */
 export function LogoutButton({
   className,
@@ -24,6 +28,13 @@ export function LogoutButton({
 }) {
   const router = useRouter();
   const [loggingOut, setLoggingOut] = useState(false);
+  const [canLogOut, setCanLogOut] = useState(false);
+
+  useEffect(() => {
+    createClient()
+      .auth.getSession()
+      .then(({ data }) => setCanLogOut(!data.session?.user.is_anonymous));
+  }, []);
 
   async function handleLogout() {
     setLoggingOut(true);
@@ -34,6 +45,8 @@ export function LogoutButton({
     router.push("/");
     router.refresh();
   }
+
+  if (!canLogOut) return null;
 
   return (
     <button

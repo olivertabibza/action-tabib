@@ -200,10 +200,13 @@ export default async function ProfilePage() {
             <CardTitle className="text-xl">Account</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Email</p>
-              <p className="mt-1">{user.email}</p>
-            </div>
+            {/* Demo guests (anonymous sign-ins) have no email. */}
+            {user.email && (
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Email</p>
+                <p className="mt-1">{user.email}</p>
+              </div>
+            )}
             {/* Appearance lives here, not in the top bar (UX B-19). */}
             <div>
               <p className="text-sm font-medium text-muted-foreground">

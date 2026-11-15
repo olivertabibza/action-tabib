@@ -159,13 +159,14 @@ export default async function DashboardPage() {
 
   // Connect suggestions (LIVE) — approved professionals the user doesn't already
   // follow and isn't themselves. Same query shape as app/explore/(tab)/people/page.tsx.
-  // Staff admins are left out of member lists.
+  // Staff admins and demo guests are left out of member lists.
   const { data: candidates } = await supabase
     .from("profiles")
     .select("id, display_name, role, avatar_path")
     .eq("account_type", "professional")
     .eq("application_status", "approved")
     .eq("is_admin", false)
+    .eq("is_demo_guest", false)
     .neq("id", user.id)
     .order("display_name", { nullsFirst: false });
 

@@ -6,8 +6,9 @@
 --
 -- Run this in the Supabase SQL editor, AFTER marketplace.sql
 -- (profiles.application_status), admin.sql (is_admin, profiles.is_admin),
--- content.sql + content-review.sql (events, articles), classes.sql AND
--- platform-settings.sql (auto_approve_enabled). Re-run it after
+-- content.sql + content-review.sql (events, articles), classes.sql,
+-- platform-settings.sql (auto_approve_enabled) AND demo-guests.sql
+-- (is_demo_guest, demo_mode_enabled, demo_guest_profile). Re-run it after
 -- platform-settings.sql if you ran it before Phase 1b.
 --
 -- Why: RLS decides WHICH ROWS a caller may write, never WHICH COLUMNS. So
@@ -46,6 +47,11 @@
 -- all three columns are put back to their stored values; every other column
 -- (display_name, headline, bio, …) stays editable by its owner.
 --
+-- An anonymous caller (Supabase anonymous sign-in, from /demo) is a demo
+-- guest: its new profile is an approved professional named "Guest N" while
+-- demo mode is on, and the insert is refused while it is off. is_demo_guest is
+-- false for everyone else and locked on UPDATE (demo-guests.sql).
+--
 -- account_type is locked on UPDATE only. Onboarding legitimately chooses
 -- 'professional' or 'consumer' at INSERT, but switching afterwards would let a
 -- consumer join the applications queue without applying (and be swept up by a
@@ -61,6 +67,22 @@ begin
   end if;
   if tg_op = 'INSERT' then
     new.is_admin := false;
+    -- Demo guests (demo-guests.sql): only an anonymous sign-in, and only while
+    -- demo mode is on. Everything privileged comes from here, not the client.
+    if coalesce((auth.jwt() ->> 'is_anonymous')::boolean, false) then
+      if not public.demo_mode_enabled() then
+        raise exception 'Guest accounts are only open during a live demo.'
+          using errcode = '42501';
+      end if;
+      select g.display_name, g.role, g.skills, g.headline, g.bio
+        into new.display_name, new.role, new.skills, new.headline, new.bio
+        from public.demo_guest_profile() g;
+      new.account_type := 'professional';
+      new.application_status := 'approved';
+      new.is_demo_guest := true;
+      return new;
+    end if;
+    new.is_demo_guest := false;
     if new.account_type = 'professional'
        and public.auto_approve_enabled('pro_applications') then
       new.application_status := 'approved';
@@ -71,6 +93,7 @@ begin
     new.is_admin := old.is_admin;
     new.application_status := old.application_status;
     new.account_type := old.account_type;
+    new.is_demo_guest := old.is_demo_guest;
   end if;
   return new;
 end;
