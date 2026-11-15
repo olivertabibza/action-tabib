@@ -261,6 +261,36 @@ export default async function ExplorePage({
         />
       )}
 
+      {/* Read */}
+      <div className="mt-8 flex items-center justify-between gap-3">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          Read
+        </h2>
+        <Button asChild size="sm" variant="outline">
+          <Link href="/explore/articles/new">
+            <PenLine className="size-4" />
+            Write an article
+          </Link>
+        </Button>
+      </div>
+      {articles.length > 0 ? (
+        <ul className="mt-3 flex flex-col gap-3">
+          {articles.map((a) => (
+            <li key={a.id}>
+              <Link href={`/explore/articles/${a.id}`} className="block">
+                <ArticleCard article={a} />
+              </Link>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <EmptyState
+          icon={<Newspaper className="size-7 text-muted-foreground" />}
+          title="No articles yet"
+          body="Interviews, craft pieces, and scene reports will appear here once they're published."
+        />
+      )}
+
       {/* People */}
       <div className="mt-8 flex items-center justify-between gap-3">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
@@ -302,36 +332,6 @@ export default async function ExplorePage({
         <p className="mt-3 text-sm text-muted-foreground">
           You&rsquo;re already following everyone on Action.
         </p>
-      )}
-
-      {/* Read */}
-      <div className="mt-8 flex items-center justify-between gap-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-          Read
-        </h2>
-        <Button asChild size="sm" variant="outline">
-          <Link href="/explore/articles/new">
-            <PenLine className="size-4" />
-            Write an article
-          </Link>
-        </Button>
-      </div>
-      {articles.length > 0 ? (
-        <ul className="mt-3 flex flex-col gap-3">
-          {articles.map((a) => (
-            <li key={a.id}>
-              <Link href={`/explore/articles/${a.id}`} className="block">
-                <ArticleCard article={a} />
-              </Link>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <EmptyState
-          icon={<Newspaper className="size-7 text-muted-foreground" />}
-          title="No articles yet"
-          body="Interviews, craft pieces, and scene reports will appear here once they're published."
-        />
       )}
     </main>
   );
