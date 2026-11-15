@@ -59,7 +59,8 @@ grant select (
   bio,
   is_admin,
   skills,
-  avatar_path -- added by avatars.sql; run that file before re-running this one
+  avatar_path, -- added by avatars.sql; run that file before re-running this one
+  is_demo_guest -- added by demo-guests.sql; same rule
 ) on public.profiles to anon, authenticated;
 
 

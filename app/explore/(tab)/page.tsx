@@ -124,6 +124,7 @@ export default async function ExplorePage({
       .eq("account_type", "professional")
       .eq("application_status", "approved")
       .eq("is_admin", false)
+      .eq("is_demo_guest", false)
       .not("id", "in", `(${excluded.join(",")})`)
       .order("display_name", { nullsFirst: false })
       .limit(6);

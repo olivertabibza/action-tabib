@@ -6,7 +6,8 @@
 -- Run this ONCE in the Supabase SQL editor, AFTER marketplace.sql, classes.sql
 -- and public-profiles.sql: it reuses public.is_approved_pro() (marketplace.sql,
 -- also relied on by classes.sql) and reads public.public_profiles
--- (public-profiles.sql), so those must already exist. It also reads
+-- (public-profiles.sql), so those must already exist. Re-run it after
+-- demo-guests.sql and public-profiles.sql, which add is_demo_guest. It also reads
 -- public.events / public.articles (content.sql) and public.classes
 -- (classes.sql).
 --
@@ -73,6 +74,7 @@ as $$
       coalesce(pp.bio, '')                                   as snippet
     from public.public_profiles pp, params
     where length(params.term) >= 2
+      and not pp.is_demo_guest -- live-event guests (demo-guests.sql)
       and (
         pp.display_name ilike '%' || params.term || '%'
         or pp.role      ilike '%' || params.term || '%'

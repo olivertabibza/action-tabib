@@ -71,6 +71,7 @@ export default async function FanExplorePage({
   const { data: creatorData, error: creatorError } = await supabase
     .from("public_profiles")
     .select("id, display_name, role, headline, avatar_path")
+    .eq("is_demo_guest", false)
     .order("display_name", { nullsFirst: false })
     .limit(12);
   // Failed loads go to app/fan/error.tsx, not the empty states.

@@ -2,6 +2,19 @@
 
 A running log of significant decisions. Newest entries go at the top.
 
+## 2026-11-15 — Demo guests for live events
+
+**Decision:** A QR code opens `/demo`, which signs a guest in with Supabase anonymous sign-in and lands them on `/dashboard` as an approved pro named "Guest N".
+- **Switch.** `platform_settings.demo_mode` (off by default, admins only), shown as "Demo mode" on `/admin/settings`. While it's off, `/demo` redirects to `/` and creates nothing.
+- **Security lives in `profiles_guard_privileged`** (`status-guards.sql`). A new profile from an anonymous JWT is forced to professional, approved, `is_demo_guest`, "Guest N" (from `demo_guest_seq`) and one of six sample profiles, whatever the client sends. While demo mode is off the insert is refused, pro or fan. Real accounts are never guests, and `is_demo_guest` is locked on update. The objects live in `supabase/demo-guests.sql`.
+- **Guests stay in `public_profiles`**, so `/profile/<id>` links (applicants, rosters, Feed, messages) and bylines work. The view exposes `is_demo_guest`, and the browsing lists filter it out: People, Feed suggestions, pro Explore, fan Explore and `global_search`.
+- **Guest UI.** No Log out (they couldn't sign back in) and no Email row on `/profile`.
+- **Cleanup.** `supabase/one-off/2026-11-19-remove-demo-guests.sql` deletes every anonymous auth user, with a dry run first. It counts other members' rows that go with them, and it reports uploaded files, which SQL can't delete.
+
+**Reasoning:** Guests need the real Pro app without a signup. Anonymous sign-in gives each one their own account, and keeping every privilege decision in the guard means a client can't make itself a guest, or make a guest anything else.
+
+**Alternatives considered:** Leaving guests out of `public_profiles` like admins. That broke every profile link to a guest and their bylines, so the view keeps them and the lists filter them.
+
 ## 2026-11-11 — Password reset and decision emails
 
 **Decision:** The email findings (ENG F14, PX F14, F15), in two parts.
