@@ -241,5 +241,39 @@ describe("demo guests", () => {
       expect(error).toBeNull();
       expect((hits ?? []).some((h: { id: string }) => h.id === guestId)).toBe(false);
     });
+
+    test("8) a new guest follows the members, not admins or guests, so its Feed has posts", async () => {
+      const [proId, adminId] = await Promise.all([
+        getProfileId(PRO),
+        getProfileId(ADMIN_KEY),
+      ]);
+
+      const { data: follows, error } = await guest
+        .from("follows")
+        .select("following_id")
+        .eq("follower_id", guestId);
+      expect(error).toBeNull();
+      const following = (follows ?? []).map((f) => f.following_id as string);
+      expect(following).toContain(proId);
+      expect(following).not.toContain(adminId);
+      expect(following).not.toContain(guestId);
+
+      // None of them is another guest.
+      const { data: guestsFollowed } = await pro
+        .from("public_profiles")
+        .select("id")
+        .in("id", following)
+        .eq("is_demo_guest", true);
+      expect(guestsFollowed).toEqual([]);
+
+      // The Feed's own rule (self + followed) now lets the guest see a
+      // member's posts: the seed gives every approved seed pro status updates.
+      const { data: feed } = await guest
+        .from("activity_events")
+        .select("id")
+        .eq("actor_id", proId)
+        .limit(1);
+      expect(feed ?? []).toHaveLength(1);
+    });
   });
 });
