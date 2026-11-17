@@ -15,7 +15,8 @@
 --     "Guest N", marked is_demo_guest and pre-filled with the sample details
 --     below, but only while demo_mode is on; while it is off the insert fails;
 --   * a non-anonymous caller's profile is never a guest;
---   * is_demo_guest is locked on update, like is_admin.
+--   * is_demo_guest is locked on update, like is_admin;
+--   * a new guest follows every approved member, so its Feed isn't empty.
 --
 -- Guests stay in public_profiles (so /profile/<id> links and bylines work) but
 -- are left out of browsing lists: People, Feed suggestions, pro and fan
@@ -99,3 +100,45 @@ $$;
 
 revoke execute on function public.demo_guest_profile() from public, anon;
 grant execute on function public.demo_guest_profile() to authenticated, service_role;
+
+
+-- ── 5. A new guest follows the members ──────────────────────────────────────
+-- The Feed shows only your own posts and the people you follow
+-- ("Read self and followed activity", social-feed.sql). A new guest follows
+-- nobody, so every guest landed on "Your feed is quiet". The moment a guest's
+-- profile is created it now follows every approved member (no admins, no other
+-- guests), so the Feed is full from the first screen.
+--
+-- After insert, because the follows rows need the profile to exist (FK). The
+-- WHEN clause reads is_demo_guest as profiles_guard_privileged left it, so a
+-- client can never trigger this for a real account. Security definer so the
+-- insert doesn't depend on the guest's own follows policy; nothing is
+-- returned to the caller. The rows go with the guest (ON DELETE CASCADE) when
+-- the cleanup script removes guests.
+create or replace function public.demo_guest_follow_members()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  insert into public.follows (follower_id, following_id)
+  select new.id, p.id
+  from public.profiles p
+  where p.account_type = 'professional'
+    and p.application_status = 'approved'
+    and not p.is_admin
+    and not p.is_demo_guest
+    and p.id <> new.id
+  on conflict do nothing;
+  return null;
+end;
+$$;
+
+revoke execute on function public.demo_guest_follow_members() from public, anon, authenticated;
+
+drop trigger if exists profiles_demo_guest_follows on public.profiles;
+create trigger profiles_demo_guest_follows
+  after insert on public.profiles
+  for each row when (new.is_demo_guest)
+  execute function public.demo_guest_follow_members();
