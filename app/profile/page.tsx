@@ -194,30 +194,33 @@ export default async function ProfilePage() {
           </Card>
         )}
 
-        {/* Account info (read-only) */}
-        <Card className="p-2">
-          <CardHeader>
-            <CardTitle className="text-xl">Account</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-4">
-            {/* Demo guests (anonymous sign-ins) have no email. */}
-            {user.email && (
+        {/* Account info (read-only). Demo guests have no email and are
+            always light (see app/(public)/demo/route.ts), so they get none. */}
+        {!user.is_anonymous && (
+          <Card className="p-2">
+            <CardHeader>
+              <CardTitle className="text-xl">Account</CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-4">
+              {/* Demo guests (anonymous sign-ins) have no email. */}
+              {user.email && (
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Email</p>
+                  <p className="mt-1">{user.email}</p>
+                </div>
+              )}
+              {/* Appearance lives here, not in the top bar (UX B-19). */}
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Email</p>
-                <p className="mt-1">{user.email}</p>
+                <p className="text-sm font-medium text-muted-foreground">
+                  Appearance
+                </p>
+                <div className="mt-2">
+                  <AppearanceSetting />
+                </div>
               </div>
-            )}
-            {/* Appearance lives here, not in the top bar (UX B-19). */}
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">
-                Appearance
-              </p>
-              <div className="mt-2">
-                <AppearanceSetting />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Portfolio (private files, shown via signed URLs) */}
         {isProfessional && (

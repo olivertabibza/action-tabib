@@ -160,7 +160,7 @@ export function Nav({
                   {displayName}
                 </span>
               )}
-              <ThemeToggle />
+              {!isGuest && <ThemeToggle />}
               {!isGuest && (
                 <Button
                   variant="outline"
@@ -203,7 +203,7 @@ export function Nav({
 
         {/* Mobile toggle */}
         <div className="flex items-center gap-1 md:hidden">
-          <ThemeToggle />
+          {!isGuest && <ThemeToggle />}
           <button
             type="button"
             aria-label={open ? "Close menu" : "Open menu"}

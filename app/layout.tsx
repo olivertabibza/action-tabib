@@ -22,8 +22,9 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 // Runs before first paint so the persisted (or OS-preferred) theme applies
-// with no flash. localStorage "light"/"dark" wins; otherwise follow the OS.
-const themeInitScript = `(function(){try{var t=localStorage.getItem("theme");if(t==="dark"||(t!=="light"&&window.matchMedia("(prefers-color-scheme: dark)").matches)){document.documentElement.classList.add("dark")}}catch(e){}})();`;
+// with no flash. A demo guest (the demo_theme=light cookie set by /demo) is
+// always light. Otherwise localStorage "light"/"dark" wins, then the OS.
+const themeInitScript = `(function(){try{if(("; "+document.cookie).indexOf("; demo_theme=light")>-1)return;var t=localStorage.getItem("theme");if(t==="dark"||(t!=="light"&&window.matchMedia("(prefers-color-scheme: dark)").matches)){document.documentElement.classList.add("dark")}}catch(e){}})();`;
 
 export const metadata: Metadata = {
   // Each page sets its own short title (UX B-32), shown as "Projects · Action".
