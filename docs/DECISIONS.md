@@ -2,6 +2,12 @@
 
 A running log of significant decisions. Newest entries go at the top.
 
+## 2026-11-24 — A signed-in user with no profile goes to /onboarding
+
+**Decision:** `destinationFor` (`lib/auth-dispatch.ts`) sends a signed-in user with no profile row, or a row with no `account_type`, to `/onboarding`. This replaces "park a missing profile on `/apply/pending`". Pending and rejected pros still go to `/apply/pending`. `/onboarding` sends anyone who already has a profile to their app, and sends demo guests to `/`. The Fan app admits only consumers, `/profile` sends a missing profile to `/onboarding`, and the profile actions return an error when an update matches no row.
+
+**Reasoning:** The profile is only inserted on the last onboarding step, so anyone who signed up and stopped early was stuck: told "You're on the list" on every sign-in, let into the Fan app, and shown saves that changed nothing, while never reaching the admin queue.
+
 ## 2026-11-15 — Demo guests for live events
 
 **Decision:** A QR code opens `/demo`, which signs a guest in with Supabase anonymous sign-in and lands them on `/dashboard` as an approved pro named "Guest N".

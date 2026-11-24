@@ -48,6 +48,12 @@ export default async function ProfilePage() {
     .eq("id", user.id)
     .maybeSingle();
 
+  // No profile row means onboarding was never finished; there's nothing to
+  // edit here (updates would match no row), so send them to finish it.
+  if (!profile) {
+    redirect("/onboarding");
+  }
+
   // UX B-13: a fan's own profile lives at /fan/profile (name only). This page's
   // form asks for a film role and headline, which fans don't have. Only the
   // owner's page redirects; /profile/[id] stays public.

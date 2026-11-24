@@ -87,7 +87,11 @@ export default async function Home() {
       .select("account_type, application_status")
       .eq("id", user.id)
       .maybeSingle();
-    redirect(destinationFor(profile));
+    // An anonymous demo guest with no profile can't onboard (/onboarding
+    // sends them back here), so they see the landing page instead of looping.
+    if (profile || !user.is_anonymous) {
+      redirect(destinationFor(profile));
+    }
   }
 
   // Latest from Action: the 3 newest published articles, feeding the article

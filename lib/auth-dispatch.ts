@@ -6,6 +6,11 @@
  * ended up in an infinite /dashboard → /home → / loop. Every one of those
  * callers now defers to this function.
  *
+ * Only call it for a signed-in user. A user with no profile row (or one with
+ * no account_type) never finished onboarding, so they go to /onboarding, which
+ * is the only place a profile is created. /onboarding itself never redirects
+ * back here for such a user, so there's no loop.
+ *
  * Kept dependency-free on purpose so it can run in the proxy (edge), in server
  * components, and in the client login page alike.
  */
@@ -15,6 +20,10 @@ export type ProfileRouting = {
 } | null;
 
 export function destinationFor(profile: ProfileRouting): string {
+  if (!profile?.account_type) {
+    return "/onboarding";
+  }
+
   if (profile?.account_type === "consumer") {
     return "/fan";
   }
@@ -26,7 +35,7 @@ export function destinationFor(profile: ProfileRouting): string {
     return "/dashboard";
   }
 
-  // Pending/rejected pros, and anything unexpected (missing profile, odd
+  // Pending/rejected pros, and anything unexpected (odd account_type or
   // status), park on the pending page rather than bouncing into the Pro app.
   return "/apply/pending";
 }

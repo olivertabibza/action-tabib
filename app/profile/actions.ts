@@ -6,6 +6,8 @@ import { createClient } from "@/lib/supabase/server";
 import { MAX_PORTFOLIO_FILES } from "@/lib/portfolio";
 import { profileSchema, type ProfileFormValues } from "./schema";
 
+const NO_PROFILE = "Finish setting up your account first.";
+
 /**
  * Server Action that saves the editable profile fields back to the signed-in
  * user's row. Runs only on the server, so the browser can never write to a
@@ -26,7 +28,9 @@ export async function updateProfile(values: ProfileFormValues) {
     return { error: "Your session has expired. Please log in again." };
   }
 
-  const { error } = await supabase
+  // .select("id") so an update that matched no row (no profile yet) is an
+  // error, not a silent success. Same for every update below.
+  const { data, error } = await supabase
     .from("profiles")
     .update({
       display_name: parsed.data.display_name,
@@ -35,10 +39,14 @@ export async function updateProfile(values: ProfileFormValues) {
       bio: parsed.data.bio,
       skills: parsed.data.skills,
     })
-    .eq("id", user.id);
+    .eq("id", user.id)
+    .select("id");
 
   if (error) {
     return { error: error.message };
+  }
+  if (!data?.length) {
+    return { error: NO_PROFILE };
   }
 
   // Refresh any server-rendered views that show these fields.
@@ -76,11 +84,12 @@ export async function setAvatarPath(path: string | null) {
     .eq("id", user.id)
     .maybeSingle();
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("profiles")
     .update({ avatar_path: path })
-    .eq("id", user.id);
-  if (error) {
+    .eq("id", user.id)
+    .select("id");
+  if (error || !data?.length) {
     return { error: "That photo couldn't be saved. Try again." };
   }
 
@@ -137,11 +146,12 @@ export async function addPortfolioFiles(paths: string[]) {
     };
   }
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("profiles")
     .update({ portfolio_files: [...current, ...paths] })
-    .eq("id", user.id);
-  if (error) {
+    .eq("id", user.id)
+    .select("id");
+  if (error || !data?.length) {
     return { error: "Those files couldn't be added. Try again." };
   }
 
@@ -169,11 +179,12 @@ export async function removePortfolioFile(path: string) {
     return { error: "That file couldn't be removed. Try again." };
   }
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("profiles")
     .update({ portfolio_files: current.filter((p) => p !== path) })
-    .eq("id", user.id);
-  if (error) {
+    .eq("id", user.id)
+    .select("id");
+  if (error || !data?.length) {
     return { error: "That file couldn't be removed. Try again." };
   }
 
