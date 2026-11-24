@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
       .eq("id", user.id)
       .maybeSingle();
     // A guest whose profile insert failed last time gets one now, on the same
-    // account, instead of being parked on /apply/pending.
+    // account (guests can't use /onboarding).
     if (profile || !user.is_anonymous) {
       if (user.is_anonymous) await forceLightTheme();
       return go(destinationFor(profile));
@@ -69,8 +69,7 @@ export async function GET(request: NextRequest) {
     .from("profiles")
     .insert({ id: user.id, email: "", account_type: "professional" });
   if (error) {
-    // Don't leave a profile-less guest signed in: "/" would park them on
-    // /apply/pending.
+    // Don't leave a profile-less guest signed in: they can't onboard.
     console.error("demo profile failed:", error.message);
     await supabase.auth.signOut();
     return go("/");

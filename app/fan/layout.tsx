@@ -8,8 +8,9 @@ import { FanShell } from "@/components/FanShell";
  * Access gate for the whole Fan (consumer) app, enforced in one place so the
  * pages below don't each repeat it (mirrors app/projects/layout.tsx):
  *   - logged-out         → /login (the proxy also guards /fan/*)
- *   - professional       → their own app (destinationFor); this app is
- *                          consumer-only
+ *   - anyone else        → where they belong (destinationFor): pros to
+ *                          their app, no profile to /onboarding; this app
+ *                          is consumer-only
  *   - consumer ("fan")   → render the Fan shell
  *
  * Renders the responsive Fan shell (FanShell): a bottom tab bar on mobile, a
@@ -36,7 +37,7 @@ export default async function FanLayout({
     .eq("id", user.id)
     .maybeSingle();
 
-  if (profile?.account_type === "professional") {
+  if (profile?.account_type !== "consumer") {
     redirect(destinationFor(profile));
   }
 

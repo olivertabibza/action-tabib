@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
+import { destinationFor } from "@/lib/auth-dispatch";
 import { createClient } from "@/lib/supabase/server";
 import { OnboardingFlow } from "./onboarding-flow";
 
@@ -16,6 +17,24 @@ export default async function OnboardingPage() {
   // Protected route — onboarding only makes sense for a signed-in user.
   if (!user) {
     redirect("/signup");
+  }
+
+  // Demo guests get their profile from /demo only.
+  if (user.is_anonymous) {
+    redirect("/");
+  }
+
+  // Already onboarded: go where they belong, so nobody can submit a second
+  // insert. destinationFor sends a profile with no account_type back here, so
+  // only redirect when it points somewhere else (no loop).
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("account_type, application_status")
+    .eq("id", user.id)
+    .maybeSingle();
+  const destination = destinationFor(profile);
+  if (destination !== "/onboarding") {
+    redirect(destination);
   }
 
   // Set at signup from the button they tapped (UX B-04 / PX F07), so they

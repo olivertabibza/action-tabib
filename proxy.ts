@@ -60,8 +60,8 @@ export async function proxy(request: NextRequest) {
 
   // Logged-in users shouldn't see the login/signup pages — send them straight
   // into their app. destinationFor (lib/auth-dispatch.ts) owns that rule:
-  // consumers → /fan, approved pros → /dashboard, everyone else (pending or
-  // rejected pros, missing profile) → /apply/pending. The profiles query is
+  // consumers → /fan, approved pros → /dashboard, missing profile →
+  // /onboarding, everyone else (pending or rejected pros) → /apply/pending. The profiles query is
   // guarded to this branch so it only runs on the auth-page redirect, never on
   // every request.
   if (user && isAuthPage) {
